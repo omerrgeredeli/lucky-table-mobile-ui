@@ -7,6 +7,9 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Modal,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { signup } from '../../services/authService';
@@ -24,10 +27,57 @@ const SignupScreen = () => {
 
   // Local state - sadece bu ekrana özel
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [kvkkAccepted, setKvkkAccepted] = useState(false);
+  const [emailConsent, setEmailConsent] = useState(false);
+  const [showKvkkModal, setShowKvkkModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Şifre validasyon kuralları - her kuralı ayrı kontrol et
+  const passwordRules = [
+    {
+      label: 'En az 8 karakter',
+      test: (pwd) => pwd.length >= 8,
+    },
+    {
+      label: 'En az 1 büyük harf',
+      test: (pwd) => /[A-Z]/.test(pwd),
+    },
+    {
+      label: 'En az 1 küçük harf',
+      test: (pwd) => /[a-z]/.test(pwd),
+    },
+    {
+      label: 'En az 1 rakam',
+      test: (pwd) => /[0-9]/.test(pwd),
+    },
+    {
+      label: 'En az 1 noktalama işareti',
+      test: (pwd) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
+    },
+  ];
+
+  // Şifre validasyonu - detaylı kontrol
+  const validatePassword = (pwd) => {
+    const errors = [];
+    passwordRules.forEach((rule) => {
+      if (!rule.test(pwd)) {
+        errors.push(rule.label);
+      }
+    });
+    return errors;
+  };
+
+  // Telefon numarası validasyonu
+  const validatePhoneNumber = (phone) => {
+    // Türkiye telefon formatı: 05XX XXX XX XX veya +90 5XX XXX XX XX
+    const phoneRegex = /^(\+90|0)?[5][0-9]{9}$/;
+    const cleanedPhone = phone.replace(/\s/g, '').replace(/[()-]/g, '');
+    return phoneRegex.test(cleanedPhone);
+  };
 
   // Form validasyonu
   const validateForm = () => {
@@ -39,16 +89,29 @@ const SignupScreen = () => {
       newErrors.email = 'Geçerli bir email adresi giriniz';
     }
 
+    if (!phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Cep telefonu numarası gereklidir';
+    } else if (!validatePhoneNumber(phoneNumber)) {
+      newErrors.phoneNumber = 'Geçerli bir telefon numarası giriniz (05XX XXX XX XX)';
+    }
+
     if (!password.trim()) {
       newErrors.password = 'Şifre gereklidir';
-    } else if (password.length < 6) {
-      newErrors.password = 'Şifre en az 6 karakter olmalıdır';
+    } else {
+      const passwordErrors = validatePassword(password);
+      if (passwordErrors.length > 0) {
+        newErrors.password = passwordErrors.join(', ');
+      }
     }
 
     if (!confirmPassword.trim()) {
       newErrors.confirmPassword = 'Şifre tekrarı gereklidir';
     } else if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Şifreler eşleşmiyor';
+    }
+
+    if (!kvkkAccepted) {
+      newErrors.kvkk = 'KVKK şartlarını kabul etmelisiniz';
     }
 
     setErrors(newErrors);
@@ -107,13 +170,42 @@ const SignupScreen = () => {
           />
 
           <Input
+            label="Cep Telefonu"
+            placeholder="05XX XXX XX XX"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            keyboardType="phone-pad"
+            error={errors.phoneNumber}
+          />
+
+          <Input
             label="Şifre"
-            placeholder="En az 6 karakter"
+            placeholder="Şifrenizi giriniz"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             error={errors.password}
           />
+
+          {/* Şifre Validasyon Kuralları */}
+          {password.length > 0 && (
+            <View style={styles.validationContainer}>
+              {passwordRules.map((rule, index) => {
+                const isValid = rule.test(password);
+                return (
+                  <View key={index} style={styles.validationItem}>
+                    <Text
+                      style={[
+                        styles.validationText,
+                        isValid ? styles.validationTextSuccess : styles.validationTextError,
+                      ]}
+                    >
+                      {isValid ? '✓' : '✗'} {rule.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
 
           <Input
             label="Şifre Tekrar"
@@ -123,6 +215,48 @@ const SignupScreen = () => {
             secureTextEntry
             error={errors.confirmPassword}
           />
+
+          {/* KVKK ve E-posta Onayları */}
+          <View style={styles.consentContainer}>
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => setKvkkAccepted(!kvkkAccepted)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, kvkkAccepted && styles.checkboxChecked]}>
+                {kvkkAccepted && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <View style={styles.checkboxTextContainer}>
+                <Text style={styles.checkboxText}>
+                  <Text
+                    style={styles.checkboxTextLink}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setShowKvkkModal(true);
+                    }}
+                  >
+                    KVKK şartlarını
+                  </Text>
+                  <Text style={styles.checkboxTextNormal}> onaylıyorum</Text>
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {errors.kvkk && (
+              <Text style={styles.consentError}>{errors.kvkk}</Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => setEmailConsent(!emailConsent)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, emailConsent && styles.checkboxChecked]}>
+                {emailConsent && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.checkboxText}>Reklam ve tanıtım için e-posta onayı veriyorum</Text>
+            </TouchableOpacity>
+          </View>
 
           <Button
             title="Kayıt Ol"
@@ -141,6 +275,78 @@ const SignupScreen = () => {
           </View>
         </View>
       </ScrollView>
+
+      {/* KVKK Modal */}
+      <Modal
+        visible={showKvkkModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowKvkkModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowKvkkModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>KVKK Aydınlatma Metni</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowKvkkModal(false)}
+                    style={styles.modalCloseButton}
+                  >
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.modalBody}>
+                  <Text style={styles.modalText}>
+                    <Text style={styles.modalTextBold}>1. Veri Sorumlusu:</Text>
+                    {'\n\n'}
+                    Lucky Table uygulaması kapsamında kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca işlenmektedir.
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>2. İşlenen Kişisel Veriler:</Text>
+                    {'\n\n'}
+                    • E-posta adresi{'\n'}
+                    • Telefon numarası{'\n'}
+                    • Şifre (şifrelenmiş olarak){'\n'}
+                    • Konum bilgisi (izin verilmesi halinde){'\n'}
+                    • Kullanım verileri
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>3. Veri İşleme Amaçları:</Text>
+                    {'\n\n'}
+                    • Hesap oluşturma ve yönetimi{'\n'}
+                    • Hizmet sunumu{'\n'}
+                    • İletişim ve müşteri desteği{'\n'}
+                    • Yasal yükümlülüklerin yerine getirilmesi
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>4. Veri İşleme Hukuki Sebepleri:</Text>
+                    {'\n\n'}
+                    • Açık rıza{'\n'}
+                    • Sözleşmenin kurulması ve ifası{'\n'}
+                    • Yasal yükümlülüklerin yerine getirilmesi
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>5. Verilerin Paylaşılması:</Text>
+                    {'\n\n'}
+                    Kişisel verileriniz, yukarıda belirtilen amaçlar doğrultusunda, yasal zorunluluklar çerçevesinde yetkili kamu kurum ve kuruluşları ile paylaşılabilir.
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>6. Haklarınız:</Text>
+                    {'\n\n'}
+                    KVKK'nın 11. maddesi uyarınca, kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işleme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, silinmesini veya yok edilmesini isteme, düzeltme/silme/yok etme işlemlerinin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemler ile analiz edilmesi nedeniyle aleyhinize bir sonuç doğmasına itiraz etme ve kanuna aykırı işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz.
+                    {'\n\n'}
+                    <Text style={styles.modalTextBold}>7. İletişim:</Text>
+                    {'\n\n'}
+                    Haklarınızı kullanmak için bizimle iletişime geçebilirsiniz.
+                  </Text>
+                </ScrollView>
+                <View style={styles.modalFooter}>
+                  <Button
+                    title="Kapat"
+                    onPress={() => setShowKvkkModal(false)}
+                  />
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -187,6 +393,132 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.primary,
     fontWeight: typography.fontWeight.semibold,
+  },
+  validationContainer: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  validationItem: {
+    marginBottom: spacing.xs,
+  },
+  validationText: {
+    fontSize: typography.fontSize.xs,
+    marginLeft: spacing.sm,
+  },
+  validationTextError: {
+    color: colors.error,
+  },
+  validationTextSuccess: {
+    color: colors.success,
+  },
+  consentContainer: {
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 4,
+    marginRight: spacing.sm,
+    marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  checkboxTextContainer: {
+    flex: 1,
+  },
+  checkboxText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+  checkboxTextNormal: {
+    color: colors.textPrimary,
+  },
+  checkboxTextLink: {
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
+    textDecorationLine: 'underline',
+  },
+  consentError: {
+    color: colors.error,
+    fontSize: typography.fontSize.xs,
+    marginLeft: 28,
+    marginTop: -spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.md,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    ...shadows.large,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 24,
+    color: colors.textSecondary,
+  },
+  modalBody: {
+    padding: spacing.lg,
+    maxHeight: 400,
+  },
+  modalText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    lineHeight: 22,
+  },
+  modalTextBold: {
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
 });
 

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getUserLoyaltyInfo } from '../../../services/userService';
 import { colors, spacing, typography, shadows } from '../../../theme';
 
@@ -17,17 +18,15 @@ import { colors, spacing, typography, shadows } from '../../../theme';
  * Bu component tamamen bağımsızdır, kendi state'ini yönetir
  */
 const LoyaltyList = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const navigation = useNavigation();
   const [loyaltyData, setLoyaltyData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Liste açıldığında veriyi çek
+  // Component mount olduğunda veriyi çek
   useEffect(() => {
-    if (isExpanded && loyaltyData.length === 0) {
-      fetchLoyaltyInfo();
-    }
-  }, [isExpanded]);
+    fetchLoyaltyInfo();
+  }, []);
 
   // API çağrısı - sadece bu component'e özel
   const fetchLoyaltyInfo = async () => {
@@ -44,10 +43,8 @@ const LoyaltyList = () => {
     }
   };
 
-  // Liste toggle
-  const toggleList = () => {
-    setIsExpanded(!isExpanded);
-  };
+  // İlk 3 kafeyi göster
+  const displayedCafes = loyaltyData.slice(0, 3);
 
   // Kafe item render
   const renderCafeItem = ({ item }) => {
@@ -75,32 +72,35 @@ const LoyaltyList = () => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={toggleList}>
-        <Text style={styles.headerText}>Sipariş & Sadakat Bilgileri</Text>
-        <Text style={styles.toggleIcon}>{isExpanded ? '▼' : '▶'}</Text>
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>Sadakat Bilgileri</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('LoyaltyDetails')}
+          style={styles.viewAllButton}
+        >
+          <Text style={styles.viewAllText}>Tümünü Gör →</Text>
+        </TouchableOpacity>
+      </View>
 
-      {isExpanded && (
-        <View style={styles.content}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.loadingText}>Yükleniyor...</Text>
-            </View>
-          ) : error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : loyaltyData.length === 0 ? (
-            <Text style={styles.emptyText}>Henüz sipariş geçmişiniz bulunmuyor.</Text>
-          ) : (
-            <FlatList
-              data={loyaltyData}
-              renderItem={renderCafeItem}
-              keyExtractor={(item, index) => `cafe-${index}`}
-              scrollEnabled={false}
-            />
-          )}
-        </View>
-      )}
+      <View style={styles.content}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingText}>Yükleniyor...</Text>
+          </View>
+        ) : error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : displayedCafes.length === 0 ? (
+          <Text style={styles.emptyText}>Henüz sipariş geçmişiniz bulunmuyor.</Text>
+        ) : (
+          <FlatList
+            data={displayedCafes}
+            renderItem={renderCafeItem}
+            keyExtractor={(item, index) => `cafe-${index}`}
+            scrollEnabled={false}
+          />
+        )}
+      </View>
     </View>
   );
 };
@@ -121,13 +121,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerText: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
   },
-  toggleIcon: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
+  viewAllButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  viewAllText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
   },
   content: {
     padding: spacing.md,

@@ -9,8 +9,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, shadows } from '../../theme';
 import LoyaltyList from './components/LoyaltyList';
-import CafeSearch from './components/CafeSearch';
-import NearbyCafesMap from './components/NearbyCafesMap';
 
 /**
  * Home Screen - Micro-Screen Architecture
@@ -21,41 +19,21 @@ const HomeScreen = () => {
   const navigation = useNavigation();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* A. Kullanıcı Sipariş & Sadakat Bilgileri */}
-      <LoyaltyList />
-
-      {/* B. Kafe Arama */}
-      <CafeSearch />
-
-      {/* C. Yakındaki Kafeler (Harita) */}
-      <NearbyCafesMap />
-
-      {/* D. Profil İşlemleri */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Profil İşlemleri</Text>
-        <View style={styles.profileButtons}>
-          <TouchableOpacity
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('Profile', { mode: 'view' })}
-          >
-            <Text style={styles.profileButtonText}>Profil Görüntüle</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.profileButton, styles.profileButtonSecondary]}
-            onPress={() => navigation.navigate('Profile', { mode: 'edit' })}
-          >
-            <Text style={[styles.profileButtonText, styles.profileButtonTextSecondary]}>
-              Profil Düzenle
-            </Text>
-          </TouchableOpacity>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hoşgeldin Yazısı */}
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeText}>Hoşgeldin</Text>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Sadakat Bilgileri */}
+        <LoyaltyList />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -64,49 +42,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollView: {
+    flex: 1,
+  },
   contentContainer: {
     padding: spacing.md,
   },
-  profileSection: {
-    backgroundColor: colors.surface,
-    borderRadius: spacing.md - 4, // 12
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    ...shadows.medium,
+  welcomeContainer: {
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
+  welcomeText: {
+    fontSize: typography.fontSize.xxl,
+    fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm + 4, // 12
-  },
-  profileButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  profileButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm + 4, // 12
-    paddingHorizontal: spacing.md,
-    borderRadius: spacing.sm,
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  profileButtonSecondary: {
-    backgroundColor: colors.transparent,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    marginRight: 0,
-    marginLeft: spacing.sm,
-  },
-  profileButtonText: {
-    color: colors.white,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  profileButtonTextSecondary: {
-    color: colors.primary,
   },
 });
 

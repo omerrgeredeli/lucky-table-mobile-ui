@@ -1,8 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors, typography } from '../theme';
-import HomeScreen from '../screens/home/HomeScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import BottomTabNavigator from './BottomTabNavigator';
+import LoyaltyDetailsScreen from '../screens/loyalty/LoyaltyDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,17 +24,17 @@ const AppStack = () => {
       }}
     >
       <Stack.Screen 
-        name="Home" 
-        component={HomeScreen}
+        name="MainTabs" 
+        component={BottomTabNavigator}
         options={{
-          title: 'Lucky Table',
+          headerShown: false,
         }}
       />
       <Stack.Screen 
-        name="Profile" 
-        component={ProfileScreen}
+        name="LoyaltyDetails" 
+        component={LoyaltyDetailsScreen}
         options={{
-          title: 'Profil',
+          title: 'Sadakat Bilgileri',
         }}
       />
     </Stack.Navigator>

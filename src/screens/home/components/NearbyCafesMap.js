@@ -114,31 +114,17 @@ const NearbyCafesMap = () => {
                 Konum: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
               </Text>
             )}
-          </View>
-
-          {/* Kafe listesi */}
-          <View style={styles.cafesList}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Yükleniyor...</Text>
+            {nearbyCafes.length > 0 && (
+              <View style={styles.markersContainer}>
+                <Text style={styles.markersText}>
+                  {nearbyCafes.length} kafe harita üzerinde gösteriliyor
+                </Text>
+                {nearbyCafes.slice(0, 5).map((cafe, index) => (
+                  <View key={index} style={styles.markerItem}>
+                    <Text style={styles.markerText}>📍 {cafe.name || 'Kafe'}</Text>
+                  </View>
+                ))}
               </View>
-            ) : nearbyCafes.length === 0 ? (
-              <Text style={styles.emptyText}>Yakınınızda kafe bulunamadı.</Text>
-            ) : (
-              nearbyCafes.slice(0, 5).map((cafe, index) => (
-                <View key={index} style={styles.cafeItem}>
-                  <Text style={styles.cafeName}>{cafe.name || 'Kafe Adı'}</Text>
-                  {cafe.address && (
-                    <Text style={styles.cafeAddress}>{cafe.address}</Text>
-                  )}
-                  {cafe.distance && (
-                    <Text style={styles.cafeDistance}>
-                      {cafe.distance.toFixed(2)} km uzaklıkta
-                    </Text>
-                  )}
-                </View>
-              ))
             )}
           </View>
         </>
@@ -193,15 +179,15 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semibold,
   },
   mapPlaceholder: {
-    height: 200,
+    height: 300,
     backgroundColor: colors.background,
     borderRadius: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
+    padding: spacing.md,
   },
   mapPlaceholderText: {
     fontSize: typography.fontSize.xl,
@@ -210,46 +196,26 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: typography.fontSize.xs,
     color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
-  cafesList: {
-    marginTop: spacing.sm,
+  markersContainer: {
+    marginTop: spacing.md,
+    width: '100%',
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg - 4, // 20
-  },
-  loadingText: {
-    marginLeft: spacing.sm,
-    color: colors.textSecondary,
-  },
-  emptyText: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    padding: spacing.lg - 4, // 20
-  },
-  cafeItem: {
-    padding: spacing.sm + 4, // 12
-    marginBottom: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: spacing.sm,
-  },
-  cafeName: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
+  markersText: {
+    fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
+    fontWeight: typography.fontWeight.semibold,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  markerItem: {
+    padding: spacing.xs,
     marginBottom: spacing.xs,
   },
-  cafeAddress: {
+  markerText: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  cafeDistance: {
-    fontSize: typography.fontSize.xs,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.medium,
   },
 });
 
