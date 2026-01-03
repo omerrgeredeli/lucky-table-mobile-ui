@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Lucky Table",
+    "slug": "lucky-table",
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "73f7eb31-742c-4dd6-8447-61a7a6a3a224"
+      }
+    },
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2ECC71"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.luckytable.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2ECC71"
+      },
+      "package": "com.luckytable.app",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Lucky Table",
+      "shortName": "Lucky Table",
+      "lang": "tr",
+      "scope": "/",
+      "themeColor": "#2ECC71",
+      "backgroundColor": "#2ECC71"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Lucky Table to use your location."
+        }
+      ]
+    ]
+  }
+}
+

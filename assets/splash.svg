@@ -1,0 +1,20 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Arka plan -->
+  <rect width="1024" height="1024" fill="#2ECC71"/>
+  
+  <!-- Masa (Table) -->
+  <rect x="240" y="560" width="544" height="64" rx="32" fill="#FFFFFF"/>
+  <!-- Masa ayakları -->
+  <rect x="280" y="624" width="48" height="160" rx="24" fill="#27AE60"/>
+  <rect x="696" y="624" width="48" height="160" rx="24" fill="#27AE60"/>
+  
+  <!-- Şans sembolü (Yıldız - büyük) -->
+  <path d="M512 160 L560 320 L720 320 L592 416 L640 576 L512 496 L384 576 L432 416 L304 320 L464 320 Z" fill="#F39C12"/>
+  
+  <!-- Alt yıldız (küçük) -->
+  <path d="M512 800 L544 880 L624 880 L576 928 L608 1008 L512 960 L416 1008 L448 928 L400 880 L480 880 Z" fill="#1ABC9C"/>
+  
+  <!-- "Lucky Table" yazısı -->
+  <text x="512" y="720" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#FFFFFF" text-anchor="middle">Lucky Table</text>
+</svg>
+
