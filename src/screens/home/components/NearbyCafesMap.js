@@ -6,14 +6,38 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Platform,
+  Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../../theme';
 
+// Web için MapView'i conditional import et - sadece native'de yükle
+let MapView, Marker, Callout, PROVIDER_GOOGLE, PROVIDER_DEFAULT;
+let mapsLoaded = false;
+
+const loadMaps = async () => {
+  if (Platform.OS === 'web' || mapsLoaded) {
+    return;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+    Callout = Maps.Callout;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+    mapsLoaded = true;
+  } catch (error) {
+    console.warn('react-native-maps could not be loaded:', error);
+  }
+};
+
 /**
  * NearbyCafesMap Component - Micro-Screen Architecture
- * Yakındaki kafeleri gösterir (harita placeholder)
+ * Yakındaki kafeleri gerçek harita üzerinde gösterir
  * Bu component tamamen bağımsızdır, kendi state'ini yönetir
  */
 const NearbyCafesMap = () => {
@@ -21,51 +45,174 @@ const NearbyCafesMap = () => {
   const [loading, setLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [mapRegion, setMapRegion] = useState(null);
+  const [error, setError] = useState(null);
+  const [mapsReady, setMapsReady] = useState(false);
 
-  // Component mount olduğunda konum izni iste
+  // Component mount olduğunda maps'i yükle ve konum izni iste
   useEffect(() => {
-    requestLocationPermission();
+    const initialize = async () => {
+      try {
+        setLoading(true);
+        if (Platform.OS !== 'web') {
+          await loadMaps();
+          // Maps yüklendikten sonra kısa bir gecikme ekle (Android crash önleme)
+          await new Promise(resolve => setTimeout(resolve, 100));
+          setMapsReady(true);
+        } else {
+          setMapsReady(true);
+        }
+        // Konum izni iste
+        requestLocationPermission();
+      } catch (error) {
+        console.error('Map initialization error:', error);
+        setError('Harita yüklenirken bir hata oluştu.');
+        setMapsReady(true); // Hata olsa bile ready yap ki fallback gösterilsin
+        setLoading(false);
+      }
+    };
+    initialize();
   }, []);
+  
+  // AppState değişikliğini dinle (ayarlardan dönünce konum iznini yeniden kontrol et)
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    
+    const { AppState } = require('react-native');
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && !locationPermission) {
+        // Ayarlardan dönünce permission'ı yeniden kontrol et
+        setTimeout(() => {
+          requestLocationPermission();
+        }, 500);
+      }
+    });
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [locationPermission]);
 
-  // Konum izni iste
+  // Konum izni iste - AppState ile yeniden kontrol
   const requestLocationPermission = async () => {
     try {
+      setLoading(true);
+      // Önce mevcut izin durumunu kontrol et
+      const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+      
+      if (existingStatus === 'granted') {
+        setLocationPermission(true);
+        setLoading(false);
+        // Kısa bir gecikme ile konum al (permission state güncellensin)
+        setTimeout(() => {
+          getCurrentLocation();
+        }, 100);
+        return;
+      }
+
+      // İzin yoksa iste
       const { status } = await Location.requestForegroundPermissionsAsync();
       setLocationPermission(status === 'granted');
+      setLoading(false);
 
       if (status === 'granted') {
-        getCurrentLocation();
+        // Kısa bir gecikme ile konum al
+        setTimeout(() => {
+          getCurrentLocation();
+        }, 100);
+      } else {
+        setError('Konum izni verilmedi. Haritayı görmek için ayarlardan izin verebilirsiniz.');
       }
     } catch (error) {
       console.error('Location permission error:', error);
       setLocationPermission(false);
+      setLoading(false);
+      setError('Konum izni alınırken bir hata oluştu.');
     }
   };
 
-  // Mevcut konumu al
+  // Mevcut konumu al - Timeout ve error handling ile
   const getCurrentLocation = async () => {
     try {
-      const location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
+      setError(null);
+      setLoading(true);
+      
+      // Timeout ile konum alma (15 saniye)
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 15000, // 15 saniye timeout
+      });
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Konum alma zaman aşımına uğradı')), 15000);
+      });
+      
+      const location = await Promise.race([locationPromise, timeoutPromise]);
+      
+      if (!location || !location.coords) {
+        throw new Error('Konum bilgisi alınamadı');
+      }
+      
+      const coords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      });
+      };
+      
+      // Koordinatları validate et
+      if (!coords.latitude || !coords.longitude || 
+          isNaN(coords.latitude) || isNaN(coords.longitude)) {
+        throw new Error('Geçersiz konum bilgisi');
+      }
+      
+      setUserLocation(coords);
+      
+      // Harita bölgesini ayarla (kullanıcı konumu merkez, şehir merkezine zoom)
+      // Şehir merkezine zoom için daha geniş delta değerleri kullan
+      const newRegion = {
+        ...coords,
+        latitudeDelta: 0.05, // Şehir merkezine zoom (yaklaşık 5-6 km görüş alanı)
+        longitudeDelta: 0.05,
+      };
+      
+      // Region'ı güvenli şekilde set et (Android crash önleme)
+      setMapRegion(newRegion);
+      
       // Konum alındıktan sonra yakındaki kafeleri getir
-      fetchNearbyCafes(location.coords.latitude, location.coords.longitude);
+      await fetchNearbyCafes(coords.latitude, coords.longitude);
+      
+      setLoading(false);
     } catch (error) {
       console.error('Get location error:', error);
-      Alert.alert('Hata', 'Konum alınamadı. Lütfen tekrar deneyin.');
+      setLoading(false);
+      const errorMessage = error.message || 'Konum alınamadı. Lütfen tekrar deneyin.';
+      setError(errorMessage);
+      
+      if (Platform.OS === 'web') {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Hata', errorMessage, [
+          { text: 'Tekrar Dene', onPress: () => getCurrentLocation() },
+          { text: 'Tamam', style: 'cancel' },
+        ]);
+      }
     }
   };
 
-  // Yakındaki kafeleri getir
+  // Yakındaki kafeleri getir - Dummy cafe verileri haritada gösterilecek
   const fetchNearbyCafes = async (latitude, longitude) => {
     setLoading(true);
     try {
       const cafes = await getNearbyCafes(latitude, longitude);
+      // Dummy cafe verileri - sadece bu uygulamaya ait kafeler
+      // Gerçek Google Maps üzerinde marker olarak gösterilecek
       setNearbyCafes(cafes || []);
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Yakındaki kafeler yüklenemedi.');
+      console.error('Error fetching cafes:', error);
+      if (Platform.OS === 'web') {
+        window.alert(error.message || 'Yakındaki kafeler yüklenemedi.');
+      } else {
+        Alert.alert('Hata', error.message || 'Yakındaki kafeler yüklenemedi.');
+      }
       setNearbyCafes([]);
     } finally {
       setLoading(false);
@@ -83,12 +230,109 @@ const NearbyCafesMap = () => {
     }
   };
 
+  // Ayarlara yönlendir
+  const openSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
+
+  // Harita provider seçimi (Android için Google Maps zorunlu, iOS için default)
+  // Google Maps gerçek harita render eder
+  const mapProvider = Platform.OS === 'android' && PROVIDER_GOOGLE 
+    ? PROVIDER_GOOGLE 
+    : Platform.OS === 'ios' && PROVIDER_DEFAULT 
+    ? PROVIDER_DEFAULT 
+    : null;
+  
+  // MapView render edilmeden önce tüm kontrolleri yap (Android crash önleme)
+  // canRenderMap değişkenini component içinde tanımla
+  const canRenderMap = MapView && 
+                       mapsReady && 
+                       typeof MapView !== 'undefined' && 
+                       mapProvider && 
+                       mapRegion && 
+                       mapRegion.latitude && 
+                       mapRegion.longitude &&
+                       !isNaN(mapRegion.latitude) &&
+                       !isNaN(mapRegion.longitude);
+
+  // Web için fallback render
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Yakındaki Kafeler</Text>
+          <TouchableOpacity onPress={handleRefresh} disabled={loading}>
+            <Text style={[styles.refreshButton, loading && styles.refreshButtonDisabled]}>
+              {loading ? 'Yükleniyor...' : 'Yenile'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {!locationPermission ? (
+          <View style={styles.permissionContainer}>
+            <Text style={styles.permissionText}>
+              Yakındaki kafeleri görmek için konum izni gereklidir.
+            </Text>
+            <TouchableOpacity
+              style={styles.permissionButton}
+              onPress={requestLocationPermission}
+            >
+              <Text style={styles.permissionButtonText}>İzin Ver</Text>
+            </TouchableOpacity>
+            {error && (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={openSettings}
+              >
+                <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <View style={styles.webMapContainer}>
+            <Text style={styles.webMapText}>🗺️ Harita Görünümü</Text>
+            <Text style={styles.webMapInfo}>
+              Harita özelliği mobil cihazlarda kullanılabilir.
+            </Text>
+            {userLocation && (
+              <Text style={styles.locationText}>
+                Konum: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+              </Text>
+            )}
+            {nearbyCafes.length > 0 && (
+              <View style={styles.markersContainer}>
+                <Text style={styles.markersText}>
+                  {nearbyCafes.length} kafe bulundu
+                </Text>
+                {nearbyCafes.slice(0, 5).map((cafe, index) => (
+                  <View key={index} style={styles.markerItem}>
+                    <Text style={styles.markerText}>📍 {cafe.name || 'Kafe'}</Text>
+                    {cafe.address && (
+                      <Text style={styles.markerAddress}>{cafe.address}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // Native platformlar için gerçek harita
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Yakındaki Kafeler</Text>
         <TouchableOpacity onPress={handleRefresh} disabled={loading}>
-          <Text style={styles.refreshButton}>Yenile</Text>
+          <Text style={[styles.refreshButton, loading && styles.refreshButtonDisabled]}>
+            {loading ? 'Yükleniyor...' : 'Yenile'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -103,30 +347,120 @@ const NearbyCafesMap = () => {
           >
             <Text style={styles.permissionButtonText}>İzin Ver</Text>
           </TouchableOpacity>
+          {error && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={openSettings}
+            >
+              <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : !mapsReady ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Harita yükleniyor...</Text>
+        </View>
+      ) : !mapRegion ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Konum alınıyor...</Text>
         </View>
       ) : (
         <>
-          {/* Harita placeholder - gerçek harita implementasyonu için react-native-maps kullanılabilir */}
-          <View style={styles.mapPlaceholder}>
-            <Text style={styles.mapPlaceholderText}>🗺️ Harita Görünümü</Text>
-            {userLocation && (
-              <Text style={styles.locationText}>
-                Konum: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-              </Text>
-            )}
-            {nearbyCafes.length > 0 && (
-              <View style={styles.markersContainer}>
-                <Text style={styles.markersText}>
-                  {nearbyCafes.length} kafe harita üzerinde gösteriliyor
-                </Text>
-                {nearbyCafes.slice(0, 5).map((cafe, index) => (
-                  <View key={index} style={styles.markerItem}>
-                    <Text style={styles.markerText}>📍 {cafe.name || 'Kafe'}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          {/* Gerçek Harita - Android crash önleme: Tüm kontroller yapıldıktan sonra render et */}
+          {canRenderMap ? (
+            <View style={styles.mapContainer}>
+              <MapView
+                provider={mapProvider}
+                style={styles.map}
+                initialRegion={mapRegion}
+                region={mapRegion}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+                onRegionChangeComplete={(newRegion) => {
+                  // Region değişikliğini güvenli şekilde handle et
+                  if (newRegion && newRegion.latitude && newRegion.longitude) {
+                    setMapRegion(newRegion);
+                  }
+                }}
+                mapType="standard"
+                onError={(error) => {
+                  console.error('MapView error:', error);
+                  setError('Harita yüklenirken bir hata oluştu.');
+                  // Hata durumunda loading state'i kapat
+                  setLoading(false);
+                }}
+                onMapReady={() => {
+                  console.log('Map is ready');
+                  setLoading(false);
+                }}
+                loadingEnabled={true}
+                loadingIndicatorColor={colors.primary}
+                // Android crash önleme: minZoomLevel ve maxZoomLevel ekle
+                minZoomLevel={10}
+                maxZoomLevel={20}
+                // Android için ek güvenlik
+                moveOnMarkerPress={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+              {/* Kafe Marker'ları - Gerçek Google Maps üzerinde gösterilecek */}
+              {nearbyCafes.map((cafe, index) => {
+                if (!cafe.latitude || !cafe.longitude) return null;
+                
+                return (
+                  <Marker
+                    key={`cafe-${cafe.id || index}`}
+                    coordinate={{
+                      latitude: cafe.latitude,
+                      longitude: cafe.longitude,
+                    }}
+                    title={cafe.name || 'Kafe'}
+                    description={cafe.address || ''}
+                    pinColor={colors.primary} // Lucky Table marka rengi
+                  >
+                    <Callout>
+                      <View style={styles.calloutContainer}>
+                        <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
+                        {cafe.address && (
+                          <Text style={styles.calloutAddress}>{cafe.address}</Text>
+                        )}
+                        {cafe.distance && (
+                          <Text style={styles.calloutDistance}>
+                            {cafe.distance.toFixed(2)} km uzaklıkta
+                          </Text>
+                        )}
+                        <Text style={styles.calloutBadge}>✓ Lucky Table Partner</Text>
+                      </View>
+                    </Callout>
+                  </Marker>
+                );
+              })}
+              </MapView>
+            </View>
+          ) : (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Harita yükleniyor...</Text>
+              {error && (
+                <Text style={styles.errorText}>{error}</Text>
+              )}
+            </View>
+          )}
+          
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Kafeler yükleniyor...</Text>
+            </View>
+          )}
+          
+          {nearbyCafes.length === 0 && !loading && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Yakınınızda kafe bulunamadı.</Text>
+            </View>
+          )}
         </>
       )}
     </View>
@@ -136,7 +470,7 @@ const NearbyCafesMap = () => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: spacing.md - 4, // 12
+    borderRadius: spacing.md,
     padding: spacing.md,
     marginBottom: spacing.md,
     ...shadows.medium,
@@ -145,7 +479,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm + 4, // 12
+    marginBottom: spacing.sm,
   },
   title: {
     fontSize: typography.fontSize.lg,
@@ -157,8 +491,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semibold,
   },
+  refreshButtonDisabled: {
+    opacity: 0.5,
+  },
   permissionContainer: {
-    padding: spacing.lg - 4, // 20
+    padding: spacing.lg,
     alignItems: 'center',
   },
   permissionText: {
@@ -169,16 +506,108 @@ const styles = StyleSheet.create({
   },
   permissionButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg - 4, // 20
-    paddingVertical: spacing.sm + 2, // 10
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: spacing.sm,
+    marginBottom: spacing.sm,
   },
   permissionButtonText: {
     color: colors.white,
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.semibold,
   },
-  mapPlaceholder: {
+  settingsButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  settingsButtonText: {
+    color: colors.primary,
+    fontSize: typography.fontSize.sm,
+    textDecorationLine: 'underline',
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: spacing.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+  },
+  map: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  loadingContainer: {
+    height: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: spacing.sm,
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: spacing.md + 40, // header height + padding
+    left: spacing.md,
+    right: spacing.md,
+    height: 300,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: spacing.sm,
+  },
+  emptyContainer: {
+    height: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  errorText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.error || '#FF3B30',
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  calloutContainer: {
+    width: 200,
+    padding: spacing.sm,
+  },
+  calloutTitle: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  calloutAddress: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  calloutDistance: {
+    fontSize: typography.fontSize.xs,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  calloutBadge: {
+    fontSize: typography.fontSize.xs,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.bold,
+    marginTop: spacing.xs,
+    padding: spacing.xs,
+    backgroundColor: colors.primary + '20',
+    borderRadius: spacing.xs,
+    textAlign: 'center',
+  },
+  webMapContainer: {
     height: 300,
     backgroundColor: colors.background,
     borderRadius: spacing.sm,
@@ -189,9 +618,15 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     padding: spacing.md,
   },
-  mapPlaceholderText: {
+  webMapText: {
     fontSize: typography.fontSize.xl,
     marginBottom: spacing.sm,
+  },
+  webMapInfo: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   locationText: {
     fontSize: typography.fontSize.xs,
@@ -217,7 +652,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
   },
+  markerAddress: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
 });
 
 export default NearbyCafesMap;
-

@@ -14,16 +14,33 @@
 // - Local: 'http://localhost:3000/api'
 // - Local Network: 'http://172.20.10.3:3000/api' (kendi IP'nizi yazın)
 // - Production: 'https://your-backend-api.com/api'
-// - Backend yoksa: null (mock data kullanılır)
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 
-// Development modunda mock data kullanmak için
-// Backend yoksa veya test için true yapın
-// Varsayılan: true (backend yoksa otomatik mock data kullanılır)
-const USE_MOCK_DATA = process.env.EXPO_PUBLIC_USE_MOCK_DATA !== 'false';
+/**
+ * USE_MOCK_API Flag
+ * 
+ * Production build'de de mock kullanılabilir (EXPO_PUBLIC_USE_MOCK_API=true ile)
+ * Development'ta varsayılan olarak true
+ * 
+ * true: Mock servisler kullanılır (backend bağlantısı yok)
+ * false: Gerçek API servisler kullanılır
+ * 
+ * APK'da mock kullanmak için:
+ * - EAS Build: eas.json'da environment variable ekle
+ * - Local Build: .env dosyasında EXPO_PUBLIC_USE_MOCK_API=true
+ */
+const USE_MOCK_API = 
+  process.env.EXPO_PUBLIC_USE_MOCK_API === 'true' 
+    ? true 
+    : process.env.EXPO_PUBLIC_USE_MOCK_API === 'false'
+    ? false
+    : (process.env.NODE_ENV === 'production' ? false : true); // Production'da varsayılan false, dev'de true
 
 // Development modu (console log'ları gösterir)
 const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV !== 'production';
 
-export { API_BASE_URL, USE_MOCK_DATA, IS_DEVELOPMENT };
+// Legacy support (geriye dönük uyumluluk için)
+const USE_MOCK_DATA = USE_MOCK_API;
+
+export { API_BASE_URL, USE_MOCK_API, USE_MOCK_DATA, IS_DEVELOPMENT };
 

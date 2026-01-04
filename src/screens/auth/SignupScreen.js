@@ -126,21 +126,43 @@ const SignupScreen = () => {
 
     setLoading(true);
     try {
-      // Backend API çağrısı
-      await signup(email, password);
+      // Backend API çağrısı - telefon numarasını da gönder
+      const cleanedPhone = phoneNumber ? phoneNumber.replace(/\s/g, '').replace(/[()-]/g, '') : '';
+      const result = await signup(email, password, cleanedPhone);
+      
+      // Email'i AsyncStorage'a kaydet (token ile birlikte)
+      try {
+        await AsyncStorage.setItem('userEmail', email.toLowerCase().trim());
+      } catch (error) {
+        console.warn('Email kaydetme hatası:', error);
+      }
 
-      Alert.alert(
-        'Başarılı',
-        'Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.',
-        [
-          {
-            text: 'Tamam',
-            onPress: () => navigation.navigate('Login'),
-          },
-        ]
-      );
+      // Web'de Alert.alert bazen çalışmıyor, setTimeout ile gecikme ekle
+      setTimeout(() => {
+        if (Platform.OS === 'web') {
+          window.alert('Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.');
+          navigation.navigate('Login');
+        } else {
+          Alert.alert(
+            'Başarılı',
+            'Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.',
+            [
+              {
+                text: 'Tamam',
+                onPress: () => {
+                  navigation.navigate('Login');
+                },
+              },
+            ]
+          );
+        }
+      }, 100);
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.');
+      if (Platform.OS === 'web') {
+        window.alert('Hata: ' + (error.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.'));
+      } else {
+        Alert.alert('Hata', error.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.');
+      }
     } finally {
       setLoading(false);
     }
@@ -296,8 +318,15 @@ const SignupScreen = () => {
                     <Text style={styles.modalCloseText}>✕</Text>
                   </TouchableOpacity>
                 </View>
-                <ScrollView style={styles.modalBody}>
-                  <Text style={styles.modalText}>
+                <ScrollView 
+                  style={styles.modalBody}
+                  contentContainerStyle={styles.modalBodyContent}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                  bounces={true}
+                  scrollEnabled={true}
+                >
+                  <Text style={styles.modalText} selectable={true}>
                     <Text style={styles.modalTextBold}>1. Veri Sorumlusu:</Text>
                     {'\n\n'}
                     Lucky Table uygulaması kapsamında kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca işlenmektedir.
@@ -476,8 +505,10 @@ const styles = StyleSheet.create({
     borderRadius: spacing.md,
     width: '100%',
     maxWidth: 500,
-    maxHeight: '80%',
+    maxHeight: '85%',
+    flexDirection: 'column',
     ...shadows.large,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -503,13 +534,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   modalBody: {
+    maxHeight: 450,
     padding: spacing.lg,
-    maxHeight: 400,
+  },
+  modalBodyContent: {
+    paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
   modalText: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
     lineHeight: 22,
+    textAlign: 'left',
   },
   modalTextBold: {
     fontWeight: typography.fontWeight.bold,

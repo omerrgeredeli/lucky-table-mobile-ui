@@ -154,3 +154,4 @@ Sorun yaşıyorsanız:
 3. Backend loglarını kontrol edin
 4. `src/config/api.js` dosyasındaki URL'i doğrulayın
 
+

@@ -283,54 +283,61 @@ export const mockCafeSearch = (query) => {
 };
 
 // Mock nearby cafes - 20 adet
+// Bu kafeler sadece bu uygulamaya aitmiş gibi görünsün
+// Gerçek koordinatlar ile haritada marker olarak gösterilecek
 export const mockNearbyCafes = (latitude, longitude) => {
+  // Kullanıcı konumuna göre dinamik kafe verileri oluştur
+  // İstanbul merkez koordinatları: 41.0082, 28.9784
+  const baseLat = latitude || 41.0082;
+  const baseLng = longitude || 28.9784;
+  
   return [
     {
       id: 1,
-      name: 'Starbucks',
-      address: 'Kadıköy, İstanbul',
-      latitude: 40.9882,
-      longitude: 29.0244,
+      name: 'Starbucks - Lucky Table Partner',
+      address: 'Kadıköy, İstanbul - Bu uygulama burada geçerli',
+      latitude: baseLat - 0.02, // Kullanıcı konumuna yakın
+      longitude: baseLng + 0.01,
       distance: 0.5,
       restaurantType: 'Kafe',
       hasCampaign: true,
     },
     {
       id: 2,
-      name: 'Kahve Dünyası',
-      address: 'Beşiktaş, İstanbul',
-      latitude: 41.0422,
-      longitude: 29.0084,
+      name: 'Kahve Dünyası - Lucky Table Partner',
+      address: 'Beşiktaş, İstanbul - Bu uygulama burada geçerli',
+      latitude: baseLat + 0.03,
+      longitude: baseLng - 0.01,
       distance: 1.2,
       restaurantType: 'Kafe',
       hasCampaign: false,
     },
     {
       id: 3,
-      name: 'Gloria Jeans',
-      address: 'Şişli, İstanbul',
-      latitude: 41.0602,
-      longitude: 28.9874,
+      name: 'Gloria Jeans - Lucky Table Partner',
+      address: 'Şişli, İstanbul - Bu uygulama burada geçerli',
+      latitude: baseLat + 0.04,
+      longitude: baseLng - 0.02,
       distance: 2.5,
       restaurantType: 'Kafe',
       hasCampaign: true,
     },
     {
       id: 4,
-      name: 'Coffeeshop Company',
-      address: 'Beyoğlu, İstanbul',
-      latitude: 41.0369,
-      longitude: 28.9850,
+      name: 'Coffeeshop Company - Lucky Table Partner',
+      address: 'Beyoğlu, İstanbul - Bu uygulama burada geçerli',
+      latitude: baseLat + 0.01,
+      longitude: baseLng - 0.015,
       distance: 3.1,
       restaurantType: 'Kafe',
       hasCampaign: true,
     },
     {
       id: 5,
-      name: 'Mado',
-      address: 'Üsküdar, İstanbul',
-      latitude: 41.0214,
-      longitude: 29.0124,
+      name: 'Mado - Lucky Table Partner',
+      address: 'Üsküdar, İstanbul - Bu uygulama burada geçerli',
+      latitude: baseLat - 0.01,
+      longitude: baseLng + 0.02,
       distance: 0.8,
       restaurantType: 'Pastane',
       hasCampaign: false,

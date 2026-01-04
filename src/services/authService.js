@@ -1,139 +1,89 @@
-import { API_BASE_URL, USE_MOCK_DATA, IS_DEVELOPMENT } from '../config/api';
-import { mockLoginResponse, mockSignupResponse } from '../utils/mockData';
-
 /**
- * Auth Service - Authentication ile ilgili API çağrıları
+ * Auth Service - Service Switch Layer
+ * Mock ve gerçek API arasında geçiş yapar
+ * Tüm screen'ler bu servisi kullanır
  */
 
+import { USE_MOCK_API } from '../config/api';
+import * as mockService from './mock/authMockService';
+import * as apiService from './api/authApiService';
+
 /**
- * Kullanıcı kayıt işlemi
- * @param {string} email - Kullanıcı email'i
- * @param {string} password - Kullanıcı şifresi
- * @returns {Promise<Object>} API response
+ * Service switch - USE_MOCK_API flag'ine göre mock veya real servis kullanır
  */
-export const signup = async (email, password) => {
-  // Mock data kullan
-  if (USE_MOCK_DATA) {
-    if (IS_DEVELOPMENT) {
-      console.log('📦 Using mock signup response');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return mockSignupResponse(email, password);
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-      }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || `Kayıt işlemi başarısız (${response.status})`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Signup error:', error);
-    
-    // Network veya CORS hatası - mock data kullan
-    if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-      if (IS_DEVELOPMENT) {
-        console.warn('⚠️ Backend bağlantısı kurulamadı, mock data kullanılıyor');
-      }
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return mockSignupResponse(email, password);
-    }
-    
-    throw error;
-  }
-};
+const getService = () => (USE_MOCK_API ? mockService : apiService);
 
 /**
  * Kullanıcı giriş işlemi
  * @param {string} email - Kullanıcı email'i
  * @param {string} password - Kullanıcı şifresi
- * @returns {Promise<Object>} API response (token içerir)
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
  */
 export const login = async (email, password) => {
-  // Mock data kullan
-  if (USE_MOCK_DATA) {
-    if (IS_DEVELOPMENT) {
-      console.log('📦 Using mock login response');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    return mockLoginResponse(email, password);
+  const service = getService();
+  const response = await service.login(email, password);
+
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Giriş işlemi başarısız');
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-      }),
-    });
+  return response.data;
+};
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || `Giriş işlemi başarısız (${response.status})`);
-    }
+/**
+ * Kullanıcı kayıt işlemi
+ * @param {string} email - Kullanıcı email'i
+ * @param {string} password - Kullanıcı şifresi
+ * @param {string} phone - Telefon numarası (opsiyonel)
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
+ */
+export const signup = async (email, password, phone = '') => {
+  const service = getService();
+  const response = await service.signup(email, password, phone);
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Login error:', error);
-    
-    // Network veya CORS hatası - mock data kullan
-    if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-      if (IS_DEVELOPMENT) {
-        console.warn('⚠️ Backend bağlantısı kurulamadı, mock data kullanılıyor');
-      }
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      return mockLoginResponse(email, password);
-    }
-    
-    throw error;
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Kayıt işlemi başarısız');
   }
+
+  return response.data;
 };
 
 /**
  * Şifre sıfırlama isteği
  * @param {string} email - Kullanıcı email'i
- * @returns {Promise<Object>} API response
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
  */
 export const forgotPassword = async (email) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-      }),
-    });
+  const service = getService();
+  const response = await service.forgotPassword(email);
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Şifre sıfırlama isteği başarısız');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    throw error;
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Şifre sıfırlama isteği başarısız');
   }
+
+  return response.data;
 };
 
+/**
+ * Aktivasyon kodu gönderme
+ * @param {string} emailOrPhone - Email veya telefon
+ * @returns {Promise<Object>} Sonuç
+ */
+export const sendActivationCode = async (emailOrPhone) => {
+  const service = getService();
+  
+  // Mock servis için sendActivationCode varsa kullan
+  if (service.sendActivationCode) {
+    const response = await service.sendActivationCode(emailOrPhone);
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Aktivasyon kodu gönderilemedi');
+    }
+    return response.data;
+  }
+  
+  // Real API için (henüz implement edilmedi)
+  throw new Error('Aktivasyon kodu gönderme henüz implement edilmedi');
+};

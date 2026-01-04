@@ -91,3 +91,4 @@ eas build:list
 
 **Not:** EAS CLI login interaktif bir komut olduğu için terminal'de manuel olarak çalıştırmanız gerekiyor.
 
+

@@ -472,7 +472,7 @@ const LoyaltyDetailsScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.pageInfo}>
-            <Text style={styles.pageInfoText}>
+            <Text style={styles.pageInfoText} numberOfLines={1}>
               Sayfa {currentPage} / {totalPages}
             </Text>
           </View>
@@ -699,10 +699,14 @@ const styles = StyleSheet.create({
   pageInfo: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
   },
   pageInfoText: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
+    textAlign: 'center',
+    flexShrink: 0,
   },
   itemsPerPageContainer: {
     flexDirection: 'row',

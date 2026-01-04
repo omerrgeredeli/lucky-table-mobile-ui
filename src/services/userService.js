@@ -1,54 +1,32 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL, USE_MOCK_DATA, IS_DEVELOPMENT } from '../config/api';
-import { mockLoyaltyData } from '../utils/mockData';
-
 /**
- * User Service - Kullanıcı ile ilgili API çağrıları
+ * User Service - Service Switch Layer
+ * Mock ve gerçek API arasında geçiş yapar
+ * Tüm screen'ler bu servisi kullanır
  */
 
+import { USE_MOCK_API } from '../config/api';
+import * as mockService from './mock/userMockService';
+import * as apiService from './api/userApiService';
+
 /**
- * Token'ı AsyncStorage'dan al
+ * Service switch - USE_MOCK_API flag'ine göre mock veya real servis kullanır
  */
-const getToken = async () => {
-  try {
-    return await AsyncStorage.getItem('userToken');
-  } catch (error) {
-    console.error('Token alma hatası:', error);
-    return null;
-  }
-};
+const getService = () => (USE_MOCK_API ? mockService : apiService);
 
 /**
  * Kullanıcı profil bilgilerini getir
  * @returns {Promise<Object>} Kullanıcı bilgileri
  */
 export const getUserProfile = async () => {
-  try {
-    const token = await getToken();
-    
-    if (!token) {
-      throw new Error('Token bulunamadı');
-    }
+  const service = getService();
+  const response = await service.getProfile();
 
-    const response = await fetch(`${API_BASE_URL}/user/profile`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Profil bilgileri alınamadı');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Get user profile error:', error);
-    throw error;
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Profil bilgileri alınamadı');
   }
+
+  return response.data;
 };
 
 /**
@@ -57,33 +35,15 @@ export const getUserProfile = async () => {
  * @returns {Promise<Object>} Güncellenmiş kullanıcı bilgileri
  */
 export const updateUserProfile = async (profileData) => {
-  try {
-    const token = await getToken();
-    
-    if (!token) {
-      throw new Error('Token bulunamadı');
-    }
+  const service = getService();
+  const response = await service.updateProfile(profileData);
 
-    const response = await fetch(`${API_BASE_URL}/user/update-profile`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(profileData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Profil güncelleme başarısız');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Update user profile error:', error);
-    throw error;
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Profil güncelleme başarısız');
   }
+
+  return response.data;
 };
 
 /**
@@ -91,51 +51,127 @@ export const updateUserProfile = async (profileData) => {
  * @returns {Promise<Array>} Kafe ve sipariş bilgileri listesi
  */
 export const getUserLoyaltyInfo = async () => {
-  // Mock data kullan
-  if (USE_MOCK_DATA) {
-    if (IS_DEVELOPMENT) {
-      console.log('📦 Using mock loyalty data');
-    }
-    // Simüle edilmiş gecikme
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return mockLoyaltyData;
+  const service = getService();
+  const response = await service.getUserLoyaltyInfo();
+
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Sadakat bilgileri alınamadı');
   }
 
-  try {
-    const token = await getToken();
-    
-    if (!token) {
-      throw new Error('Token bulunamadı. Lütfen giriş yapın.');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/user/loyalty-info`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || `Sadakat bilgileri alınamadı (${response.status})`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Get loyalty info error:', error);
-    
-    // Network veya CORS hatası - mock data kullan
-    if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-      if (IS_DEVELOPMENT) {
-        console.warn('⚠️ Backend bağlantısı kurulamadı, mock data kullanılıyor');
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockLoyaltyData;
-    }
-    
-    throw error;
-  }
+  return response.data;
 };
 
+/**
+ * Ana sayfa verilerini getir
+ * Kullanıcının gittiği kafeler, sipariş sayıları, ücretsiz ürün eşiği, yakındaki kafeler
+ * @returns {Promise<Object>} Ana sayfa verileri
+ */
+export const getHomeData = async () => {
+  const service = getService();
+  const response = await service.getHomeData();
+
+  // Screen'ler için backward compatibility - hata durumunda throw et
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Ana sayfa verileri alınamadı');
+  }
+
+  return response.data;
+};
+
+/**
+ * Şifre değiştirme
+ * @param {string} oldPassword - Eski şifre
+ * @param {string} newPassword - Yeni şifre
+ * @returns {Promise<Object>} Sonuç
+ */
+export const updatePassword = async (oldPassword, newPassword) => {
+  const service = getService();
+  const response = await service.updatePassword(oldPassword, newPassword);
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Şifre güncelleme başarısız');
+  }
+
+  return response.data;
+};
+
+/**
+ * Email değiştirme
+ * @param {string} newEmail - Yeni email
+ * @param {string} activationCode - Aktivasyon kodu
+ * @returns {Promise<Object>} Güncellenmiş kullanıcı bilgileri
+ */
+export const updateEmail = async (newEmail, activationCode) => {
+  const service = getService();
+  const response = await service.updateEmail(newEmail, activationCode);
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Email güncelleme başarısız');
+  }
+
+  return response.data;
+};
+
+/**
+ * Telefon değiştirme
+ * @param {string} newPhone - Yeni telefon
+ * @param {string} activationCode - Aktivasyon kodu
+ * @returns {Promise<Object>} Güncellenmiş kullanıcı bilgileri
+ */
+export const updatePhone = async (newPhone, activationCode) => {
+  const service = getService();
+  const response = await service.updatePhone(newPhone, activationCode);
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Telefon güncelleme başarısız');
+  }
+
+  return response.data;
+};
+
+/**
+ * Bildirim ayarlarını getir
+ * @returns {Promise<Object>} Bildirim ayarları
+ */
+export const getNotificationSettings = async () => {
+  const service = getService();
+  const response = await service.getNotificationSettings();
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Bildirim ayarları alınamadı');
+  }
+
+  return response.data;
+};
+
+/**
+ * Bildirim ayarlarını güncelle
+ * @param {boolean} notificationsEnabled - Bildirimler açık/kapalı
+ * @returns {Promise<Object>} Sonuç
+ */
+export const updateNotificationSettings = async (notificationsEnabled) => {
+  const service = getService();
+  const response = await service.updateNotificationSettings(notificationsEnabled);
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Bildirim ayarları güncelleme başarısız');
+  }
+
+  return response.data;
+};
+
+/**
+ * Üyelik iptali
+ * @returns {Promise<Object>} Sonuç
+ */
+export const deleteAccount = async () => {
+  const service = getService();
+  const response = await service.deleteAccount();
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Üyelik iptali başarısız');
+  }
+
+  return response.data;
+};

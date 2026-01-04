@@ -14,7 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../../context/AuthContext';
-import { login } from '../../services/authService';
+import { login, sendActivationCode } from '../../services/authService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -95,36 +95,152 @@ const LoginScreen = () => {
   // Aktivasyon kodu validasyonu
   const validateActivationCode = () => {
     if (!activationCode.trim()) {
-      Alert.alert('Hata', 'Aktivasyon kodunu giriniz');
+      const message = 'Aktivasyon kodunu giriniz';
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('Hata', message);
+      }
       return false;
     }
     if (activationCode.length !== 6) {
-      Alert.alert('Hata', 'Aktivasyon kodu 6 haneli olmalıdır');
+      const message = 'Aktivasyon kodu 6 haneli olmalıdır';
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('Hata', message);
+      }
       return false;
     }
     return true;
   };
 
-  // Aktivasyon kodu gönderme (UI - backend çağrısı yapılmayacak)
-  const handleSendActivationCode = async () => {
+  // Normal giriş (email/telefon + şifre ile) - Önce bilgileri kontrol et, doğruysa aktivasyon kodu gönder
+  const handleLogin = async () => {
     if (!validateForm()) {
       return;
     }
 
     setLoading(true);
     try {
-      // Backend'e aktivasyon kodu gönderme isteği yapılacak
-      // Şimdilik sadece modal açıyoruz
-      const loginType = getLoginType();
-      const target = loginType === 'email' ? emailOrPhone : emailOrPhone;
+      // Önce kullanıcıyı ve şifreyi kontrol et (mock servis ile)
+      const { USE_MOCK_API } = await import('../../config/api');
+      
+      if (USE_MOCK_API) {
+        // Mock modunda: Önce kullanıcıyı bul ve şifreyi kontrol et
+        const { getAllUsers } = await import('../../services/mock/mockUserStore');
+        const allUsers = getAllUsers();
+        
+        let foundUser = null;
+        const cleanedInput = emailOrPhone.replace(/\s/g, '').replace(/[()-]/g, '');
+        
+        // Email veya telefon ile kullanıcı bul
+        if (isEmail(emailOrPhone)) {
+          foundUser = allUsers.find(u => u.email.toLowerCase() === emailOrPhone.toLowerCase().trim());
+        } else if (isPhone(emailOrPhone)) {
+          foundUser = allUsers.find(u => {
+            const userPhone = u.phone?.replace(/\s/g, '').replace(/[()-]/g, '');
+            return userPhone === cleanedInput;
+          });
+        }
+        
+        // Kullanıcı bulunamadı
+        if (!foundUser) {
+          setLoading(false);
+          const message = 'Böyle bir mail adresi ya da telefon kayıtlı değil';
+          if (Platform.OS === 'web') {
+            window.alert(message);
+          } else {
+            Alert.alert('Hata', message);
+          }
+          return;
+        }
+        
+        // Şifre kontrolü
+        if (foundUser.password !== password) {
+          setLoading(false);
+          const message = 'Lütfen şifrenizi tekrar giriniz';
+          if (Platform.OS === 'web') {
+            window.alert(message);
+          } else {
+            Alert.alert('Hata', message);
+          }
+          return;
+        }
+        
+        // Bilgiler doğru - aktivasyon kodu gönder
+        const result = await sendActivationCode(emailOrPhone);
+        setShowActivationModal(true);
+        setTimeout(() => {
+          const infoMessage = result.message || 'Aktivasyon kodu gönderildi';
+          if (Platform.OS === 'web') {
+            window.alert(infoMessage);
+          } else {
+            Alert.alert('Bilgi', infoMessage);
+          }
+        }, 100);
+      } else {
+        // Real API modunda: Normal login yap
+        const response = await login(emailOrPhone, password);
+        await authLogin(response.token);
+      }
+    } catch (error) {
+      // Hata mesajlarını kontrol et
+      const errorMessage = error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.';
+      let displayMessage = errorMessage;
+      
+      if (error.message.includes('kayıtlı değil') || error.message.includes('USER_NOT_FOUND')) {
+        displayMessage = 'Böyle bir mail adresi ya da telefon kayıtlı değil';
+      } else if (error.message.includes('şifre') || error.message.includes('INVALID_PASSWORD')) {
+        displayMessage = 'Lütfen şifrenizi tekrar giriniz';
+      }
+      
+      if (Platform.OS === 'web') {
+        window.alert(displayMessage);
+      } else {
+        Alert.alert('Hata', displayMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Aktivasyon kodu gönderme
+  const handleSendActivationCode = async () => {
+    if (!emailOrPhone.trim()) {
+      const message = 'Email veya telefon numarası giriniz';
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('Hata', message);
+      }
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Backend'e aktivasyon kodu gönderme isteği
+      const result = await sendActivationCode(emailOrPhone);
       
       // Aktivasyon kodu modal'ını aç
       setShowActivationModal(true);
       
-      // Simüle edilmiş: Backend'e istek gönderilecek ve kullanıcıya kod gönderilecek
-      // Alert.alert('Bilgi', `Aktivasyon kodu ${target} adresine gönderildi.`);
+      // Bilgi mesajı
+      setTimeout(() => {
+        const infoMessage = result.message || 'Aktivasyon kodu gönderildi';
+        if (Platform.OS === 'web') {
+          window.alert(infoMessage);
+        } else {
+          Alert.alert('Bilgi', infoMessage);
+        }
+      }, 100);
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi. Lütfen tekrar deneyin.');
+      const errorMessage = error.message || 'Aktivasyon kodu gönderilemedi. Lütfen tekrar deneyin.';
+      if (Platform.OS === 'web') {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Hata', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -138,12 +254,69 @@ const LoginScreen = () => {
 
     setLoading(true);
     try {
-      // Backend API çağrısı - aktivasyon kodu ile giriş
-      // Şimdilik normal login kullanıyoruz
-      const response = await login(emailOrPhone, password);
+      // Aktivasyon kodu doğrulandı - normal login yap
+      let loginEmail = emailOrPhone;
+      
+      // Telefon numarası ile login - telefon numarasından email bul
+      if (isPhone(emailOrPhone)) {
+        const { getAllUsers } = await import('../../services/mock/mockUserStore');
+        const allUsers = getAllUsers();
+        const cleanedPhone = emailOrPhone.replace(/\s/g, '').replace(/[()-]/g, '');
+        const foundUser = allUsers.find(u => {
+          const userPhone = u.phone?.replace(/\s/g, '').replace(/[()-]/g, '');
+          return userPhone === cleanedPhone;
+        });
+        if (foundUser) {
+          loginEmail = foundUser.email;
+        }
+      }
+      
+      const response = await login(loginEmail, password);
+
+      // Email'i AsyncStorage'a kaydet (token ile birlikte)
+      try {
+        const emailToSave = isEmail(emailOrPhone) ? emailOrPhone.toLowerCase().trim() : loginEmail.toLowerCase().trim();
+        await AsyncStorage.setItem('userEmail', emailToSave);
+      } catch (error) {
+        console.warn('Email kaydetme hatası:', error);
+      }
 
       // Token'ı AuthContext'e kaydet
       await authLogin(response.token);
+      
+      // Beni Hatırla - AsyncStorage'a kaydet
+      if (rememberMe) {
+        try {
+          await AsyncStorage.setItem('rememberMe', 'true');
+          await AsyncStorage.setItem('savedEmail', emailOrPhone);
+        } catch (error) {
+          console.error('Remember me kaydetme hatası:', error);
+        }
+      } else {
+        try {
+          await AsyncStorage.removeItem('rememberMe');
+          await AsyncStorage.removeItem('savedEmail');
+        } catch (error) {
+          console.error('Remember me silme hatası:', error);
+        }
+      }
+      
+      // Beni Hatırla - AsyncStorage'a kaydet
+      if (rememberMe) {
+        try {
+          await AsyncStorage.setItem('rememberMe', 'true');
+          await AsyncStorage.setItem('savedEmail', emailOrPhone);
+        } catch (error) {
+          console.error('Remember me kaydetme hatası:', error);
+        }
+      } else {
+        try {
+          await AsyncStorage.removeItem('rememberMe');
+          await AsyncStorage.removeItem('savedEmail');
+        } catch (error) {
+          console.error('Remember me silme hatası:', error);
+        }
+      }
 
       // Modal'ı kapat
       setShowActivationModal(false);
@@ -152,7 +325,11 @@ const LoginScreen = () => {
       // Home Screen'e yönlendir
       // Navigation otomatik olarak AppStack'e geçecek
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
+      if (Platform.OS === 'web') {
+        window.alert(error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
+      } else {
+        Alert.alert('Hata', error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
+      }
     } finally {
       setLoading(false);
     }
@@ -204,7 +381,7 @@ const LoginScreen = () => {
 
           <Button
             title="Giriş Yap"
-            onPress={handleSendActivationCode}
+            onPress={handleLogin}
             loading={loading}
           />
 

@@ -13,7 +13,16 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../../context/AuthContext';
-import { getUserProfile } from '../../services/userService';
+import {
+  getUserProfile,
+  updateUserProfile,
+  updatePassword,
+  updateEmail,
+  updatePhone,
+  getNotificationSettings,
+  updateNotificationSettings,
+  deleteAccount,
+} from '../../services/userService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -34,6 +43,10 @@ const ProfileScreen = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [originalProfileData, setOriginalProfileData] = useState({
+    email: '',
+    phone: '',
+  });
 
   // Modal states
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -80,16 +93,19 @@ const ProfileScreen = () => {
     setLoading(true);
     try {
       const data = await getUserProfile();
-      setProfileData({
+      const profile = {
         email: data.email || '',
         phone: data.phone || '',
-      });
+      };
+      setProfileData(profile);
+      setOriginalProfileData(profile);
+      setHasChanges(false);
+      
+      // Bildirim ayarlarını yükle
+      const notificationSettings = await getNotificationSettings();
+      setNotificationsEnabled(notificationSettings.notificationsEnabled !== false);
     } catch (error) {
-      // Mock data kullan
-      setProfileData({
-        email: 'user@example.com',
-        phone: '05551234567',
-      });
+      Alert.alert('Hata', error.message || 'Profil bilgileri yüklenemedi');
     } finally {
       setLoading(false);
     }
@@ -106,9 +122,16 @@ const ProfileScreen = () => {
       Alert.alert('Hata', 'Geçerli bir email adresi giriniz');
       return;
     }
-    setShowEmailModal(false);
-    setShowActivationModal(true);
-    // Backend'e aktivasyon kodu gönderilecek
+    
+    // Aktivasyon kodu gönder
+    try {
+      const { sendActivationCode } = await import('../../services/authService');
+      await sendActivationCode(newEmail);
+      setShowEmailModal(false);
+      setShowActivationModal(true);
+    } catch (error) {
+      Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
+    }
   };
 
   // Telefon düzenleme
@@ -124,9 +147,16 @@ const ProfileScreen = () => {
       Alert.alert('Hata', 'Geçerli bir telefon numarası giriniz');
       return;
     }
-    setShowPhoneModal(false);
-    setShowActivationModal(true);
-    // Backend'e aktivasyon kodu gönderilecek
+    
+    // Aktivasyon kodu gönder
+    try {
+      const { sendActivationCode } = await import('../../services/authService');
+      await sendActivationCode(cleanedPhone);
+      setShowPhoneModal(false);
+      setShowActivationModal(true);
+    } catch (error) {
+      Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
+    }
   };
 
   // Şifre değişikliği
@@ -142,12 +172,30 @@ const ProfileScreen = () => {
       Alert.alert('Hata', 'Aktivasyon kodu 6 haneli olmalıdır');
       return;
     }
-    // Backend'e aktivasyon kodu gönderilecek
-    setShowActivationModal(false);
-    setActivationCode('');
-    Alert.alert('Başarılı', 'Bilgileriniz güncellendi');
-    setHasChanges(false);
-    await loadProfile();
+    
+    setLoading(true);
+    try {
+      // Email veya telefon güncelleme
+      if (newEmail && newEmail !== profileData.email) {
+        await updateEmail(newEmail, activationCode);
+        setProfileData({ ...profileData, email: newEmail });
+      } else if (newPhone) {
+        await updatePhone(newPhone, activationCode);
+        setProfileData({ ...profileData, phone: newPhone });
+      }
+      
+      setShowActivationModal(false);
+      setActivationCode('');
+      setNewEmail('');
+      setNewPhone('');
+      Alert.alert('Başarılı', 'Bilgileriniz güncellendi');
+      setHasChanges(false);
+      await loadProfile();
+    } catch (error) {
+      Alert.alert('Hata', error.message || 'Güncelleme başarısız');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Üyelik iptali modal state
@@ -160,18 +208,28 @@ const ProfileScreen = () => {
 
   const handleConfirmCancelMembership = async () => {
     setShowCancelMembershipModal(false);
-    // Backend'e üyelik iptali isteği gönderilecek
-    // Signup screen'e yönlendirme için flag kaydet
-    await AsyncStorage.setItem('redirectToSignup', 'true');
-    await logout();
-    Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
-      {
-        text: 'Tamam',
-        onPress: () => {
-          // AppNavigator otomatik olarak AuthStack'e geçecek
+    setLoading(true);
+    try {
+      // Backend'e üyelik iptali isteği
+      await deleteAccount();
+      
+      // Signup screen'e yönlendirme için flag kaydet
+      await AsyncStorage.setItem('redirectToSignup', 'true');
+      await logout();
+      
+      Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
+        {
+          text: 'Tamam',
+          onPress: () => {
+            // AppNavigator otomatik olarak AuthStack'e geçecek
+          },
         },
-      },
-    ]);
+      ]);
+    } catch (error) {
+      Alert.alert('Hata', error.message || 'Üyelik iptali başarısız');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Çıkış yap
@@ -237,9 +295,16 @@ const ProfileScreen = () => {
             <Text style={styles.sectionTitle}>Bildirimler</Text>
             <Switch
               value={notificationsEnabled}
-              onValueChange={(value) => {
+              onValueChange={async (value) => {
                 setNotificationsEnabled(value);
                 setHasChanges(true);
+                // Otomatik kaydet
+                try {
+                  await updateNotificationSettings(value);
+                } catch (error) {
+                  Alert.alert('Hata', error.message || 'Bildirim ayarları güncellenemedi');
+                  setNotificationsEnabled(!value); // Geri al
+                }
               }}
               trackColor={{ false: colors.border, true: colors.primary }}
               thumbColor={colors.white}
@@ -302,16 +367,26 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Kaydet Butonu */}
+        {/* Kaydet Butonu - Değişiklikler varsa göster */}
         {hasChanges && (
           <View style={styles.saveContainer}>
             <Button
               title="Kaydet"
-              onPress={() => {
-                // Değişiklikleri kaydet
-                setHasChanges(false);
-                Alert.alert('Başarılı', 'Değişiklikler kaydedildi');
+              onPress={async () => {
+                setLoading(true);
+                try {
+                  await updateUserProfile(profileData);
+                  setOriginalProfileData({ ...profileData });
+                  setHasChanges(false);
+                  Alert.alert('Başarılı', 'Profil bilgileriniz güncellendi');
+                  await loadProfile();
+                } catch (error) {
+                  Alert.alert('Hata', error.message || 'Profil güncellenemedi');
+                } finally {
+                  setLoading(false);
+                }
               }}
+              loading={loading}
             />
           </View>
         )}
@@ -433,7 +508,7 @@ const ProfileScreen = () => {
 
               <Button
                 title="Güncelle"
-                onPress={() => {
+                onPress={async () => {
                   // Şifre validasyonu
                   const passwordErrors = passwordRules.filter((rule) => !rule.test(newPassword));
                   if (passwordErrors.length > 0) {
@@ -444,10 +519,21 @@ const ProfileScreen = () => {
                     Alert.alert('Hata', 'Şifreler eşleşmiyor');
                     return;
                   }
-                  setShowPasswordModal(false);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  Alert.alert('Başarılı', 'Şifreniz güncellendi');
+                  
+                  setLoading(true);
+                  try {
+                    // Eski şifre kontrolü için token'dan kullanıcı bilgisi alınmalı
+                    // Mock'ta direkt güncelleme yapıyoruz
+                    await updatePassword('', newPassword); // Mock'ta eski şifre kontrolü yok
+                    setShowPasswordModal(false);
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    Alert.alert('Başarılı', 'Şifreniz güncellendi');
+                  } catch (error) {
+                    Alert.alert('Hata', error.message || 'Şifre güncelleme başarısız');
+                  } finally {
+                    setLoading(false);
+                  }
                 }}
               />
             </ScrollView>

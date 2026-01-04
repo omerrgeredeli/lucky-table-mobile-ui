@@ -123,3 +123,4 @@ Sorularınız için dokümantasyon dosyalarına bakın veya issue açın.
 **Versiyon:** 1.0.0  
 **Son Güncelleme:** 2025-01-03
 
+

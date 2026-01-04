@@ -20,11 +20,46 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
-        setUserToken(token);
-        setIsAuthenticated(true);
+        // Token geçerliliğini kontrol et (mock modunda her zaman geçerli)
+        try {
+          const { USE_MOCK_API } = await import('../config/api');
+          if (USE_MOCK_API) {
+            // Mock modunda: Store'u yükle ve token varsa geçerli kabul et
+            try {
+              const { loadStoreFromStorage } = await import('../services/mock/mockUserStore');
+              await loadStoreFromStorage();
+            } catch (error) {
+              console.warn('Store load error (non-critical):', error);
+            }
+            // Mock modunda token varsa geçerli kabul et
+            setUserToken(token);
+            setIsAuthenticated(true);
+          } else {
+            // Real API modunda token'ı validate et (şimdilik sadece varlığını kontrol et)
+            setUserToken(token);
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.warn('Token validation error:', error);
+          // Sadece kritik hatalarda token'ı temizle (import hatası gibi)
+          // Normal validation hatalarında token'ı koru
+          if (error.message && error.message.includes('Cannot find module')) {
+            // Module bulunamadı hatası - token'ı koru
+            setUserToken(token);
+            setIsAuthenticated(true);
+          } else {
+            // Diğer hatalarda token'ı temizle
+            await AsyncStorage.removeItem('userToken');
+            setUserToken(null);
+            setIsAuthenticated(false);
+          }
+        }
       }
     } catch (error) {
       console.error('Token kontrolü hatası:', error);
+      // Hata durumunda authenticated değil ama token'ı silme (crash sonrası recovery için)
+      // setUserToken(null);
+      // setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }

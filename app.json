@@ -5,10 +5,10 @@
     "version": "1.0.0",
     "extra": {
       "eas": {
-        "projectId": "73f7eb31-742c-4dd6-8447-61a7a6a3a224"
+        "projectId": "49b29379-2be2-4bd7-816b-9ed9050ec286"
       }
     },
-    "owner": "omergeredelis-organization",
+    "owner": "cointurks-organization",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -30,12 +30,17 @@
         "backgroundColor": "#2ECC71"
       },
       "package": "com.luckytable.app",
-      "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -53,8 +58,13 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Lucky Table to use your location."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Lucky Table to access your camera to scan QR codes."
+        }
       ]
     ]
   }
 }
-

@@ -83,3 +83,4 @@ Build başladıktan sonra terminal'de build URL'i görünecek ve [expo.dev](http
 
 **Proje Dizini:** `C:\Users\omergeredeli\CursorProjects\lucky-table-mobile-ui`
 
+
