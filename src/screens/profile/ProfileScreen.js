@@ -240,16 +240,6 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Geri Butonu */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>← Geri</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         {/* Üyelik Bilgileri */}
         <View style={styles.section}>

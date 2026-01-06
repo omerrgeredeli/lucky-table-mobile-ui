@@ -3,6 +3,33 @@
  * Backend yoksa bu mock data kullanılır
  */
 
+// Sipariş türleri listesi
+const orderTypes = ['Kahve', 'Çay', 'Pasta', 'Sandviç', 'Salata', 'Pizza', 'Burger', 'Döner', 'Simit', 'Dondurma', 'Et', 'Tavuk', 'Patates', 'Market', 'Çeşitli'];
+
+// Sipariş geçmişi oluşturma fonksiyonu
+const generateOrderHistory = (cafeId, orderCount, foodTypes, lastOrderDate) => {
+  const history = [];
+  const baseDate = new Date(lastOrderDate);
+  
+  for (let i = 0; i < orderCount; i++) {
+    const orderDate = new Date(baseDate);
+    orderDate.setDate(orderDate.getDate() - (orderCount - i - 1) * 3); // Her 3 günde bir sipariş
+    
+    // Sipariş türünü foodTypes'dan rastgele seç veya genel bir tür kullan
+    const orderType = foodTypes && foodTypes.length > 0 
+      ? foodTypes[Math.floor(Math.random() * foodTypes.length)]
+      : orderTypes[Math.floor(Math.random() * orderTypes.length)];
+    
+    history.push({
+      date: orderDate.toISOString().split('T')[0], // YYYY-MM-DD formatı
+      orderType: orderType,
+    });
+  }
+  
+  // Tarihe göre sırala (en yeni önce)
+  return history.sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
 // Mock loyalty data - 20 adet
 export const mockLoyaltyData = [
   {
@@ -17,6 +44,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Pasta'],
     hasCampaign: true,
     lastOrderDate: '2024-01-15',
+    orderHistory: generateOrderHistory(1, 7, ['Kahve', 'Pasta'], '2024-01-15'),
   },
   {
     cafeId: 2,
@@ -30,6 +58,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Çay'],
     hasCampaign: false,
     lastOrderDate: '2024-01-20',
+    orderHistory: generateOrderHistory(2, 15, ['Kahve', 'Çay'], '2024-01-20'),
   },
   {
     cafeId: 3,
@@ -43,6 +72,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Sandviç'],
     hasCampaign: true,
     lastOrderDate: '2024-01-10',
+    orderHistory: generateOrderHistory(3, 3, ['Kahve', 'Sandviç'], '2024-01-10'),
   },
   {
     cafeId: 4,
@@ -56,6 +86,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Pasta', 'Salata'],
     hasCampaign: true,
     lastOrderDate: '2024-01-18',
+    orderHistory: generateOrderHistory(4, 12, ['Kahve', 'Pasta', 'Salata'], '2024-01-18'),
   },
   {
     cafeId: 5,
@@ -69,6 +100,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Dondurma', 'Pasta'],
     hasCampaign: false,
     lastOrderDate: '2024-01-12',
+    orderHistory: generateOrderHistory(5, 5, ['Dondurma', 'Pasta'], '2024-01-12'),
   },
   {
     cafeId: 6,
@@ -82,6 +114,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Sandviç'],
     hasCampaign: true,
     lastOrderDate: '2024-01-16',
+    orderHistory: generateOrderHistory(6, 9, ['Kahve', 'Sandviç'], '2024-01-16'),
   },
   {
     cafeId: 7,
@@ -95,6 +128,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Kahve', 'Çay', 'Pasta'],
     hasCampaign: true,
     lastOrderDate: '2024-01-22',
+    orderHistory: generateOrderHistory(7, 18, ['Kahve', 'Çay', 'Pasta'], '2024-01-22'),
   },
   {
     cafeId: 8,
@@ -108,6 +142,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Burger', 'Patates'],
     hasCampaign: false,
     lastOrderDate: '2024-01-08',
+    orderHistory: generateOrderHistory(8, 4, ['Burger', 'Patates'], '2024-01-08'),
   },
   {
     cafeId: 9,
@@ -121,6 +156,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Pizza', 'Salata'],
     hasCampaign: true,
     lastOrderDate: '2024-01-19',
+    orderHistory: generateOrderHistory(9, 11, ['Pizza', 'Salata'], '2024-01-19'),
   },
   {
     cafeId: 10,
@@ -134,6 +170,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Pizza'],
     hasCampaign: true,
     lastOrderDate: '2024-01-14',
+    orderHistory: generateOrderHistory(10, 6, ['Pizza'], '2024-01-14'),
   },
   {
     cafeId: 11,
@@ -147,6 +184,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Simit', 'Çay', 'Peynir'],
     hasCampaign: false,
     lastOrderDate: '2024-01-23',
+    orderHistory: generateOrderHistory(11, 20, ['Simit', 'Çay', 'Peynir'], '2024-01-23'),
   },
   {
     cafeId: 12,
@@ -160,6 +198,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Döner', 'Lahmacun'],
     hasCampaign: true,
     lastOrderDate: '2024-01-17',
+    orderHistory: generateOrderHistory(12, 8, ['Döner', 'Lahmacun'], '2024-01-17'),
   },
   {
     cafeId: 13,
@@ -173,6 +212,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Tavuk', 'Patates'],
     hasCampaign: true,
     lastOrderDate: '2024-01-21',
+    orderHistory: generateOrderHistory(13, 13, ['Tavuk', 'Patates'], '2024-01-21'),
   },
   {
     cafeId: 14,
@@ -186,6 +226,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Burger', 'Patates'],
     hasCampaign: false,
     lastOrderDate: '2024-01-24',
+    orderHistory: generateOrderHistory(14, 16, ['Burger', 'Patates'], '2024-01-24'),
   },
   {
     cafeId: 15,
@@ -199,6 +240,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Tavuk', 'Patates'],
     hasCampaign: true,
     lastOrderDate: '2024-01-05',
+    orderHistory: generateOrderHistory(15, 2, ['Tavuk', 'Patates'], '2024-01-05'),
   },
   {
     cafeId: 16,
@@ -212,6 +254,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Et', 'Salata'],
     hasCampaign: false,
     lastOrderDate: '2024-01-25',
+    orderHistory: generateOrderHistory(16, 19, ['Et', 'Salata'], '2024-01-25'),
   },
   {
     cafeId: 17,
@@ -225,6 +268,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Çeşitli'],
     hasCampaign: true,
     lastOrderDate: '2024-01-13',
+    orderHistory: generateOrderHistory(17, 10, ['Çeşitli'], '2024-01-13'),
   },
   {
     cafeId: 18,
@@ -238,6 +282,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Çeşitli'],
     hasCampaign: true,
     lastOrderDate: '2024-01-11',
+    orderHistory: generateOrderHistory(18, 14, ['Çeşitli'], '2024-01-11'),
   },
   {
     cafeId: 19,
@@ -251,6 +296,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Çeşitli'],
     hasCampaign: false,
     lastOrderDate: '2024-01-09',
+    orderHistory: generateOrderHistory(19, 17, ['Çeşitli'], '2024-01-09'),
   },
   {
     cafeId: 20,
@@ -264,6 +310,7 @@ export const mockLoyaltyData = [
     foodTypes: ['Market'],
     hasCampaign: true,
     lastOrderDate: '2024-01-03',
+    orderHistory: generateOrderHistory(20, 1, ['Market'], '2024-01-03'),
   },
 ];
 

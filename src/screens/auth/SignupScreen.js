@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signup } from '../../services/authService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Button from '../../components/Button';
@@ -305,76 +306,77 @@ const SignupScreen = () => {
         animationType="fade"
         onRequestClose={() => setShowKvkkModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setShowKvkkModal(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>KVKK Aydınlatma Metni</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowKvkkModal(false)}
-                    style={styles.modalCloseButton}
-                  >
-                    <Text style={styles.modalCloseText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                <ScrollView 
-                  style={styles.modalBody}
-                  contentContainerStyle={styles.modalBodyContent}
-                  nestedScrollEnabled={true}
-                  showsVerticalScrollIndicator={true}
-                  bounces={true}
-                  scrollEnabled={true}
-                >
-                  <Text style={styles.modalText} selectable={true}>
-                    <Text style={styles.modalTextBold}>1. Veri Sorumlusu:</Text>
-                    {'\n\n'}
-                    Lucky Table uygulaması kapsamında kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca işlenmektedir.
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>2. İşlenen Kişisel Veriler:</Text>
-                    {'\n\n'}
-                    • E-posta adresi{'\n'}
-                    • Telefon numarası{'\n'}
-                    • Şifre (şifrelenmiş olarak){'\n'}
-                    • Konum bilgisi (izin verilmesi halinde){'\n'}
-                    • Kullanım verileri
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>3. Veri İşleme Amaçları:</Text>
-                    {'\n\n'}
-                    • Hesap oluşturma ve yönetimi{'\n'}
-                    • Hizmet sunumu{'\n'}
-                    • İletişim ve müşteri desteği{'\n'}
-                    • Yasal yükümlülüklerin yerine getirilmesi
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>4. Veri İşleme Hukuki Sebepleri:</Text>
-                    {'\n\n'}
-                    • Açık rıza{'\n'}
-                    • Sözleşmenin kurulması ve ifası{'\n'}
-                    • Yasal yükümlülüklerin yerine getirilmesi
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>5. Verilerin Paylaşılması:</Text>
-                    {'\n\n'}
-                    Kişisel verileriniz, yukarıda belirtilen amaçlar doğrultusunda, yasal zorunluluklar çerçevesinde yetkili kamu kurum ve kuruluşları ile paylaşılabilir.
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>6. Haklarınız:</Text>
-                    {'\n\n'}
-                    KVKK'nın 11. maddesi uyarınca, kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işleme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, silinmesini veya yok edilmesini isteme, düzeltme/silme/yok etme işlemlerinin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemler ile analiz edilmesi nedeniyle aleyhinize bir sonuç doğmasına itiraz etme ve kanuna aykırı işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz.
-                    {'\n\n'}
-                    <Text style={styles.modalTextBold}>7. İletişim:</Text>
-                    {'\n\n'}
-                    Haklarınızı kullanmak için bizimle iletişime geçebilirsiniz.
-                  </Text>
-                </ScrollView>
-                <View style={styles.modalFooter}>
-                  <Button
-                    title="Kapat"
-                    onPress={() => setShowKvkkModal(false)}
-                  />
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setShowKvkkModal(false)}>
+            <View style={styles.modalOverlayTouchable} />
+          </TouchableWithoutFeedback>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>KVKK Aydınlatma Metni</Text>
+              <TouchableOpacity
+                onPress={() => setShowKvkkModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              nestedScrollEnabled={Platform.OS === 'android'}
+              showsVerticalScrollIndicator={true}
+              bounces={Platform.OS === 'ios'}
+              scrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              scrollEventThrottle={16}
+            >
+              <Text style={styles.modalText} selectable={true}>
+                <Text style={styles.modalTextBold}>1. Veri Sorumlusu:</Text>
+                {'\n\n'}
+                Lucky Table uygulaması kapsamında kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca işlenmektedir.
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>2. İşlenen Kişisel Veriler:</Text>
+                {'\n\n'}
+                • E-posta adresi{'\n'}
+                • Telefon numarası{'\n'}
+                • Şifre (şifrelenmiş olarak){'\n'}
+                • Konum bilgisi (izin verilmesi halinde){'\n'}
+                • Kullanım verileri
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>3. Veri İşleme Amaçları:</Text>
+                {'\n\n'}
+                • Hesap oluşturma ve yönetimi{'\n'}
+                • Hizmet sunumu{'\n'}
+                • İletişim ve müşteri desteği{'\n'}
+                • Yasal yükümlülüklerin yerine getirilmesi
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>4. Veri İşleme Hukuki Sebepleri:</Text>
+                {'\n\n'}
+                • Açık rıza{'\n'}
+                • Sözleşmenin kurulması ve ifası{'\n'}
+                • Yasal yükümlülüklerin yerine getirilmesi
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>5. Verilerin Paylaşılması:</Text>
+                {'\n\n'}
+                Kişisel verileriniz, yukarıda belirtilen amaçlar doğrultusunda, yasal zorunluluklar çerçevesinde yetkili kamu kurum ve kuruluşları ile paylaşılabilir.
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>6. Haklarınız:</Text>
+                {'\n\n'}
+                KVKK'nın 11. maddesi uyarınca, kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işleme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, silinmesini veya yok edilmesini isteme, düzeltme/silme/yok etme işlemlerinin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemler ile analiz edilmesi nedeniyle aleyhinize bir sonuç doğmasına itiraz etme ve kanuna aykırı işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz.
+                {'\n\n'}
+                <Text style={styles.modalTextBold}>7. İletişim:</Text>
+                {'\n\n'}
+                Haklarınızı kullanmak için bizimle iletişime geçebilirsiniz.
+              </Text>
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <Button
+                title="Kapat"
+                onPress={() => setShowKvkkModal(false)}
+              />
+            </View>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </KeyboardAvoidingView>
   );
@@ -500,6 +502,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
   },
+  modalOverlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: spacing.md,
@@ -534,7 +543,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   modalBody: {
-    maxHeight: 450,
+    flex: 1,
     padding: spacing.lg,
   },
   modalBodyContent: {

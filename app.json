@@ -41,7 +41,12 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD-WyTFtRLY4ero0tNtOMZNCUjW10FYX2g"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",

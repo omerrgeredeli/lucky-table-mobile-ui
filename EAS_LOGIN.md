@@ -82,3 +82,5 @@ Eğer login yaptıysanız, kullanıcı adınız görünecek.
 **Not:** EAS CLI login komutu güvenlik nedeniyle interaktif modda çalışır ve komut satırından direkt email/şifre ile login yapılamaz.
 
 
+
+

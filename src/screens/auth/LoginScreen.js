@@ -40,6 +40,7 @@ const LoginScreen = () => {
   // Üyelik iptali sonrası Signup'a yönlendirme kontrolü
   useEffect(() => {
     checkRedirectToSignup();
+    loadRememberedCredentials();
   }, []);
 
   const checkRedirectToSignup = async () => {
@@ -51,6 +52,27 @@ const LoginScreen = () => {
       }
     } catch (error) {
       console.error('Error checking redirect flag:', error);
+    }
+  };
+
+  // Kaydedilen email ve şifreyi yükle
+  const loadRememberedCredentials = async () => {
+    try {
+      const remembered = await AsyncStorage.getItem('rememberMe');
+      if (remembered === 'true') {
+        const savedEmail = await AsyncStorage.getItem('savedEmail');
+        const savedPassword = await AsyncStorage.getItem('savedPassword');
+        
+        if (savedEmail) {
+          setEmailOrPhone(savedEmail);
+        }
+        if (savedPassword) {
+          setPassword(savedPassword);
+        }
+        setRememberMe(true);
+      }
+    } catch (error) {
+      console.error('Remember me yükleme hatası:', error);
     }
   };
 
@@ -169,16 +191,8 @@ const LoginScreen = () => {
         }
         
         // Bilgiler doğru - aktivasyon kodu gönder
-        const result = await sendActivationCode(emailOrPhone);
+        await sendActivationCode(emailOrPhone);
         setShowActivationModal(true);
-        setTimeout(() => {
-          const infoMessage = result.message || 'Aktivasyon kodu gönderildi';
-          if (Platform.OS === 'web') {
-            window.alert(infoMessage);
-          } else {
-            Alert.alert('Bilgi', infoMessage);
-          }
-        }, 100);
       } else {
         // Real API modunda: Normal login yap
         const response = await login(emailOrPhone, password);
@@ -220,20 +234,10 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       // Backend'e aktivasyon kodu gönderme isteği
-      const result = await sendActivationCode(emailOrPhone);
+      await sendActivationCode(emailOrPhone);
       
       // Aktivasyon kodu modal'ını aç
       setShowActivationModal(true);
-      
-      // Bilgi mesajı
-      setTimeout(() => {
-        const infoMessage = result.message || 'Aktivasyon kodu gönderildi';
-        if (Platform.OS === 'web') {
-          window.alert(infoMessage);
-        } else {
-          Alert.alert('Bilgi', infoMessage);
-        }
-      }, 100);
     } catch (error) {
       const errorMessage = error.message || 'Aktivasyon kodu gönderilemedi. Lütfen tekrar deneyin.';
       if (Platform.OS === 'web') {
@@ -284,11 +288,12 @@ const LoginScreen = () => {
       // Token'ı AuthContext'e kaydet
       await authLogin(response.token);
       
-      // Beni Hatırla - AsyncStorage'a kaydet
+      // Beni Hatırla - AsyncStorage'a kaydet (email ve şifre)
       if (rememberMe) {
         try {
           await AsyncStorage.setItem('rememberMe', 'true');
           await AsyncStorage.setItem('savedEmail', emailOrPhone);
+          await AsyncStorage.setItem('savedPassword', password);
         } catch (error) {
           console.error('Remember me kaydetme hatası:', error);
         }
@@ -296,23 +301,7 @@ const LoginScreen = () => {
         try {
           await AsyncStorage.removeItem('rememberMe');
           await AsyncStorage.removeItem('savedEmail');
-        } catch (error) {
-          console.error('Remember me silme hatası:', error);
-        }
-      }
-      
-      // Beni Hatırla - AsyncStorage'a kaydet
-      if (rememberMe) {
-        try {
-          await AsyncStorage.setItem('rememberMe', 'true');
-          await AsyncStorage.setItem('savedEmail', emailOrPhone);
-        } catch (error) {
-          console.error('Remember me kaydetme hatası:', error);
-        }
-      } else {
-        try {
-          await AsyncStorage.removeItem('rememberMe');
-          await AsyncStorage.removeItem('savedEmail');
+          await AsyncStorage.removeItem('savedPassword');
         } catch (error) {
           console.error('Remember me silme hatası:', error);
         }

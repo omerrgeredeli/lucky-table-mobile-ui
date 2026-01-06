@@ -7,123 +7,248 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   FlatList,
-  TextInput,
+  Platform,
+  AppState,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../theme';
-import NearbyCafesMap from '../home/components/NearbyCafesMap';
+import BrowseMapScreen from './components/BrowseMapScreen';
+import BrowseFilterModal from './components/BrowseFilterModal';
 import Input from '../../components/Input';
+import { sortCafesByDistance } from '../../utils/distanceUtils';
 
 /**
  * Browse Screen - Göz At
- * Yakındaki kafeler harita ve liste olarak gösterilir
+ * Sahibinden.com benzeri filtreleme sistemi ile kafeler listelenir
  */
 const BrowseScreen = () => {
-  const [nearbyCafes, setNearbyCafes] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
+  const [allCafes, setAllCafes] = useState([]); // Tüm kafeler (filtrelenmemiş)
+  const [displayedCafes, setDisplayedCafes] = useState([]); // Gösterilecek kafeler (filtrelenmiş + sıralanmış)
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
-  const [filters, setFilters] = useState({
-    restaurantType: '',
-    distance: '',
-    campaignType: '',
-    city: '',
-    district: '',
-    neighborhood: '',
+  const [userLocation, setUserLocation] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  // Filtre state (modal içinde değiştirilir, uygulanana kadar listede değişiklik olmaz)
+  const [activeFilters, setActiveFilters] = useState({
+    restaurantTypes: [],
+    maxDistance: 10, // km
+    campaignTypes: [],
   });
 
-  // Filtreleme seçenekleri
-  const restaurantTypes = ['Tümü', 'Kafe', 'Restoran', 'Pastane', 'Bar'];
-  const distances = ['Tümü', '500m', '1km', '2km', '5km'];
-  const campaignTypes = ['Tümü', 'İndirim', 'Hediye', 'Puan'];
+  // Varsayılan konum (İstanbul)
+  const DEFAULT_LOCATION = {
+    latitude: 41.0082,
+    longitude: 28.9784,
+  };
 
+  // Component mount olduğunda konum izni kontrol et ve kafeleri yükle
   useEffect(() => {
-    loadNearbyCafes();
+    checkLocationAndLoadCafes();
   }, []);
 
+  // AppState değişikliğini dinle (ayarlardan dönünce kontrol et)
   useEffect(() => {
-    // Sadece filtreler değişince otomatik filtreleme yap (arama yapılmışsa)
-    if (hasSearched && nearbyCafes.length > 0) {
-      applyFilters();
-    }
-  }, [filters]);
+    if (Platform.OS === 'web') return;
 
-  const loadNearbyCafes = async () => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        setTimeout(() => {
+          checkLocationAndLoadCafes();
+        }, 300);
+      }
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [appState]);
+
+  // Sadece filtreler veya kafeler değiştiğinde listeyi güncelle
+  // Arama sadece "Ara" butonuna basılınca yapılır
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [allCafes, activeFilters, userLocation, hasSearched, searchQuery]);
+
+  // Konum izni kontrolü ve kafeleri yükle
+  const checkLocationAndLoadCafes = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setUserLocation(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        return;
+      }
+
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 15000,
+        });
+        if (location && location.coords) {
+          const coords = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          setUserLocation(coords);
+          await loadCafes(coords.latitude, coords.longitude);
+        } else {
+          setUserLocation(DEFAULT_LOCATION);
+          await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        }
+      } else {
+        setUserLocation(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      }
+    } catch (error) {
+      console.error('Location check error:', error);
+      setUserLocation(DEFAULT_LOCATION);
+      await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+    }
+  };
+
+  // Kafeleri yükle
+  const loadCafes = async (latitude, longitude) => {
     setLoading(true);
     try {
-      // Mock location - gerçek uygulamada kullanıcı konumu alınacak
-      const cafes = await getNearbyCafes(41.0082, 28.9784);
-      setNearbyCafes(cafes || []);
+      const response = await getNearbyCafes(latitude, longitude);
+      if (response && response.success && response.data) {
+        setAllCafes(response.data || []);
+      } else {
+        setAllCafes([]);
+      }
     } catch (error) {
       console.error('Error loading cafes:', error);
+      setAllCafes([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Filtreleri uygula ve sırala
+  const applyFiltersAndSort = () => {
+    let filtered = [...allCafes];
+
+    // Arama sorgusu
+    if (hasSearched && searchQuery.trim()) {
+      filtered = filtered.filter(
+        (cafe) =>
+          (cafe.name || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (cafe.address || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Restoran Türü filtresi (çoklu seçim)
+    if (
+      activeFilters.restaurantTypes &&
+      activeFilters.restaurantTypes.length > 0
+    ) {
+      filtered = filtered.filter((cafe) =>
+        activeFilters.restaurantTypes.includes(cafe.restaurantType)
+      );
+    }
+
+    // Mesafe filtresi
+    if (activeFilters.maxDistance && activeFilters.maxDistance < 50) {
+      const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
+      const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
+      filtered = filtered.filter((cafe) => {
+        if (!cafe.latitude || !cafe.longitude) return false;
+        const distance = require('../../utils/distanceUtils').calculateDistance(
+          userLat,
+          userLon,
+          cafe.latitude,
+          cafe.longitude
+        );
+        return distance <= activeFilters.maxDistance;
+      });
+    }
+
+    // Kampanya Tipi filtresi (çoklu seçim)
+    if (
+      activeFilters.campaignTypes &&
+      activeFilters.campaignTypes.length > 0
+    ) {
+      filtered = filtered.filter((cafe) => {
+        if (!cafe.hasCampaign) return false;
+        // Mock: hasCampaign true ise tüm kampanya tiplerini kabul et
+        // Gerçek uygulamada cafe.campaignTypes array'i olabilir
+        return true;
+      });
+    }
+
+    // Mesafeye göre sırala
+    const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
+    const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
+    const sorted = sortCafesByDistance(filtered, userLat, userLon);
+
+    setDisplayedCafes(sorted);
+    setCurrentPage(1); // Filtre uygulanınca ilk sayfaya dön
+  };
+
+  // Arama yap - butona basılınca çalışır
   const handleSearch = () => {
     if (!searchQuery.trim()) {
       setHasSearched(false);
-      setSearchResults([]);
-      return;
+      // Arama temizlendiğinde filtreleri uygula
+      applyFiltersAndSort();
+    } else {
+      setHasSearched(true);
+      // Arama yapıldığında filtreleri uygula
+      applyFiltersAndSort();
     }
-    
-    setHasSearched(true);
-    applyFilters();
   };
 
-  const applyFilters = () => {
-    let filtered = [...nearbyCafes];
-    
-    // Arama sorgusu
-    if (searchQuery.trim()) {
-      filtered = filtered.filter((cafe) =>
-        (cafe.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (cafe.address || '').toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Filtreleme mantığı
-    if (filters.restaurantType && filters.restaurantType !== 'Tümü') {
-      filtered = filtered.filter((cafe) => cafe.restaurantType === filters.restaurantType);
-    }
-    if (filters.distance && filters.distance !== 'Tümü') {
-      const maxDistance = parseFloat(filters.distance.replace('km', '').replace('m', ''));
-      filtered = filtered.filter((cafe) => {
-        if (filters.distance.includes('m')) {
-          return (cafe.distance || 0) * 1000 <= maxDistance;
-        } else {
-          return (cafe.distance || 0) <= maxDistance;
-        }
-      });
-    }
-    if (filters.campaignType && filters.campaignType !== 'Tümü') {
-      if (filters.campaignType === 'İndirim' || filters.campaignType === 'Hediye' || filters.campaignType === 'Puan') {
-        filtered = filtered.filter((cafe) => cafe.hasCampaign === true);
-      }
-    }
-    
-    setSearchResults(filtered);
-    setCurrentPage(1);
+  // Filtre modal'dan gelen filtreleri uygula
+  const handleApplyFilters = (filters) => {
+    setActiveFilters(filters);
+    // applyFiltersAndSort useEffect ile otomatik çağrılacak
   };
 
+  // Kafe item render
   const renderCafeItem = ({ item }) => (
     <View style={styles.cafeItem}>
       <Text style={styles.cafeName}>{item.name || 'Kafe Adı'}</Text>
       {item.address && <Text style={styles.cafeAddress}>{item.address}</Text>}
-      {item.distance && (
-        <Text style={styles.cafeDistance}>{item.distance.toFixed(2)} km uzaklıkta</Text>
+      {item.distance !== undefined && (
+        <Text style={styles.cafeDistance}>
+          {item.distance.toFixed(2)} km uzaklıkta
+        </Text>
+      )}
+      {item.restaurantType && (
+        <Text style={styles.cafeType}>{item.restaurantType}</Text>
       )}
     </View>
   );
 
+  // Pagination için gösterilecek veriler
+  const paginatedData = displayedCafes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Aktif filtre sayısı
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (activeFilters.restaurantTypes?.length > 0) count++;
+    if (activeFilters.maxDistance !== 10) count++;
+    if (activeFilters.campaignTypes?.length > 0) count++;
+    return count;
+  };
+
   return (
     <View style={styles.container}>
-      {/* Kafe Ara */}
+      {/* Arama ve Filtre Butonu */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Input
@@ -132,196 +257,131 @@ const BrowseScreen = () => {
             onChangeText={setSearchQuery}
             style={styles.searchInput}
             editable={true}
+            onSubmitEditing={handleSearch}
           />
         </View>
-        <TouchableOpacity
-          style={styles.searchButton}
-          onPress={handleSearch}
-        >
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
           <Text style={styles.searchButtonText}>Ara</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.filterToggleButton}
-          onPress={() => {
-            setShowFilters(!showFilters);
-          }}
+          onPress={() => setShowFilterModal(true)}
         >
-          <Text style={styles.filterToggleButtonText}>Filtrele</Text>
+          <Text style={styles.filterToggleButtonText}>
+            Filtrele{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Filtreler */}
-      {showFilters && (
-        <View style={styles.filtersContainerWrapper}>
-          <ScrollView style={styles.filtersContainer} nestedScrollEnabled={true}>
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Restoran Türü:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {restaurantTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterChip,
-                    filters.restaurantType === type && styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setFilters({ ...filters, restaurantType: type === 'Tümü' ? '' : type })
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      filters.restaurantType === type && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Mesafe:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {distances.map((distance) => (
-                <TouchableOpacity
-                  key={distance}
-                  style={[
-                    styles.filterChip,
-                    filters.distance === distance && styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setFilters({ ...filters, distance: distance === 'Tümü' ? '' : distance })
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      filters.distance === distance && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {distance}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Kampanya Tipi:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {campaignTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterChip,
-                    filters.campaignType === type && styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setFilters({ ...filters, campaignType: type === 'Tümü' ? '' : type })
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      filters.campaignType === type && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-          </ScrollView>
-        </View>
-      )}
-
+      {/* Liste */}
       <ScrollView style={styles.scrollView}>
-        {/* Arama Sonuçları - Sadece arama yapılmışsa göster */}
-        {hasSearched && (
-          <View style={styles.searchResultsContainer}>
-            <View style={styles.listTitleContainer}>
-              <Text style={styles.listTitle}>Arama Sonuçları</Text>
-            </View>
-            {searchResults.length === 0 ? (
-              <Text style={styles.emptyText}>Arama sonucu bulunamadı.</Text>
-            ) : (
-              <View style={styles.cafeListContainer}>
-                <FlatList
-                  data={searchResults.slice(
-                    (currentPage - 1) * itemsPerPage,
-                    currentPage * itemsPerPage
-                  )}
-                  renderItem={renderCafeItem}
-                  keyExtractor={(item, index) => `search-result-${index}`}
-                  scrollEnabled={false}
-                />
-                {/* Pagination */}
-                {searchResults.length > itemsPerPage && (
-                  <View style={styles.paginationContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.pageButton,
-                        currentPage === 1 && styles.pageButtonDisabled,
-                      ]}
-                      onPress={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <Text style={styles.pageButtonText}>Önceki</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.pageInfo}>
-                      Sayfa {currentPage} / {Math.ceil(searchResults.length / itemsPerPage)}
-                    </Text>
-                    <View style={styles.itemsPerPageContainer}>
-                      <Text style={styles.itemsPerPageLabel}>Göster:</Text>
-                      {[5, 10, 20, 50].map((num) => (
-                        <TouchableOpacity
-                          key={num}
-                          style={[
-                            styles.itemsPerPageButton,
-                            itemsPerPage === num && styles.itemsPerPageButtonActive,
-                          ]}
-                          onPress={() => {
-                            setItemsPerPage(num);
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.itemsPerPageText,
-                              itemsPerPage === num && styles.itemsPerPageTextActive,
-                            ]}
-                          >
-                            {num}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.pageButton,
-                        currentPage === Math.ceil(searchResults.length / itemsPerPage) &&
-                          styles.pageButtonDisabled,
-                      ]}
-                      onPress={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(searchResults.length / itemsPerPage)}
-                    >
-                      <Text style={styles.pageButtonText}>Sonraki</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            )}
+        {/* Sonuçlar */}
+        <View style={styles.resultsContainer}>
+          <View style={styles.listTitleContainer}>
+            <Text style={styles.listTitle}>
+              {hasSearched
+                ? `Arama Sonuçları (${displayedCafes.length})`
+                : `Yakındaki Kafeler (${displayedCafes.length})`}
+            </Text>
           </View>
-        )}
 
-        {/* Harita - Yakındaki kafeler harita üzerinde gösterilecek */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Yükleniyor...</Text>
+            </View>
+          ) : displayedCafes.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {hasSearched
+                ? 'Arama sonucu bulunamadı.'
+                : 'Yakınınızda kafe bulunamadı.'}
+            </Text>
+          ) : (
+            <View style={styles.cafeListContainer}>
+              <FlatList
+                data={paginatedData}
+                renderItem={renderCafeItem}
+                keyExtractor={(item, index) => `cafe-${item.id || index}`}
+                scrollEnabled={false}
+              />
+              {/* Pagination */}
+              {displayedCafes.length > itemsPerPage && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage === 1 && styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <Text style={styles.pageButtonText}>Önceki</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pageInfo}>
+                    Sayfa {currentPage} /{' '}
+                    {Math.ceil(displayedCafes.length / itemsPerPage)}
+                  </Text>
+                  <View style={styles.itemsPerPageContainer}>
+                    <Text style={styles.itemsPerPageLabel}>Göster:</Text>
+                    {[5, 10, 20, 50].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        style={[
+                          styles.itemsPerPageButton,
+                          itemsPerPage === num &&
+                            styles.itemsPerPageButtonActive,
+                        ]}
+                        onPress={() => {
+                          setItemsPerPage(num);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.itemsPerPageText,
+                            itemsPerPage === num &&
+                              styles.itemsPerPageTextActive,
+                          ]}
+                        >
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage ===
+                        Math.ceil(displayedCafes.length / itemsPerPage) &&
+                        styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage + 1)}
+                    disabled={
+                      currentPage ===
+                      Math.ceil(displayedCafes.length / itemsPerPage)
+                    }
+                  >
+                    <Text style={styles.pageButtonText}>Sonraki</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Harita - Filtrelenmiş kafeler harita üzerinde gösterilecek */}
         <View style={styles.mapContainer}>
-          <NearbyCafesMap />
+          <BrowseMapScreen cafes={displayedCafes} userLocation={userLocation} />
         </View>
       </ScrollView>
+
+      {/* Filtre Modal */}
+      <BrowseFilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={handleApplyFilters}
+        initialFilters={activeFilters}
+      />
     </View>
   );
 };
@@ -375,29 +435,15 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: typography.fontWeight.semibold,
   },
-  cafeListContainer: {
-    marginTop: spacing.sm,
+  scrollView: {
+    flex: 1,
   },
-  filtersContainerWrapper: {
+  resultsContainer: {
+    padding: spacing.md,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    maxHeight: 300,
-    zIndex: 1000,
-    elevation: 5,
-  },
-  filterButton: {
-    backgroundColor: colors.primary,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  filterButtonText: {
-    color: colors.white,
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  filtersContainer: {
-    padding: spacing.md,
+    margin: spacing.md,
+    borderRadius: spacing.sm,
+    ...shadows.small,
   },
   listTitleContainer: {
     marginBottom: spacing.md,
@@ -405,60 +451,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  cafeListContainer: {
-    marginTop: spacing.sm,
-  },
-  filterRow: {
-    marginBottom: spacing.md,
-  },
-  filterLabel: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-  },
-  filterChipTextActive: {
-    color: colors.white,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  searchResultsContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    margin: spacing.md,
-    borderRadius: spacing.sm,
-    ...shadows.small,
-  },
-  mapContainer: {
-    height: 400,
-    margin: spacing.md,
-  },
   listTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
-    marginBottom: spacing.md,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  cafeListContainer: {
+    marginTop: spacing.sm,
   },
   cafeItem: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     padding: spacing.md,
     borderRadius: spacing.sm,
     marginBottom: spacing.sm,
@@ -479,6 +490,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: colors.primary,
     fontWeight: typography.fontWeight.medium,
+    marginBottom: spacing.xs,
+  },
+  cafeType: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -488,6 +505,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    flexWrap: 'wrap',
   },
   pageButton: {
     paddingVertical: spacing.sm,
@@ -506,10 +524,12 @@ const styles = StyleSheet.create({
   pageInfo: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
+    marginHorizontal: spacing.sm,
   },
   itemsPerPageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginHorizontal: spacing.sm,
   },
   itemsPerPageLabel: {
     fontSize: typography.fontSize.xs,
@@ -539,7 +559,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     fontSize: typography.fontSize.sm,
   },
+  mapContainer: {
+    height: 400,
+    margin: spacing.md,
+    marginTop: spacing.sm,
+  },
 });
 
 export default BrowseScreen;
-
