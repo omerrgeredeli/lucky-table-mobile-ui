@@ -43,17 +43,17 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState(AppState.currentState);
 
-  // Varsayılan konum (İstanbul)
+  // Varsayılan konum (Ankara)
   const DEFAULT_LOCATION = {
-    latitude: 41.0082,
-    longitude: 28.9784,
+    latitude: 39.9334,
+    longitude: 32.8597,
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   };
 
-  // Props değiştiğinde state'i güncelle
+  // Props değiştiğinde state'i güncelle - filtreleme sonrası kafeler güncellenmeli
   useEffect(() => {
-    if (propCafes) {
+    if (propCafes && Array.isArray(propCafes)) {
       setCafes(propCafes);
     }
     if (propUserLocation) {
@@ -171,23 +171,30 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
     }
   };
 
-  // Kafeleri yükle (sadece prop'tan gelmemişse)
+  // Kafeleri yükle (sadece prop'tan gelmemişse veya boşsa)
   const loadCafes = async (latitude, longitude) => {
-    if (propCafes && propCafes.length > 0) {
-      // Prop'tan gelen kafeler varsa kullan
+    // Prop'tan gelen kafeler varsa ve boş değilse kullan
+    if (propCafes && Array.isArray(propCafes) && propCafes.length > 0) {
       setCafes(propCafes);
       return;
     }
+    // Prop'tan gelen kafeler yoksa veya boşsa, API'den veya mock'tan yükle
     try {
       const response = await getNearbyCafes(latitude, longitude);
-      if (response && response.success && response.data) {
+      if (response && response.success && response.data && response.data.length > 0) {
         setCafes(response.data);
       } else {
-        setCafes([]);
+        // Mock data kullan
+        const { mockNearbyCafes } = require('../../../utils/mockData');
+        const mockCafes = mockNearbyCafes(latitude, longitude);
+        setCafes(mockCafes);
       }
     } catch (error) {
       console.error('Error loading cafes:', error);
-      setCafes([]);
+      // Hata durumunda da mock data kullan
+      const { mockNearbyCafes } = require('../../../utils/mockData');
+      const mockCafes = mockNearbyCafes(latitude, longitude);
+      setCafes(mockCafes);
     }
   };
 
@@ -259,32 +266,34 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
         loadingEnabled={true}
         loadingIndicatorColor={colors.primary}
       >
-        {/* Kafe Marker'ları */}
-        {cafes.map((cafe) => {
-          if (!cafe.latitude || !cafe.longitude) return null;
+        {/* Kafe Marker'ları - Filtrelenmiş kafeler */}
+        {cafes && cafes.length > 0 ? (
+          cafes.map((cafe, index) => {
+            if (!cafe.latitude || !cafe.longitude) return null;
 
-          return (
-            <Marker
-              key={`cafe-${cafe.id}`}
-              coordinate={{
-                latitude: cafe.latitude,
-                longitude: cafe.longitude,
-              }}
-              title={cafe.name || 'Kafe'}
-              description={cafe.address || ''}
-              pinColor={colors.primary}
-            >
-              <Callout>
-                <View style={styles.calloutContainer}>
-                  <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
-                  {cafe.address && (
-                    <Text style={styles.calloutAddress}>{cafe.address}</Text>
-                  )}
-                </View>
-              </Callout>
-            </Marker>
-          );
-        })}
+            return (
+              <Marker
+                key={`cafe-${cafe.id || index}`}
+                coordinate={{
+                  latitude: cafe.latitude,
+                  longitude: cafe.longitude,
+                }}
+                title={cafe.name || 'Kafe'}
+                description={cafe.address || ''}
+                pinColor={colors.primary}
+              >
+                <Callout>
+                  <View style={styles.calloutContainer}>
+                    <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
+                    {cafe.address && (
+                      <Text style={styles.calloutAddress}>{cafe.address}</Text>
+                    )}
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })
+        ) : null}
       </MapView>
 
       {loading && (

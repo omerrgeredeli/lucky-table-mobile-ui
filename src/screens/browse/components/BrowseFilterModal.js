@@ -30,9 +30,9 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
 
   const [filterState, setFilterState] = useState(initialFilterState);
   const [expandedSections, setExpandedSections] = useState({
-    restaurantType: false,
-    distance: false,
-    campaignType: false,
+    restaurantType: true,
+    distance: true,
+    campaignType: true,
   });
 
   // Initialize with provided filters or reset
@@ -44,9 +44,9 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
         setFilterState(initialFilterState);
       }
       setExpandedSections({
-        restaurantType: false,
-        distance: false,
-        campaignType: false,
+        restaurantType: true,
+        distance: true,
+        campaignType: true,
       });
     }
   }, [visible, initialFilters]);

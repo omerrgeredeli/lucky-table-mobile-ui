@@ -41,10 +41,10 @@ const BrowseScreen = () => {
     campaignTypes: [],
   });
 
-  // Varsayılan konum (İstanbul)
+  // Varsayılan konum (Ankara)
   const DEFAULT_LOCATION = {
-    latitude: 41.0082,
-    longitude: 28.9784,
+    latitude: 39.9334,
+    longitude: 32.8597,
   };
 
   // Component mount olduğunda konum izni kontrol et ve kafeleri yükle
@@ -121,11 +121,17 @@ const BrowseScreen = () => {
       if (response && response.success && response.data) {
         setAllCafes(response.data || []);
       } else {
-        setAllCafes([]);
+        // Mock data kullan
+        const { mockNearbyCafes } = require('../../utils/mockData');
+        const mockCafes = mockNearbyCafes(latitude, longitude);
+        setAllCafes(mockCafes || []);
       }
     } catch (error) {
       console.error('Error loading cafes:', error);
-      setAllCafes([]);
+      // Hata durumunda da mock data kullan
+      const { mockNearbyCafes } = require('../../utils/mockData');
+      const mockCafes = mockNearbyCafes(latitude, longitude);
+      setAllCafes(mockCafes || []);
     } finally {
       setLoading(false);
     }

@@ -36,9 +36,9 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    location: false,
-    date: false,
-    category: false,
+    location: true,
+    date: true,
+    category: true,
   });
 
   // Initialize with provided filters or reset
@@ -49,10 +49,11 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
       } else {
         setFilterState(initialFilterState);
       }
+      // Modal açıldığında tüm section'ları açık yap ki kullanıcı seçenekleri görebilsin
       setExpandedSections({
-        location: false,
-        date: false,
-        category: false,
+        location: true,
+        date: true,
+        category: true,
       });
     }
   }, [visible, initialFilters]);
@@ -597,7 +598,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: spacing.lg,
     borderTopRightRadius: spacing.lg,
-    maxHeight: '90%',
+    maxHeight: '95%',
+    minHeight: '70%',
+    width: '100%',
     ...shadows.large,
   },
   header: {
@@ -625,9 +628,11 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    maxHeight: 500,
   },
   scrollContent: {
     padding: spacing.md,
+    paddingBottom: spacing.xl,
   },
   section: {
     marginBottom: spacing.md,

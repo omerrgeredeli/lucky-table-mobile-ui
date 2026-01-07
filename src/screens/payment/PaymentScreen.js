@@ -18,12 +18,18 @@ let cameraModuleLoaded = false;
 if (Platform.OS !== 'web') {
   try {
     const Camera = require('expo-camera');
-    CameraView = Camera.CameraView;
-    CameraType = Camera.CameraType;
-    useCameraPermissions = Camera.useCameraPermissions;
-    cameraModuleLoaded = true;
+    if (Camera && Camera.CameraView) {
+      CameraView = Camera.CameraView;
+      CameraType = Camera.CameraType;
+      useCameraPermissions = Camera.useCameraPermissions;
+      cameraModuleLoaded = true;
+      console.log('Camera module loaded successfully');
+    } else {
+      console.warn('expo-camera module structure is incorrect');
+    }
   } catch (error) {
     console.warn('expo-camera could not be loaded:', error);
+    cameraModuleLoaded = false;
   }
 }
 
@@ -54,7 +60,8 @@ const PaymentScreen = () => {
     if (!permission) {
       return 'undetermined'; // Henüz kontrol edilmemiş
     }
-    if (permission.granted) {
+    // Permission objesi varsa granted özelliğini kontrol et
+    if (permission.granted === true) {
       return 'granted';
     }
     if (permission.canAskAgain === false) {
@@ -65,18 +72,36 @@ const PaymentScreen = () => {
 
   const permissionStatus = getPermissionStatus();
   const hasPermission = permissionStatus === 'granted';
+  
+  // Debug için permission durumunu logla
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      console.log('Camera permission status:', {
+        permission,
+        permissionStatus,
+        hasPermission,
+        cameraModuleLoaded,
+        hasCameraView: !!CameraView,
+      });
+    }
+  }, [permission, permissionStatus, hasPermission, cameraModuleLoaded]);
 
   // İlk yüklemede izin iste (undetermined durumunda)
   useEffect(() => {
-    if (Platform.OS === 'web' || !cameraModuleLoaded) return;
+    if (Platform.OS === 'web') return;
 
-    if (permissionStatus === 'undetermined' && requestPermission) {
-      // İlk kez izin iste
-      requestPermission().catch((error) => {
-        console.error('Permission request error:', error);
-      });
-    }
-  }, [permissionStatus, requestPermission]);
+    // Kısa bir gecikme ile izin iste (component mount olduktan sonra)
+    const timer = setTimeout(() => {
+      if (permissionStatus === 'undetermined' && requestPermission && cameraModuleLoaded) {
+        // İlk kez izin iste
+        requestPermission().catch((error) => {
+          console.error('Permission request error:', error);
+        });
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [permissionStatus, requestPermission, cameraModuleLoaded]);
 
   // AppState değişikliğini dinle (ayarlardan dönünce kontrol et)
   useEffect(() => {
@@ -85,13 +110,21 @@ const PaymentScreen = () => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       // Uygulama aktif hale geldiğinde (ayarlardan dönünce)
       if (appState.match(/inactive|background/) && nextAppState === 'active') {
-        // Permission'ı yeniden kontrol et
+        // Permission'ı yeniden kontrol et - hook'u yeniden çağır
         // useCameraPermissions hook'u otomatik olarak güncellenecek
-        // Sadece kısa bir gecikme ile state'in güncellenmesini bekle
-        setTimeout(() => {
-          // Permission state otomatik güncellenecek
+        // Kısa bir gecikme ile state'in güncellenmesini bekle
+        setTimeout(async () => {
           console.log('App became active, checking camera permission...');
-        }, 300);
+          // Permission'ı yeniden kontrol et
+          if (requestPermission && cameraModuleLoaded) {
+            try {
+              const result = await requestPermission();
+              console.log('Permission check result:', result);
+            } catch (error) {
+              console.error('Permission check error:', error);
+            }
+          }
+        }, 500);
       }
       setAppState(nextAppState);
     });
@@ -99,7 +132,7 @@ const PaymentScreen = () => {
     return () => {
       subscription?.remove();
     };
-  }, [appState]);
+  }, [appState, requestPermission, cameraModuleLoaded]);
 
   // Ayarlara git
   const handleOpenSettings = async () => {
@@ -123,6 +156,14 @@ const PaymentScreen = () => {
     // QR kod içeriğini console.log ile yazdır
     console.log('QR Code scanned:', data);
     console.log('QR Code type:', type);
+    
+    // Backend entegrasyonu için hazır - QR kod verisi data değişkeninde
+    // Burada backend API çağrısı yapılabilir:
+    // Example: processQRCode(data).then(...)
+    
+    // Mock olarak sadece logluyoruz
+    // Gerçek uygulamada burada backend'e istek gönderilecek:
+    // await processPaymentQRCode(data);
 
     // 2 saniye sonra tekrar taramaya izin ver
     setTimeout(() => {
@@ -147,8 +188,84 @@ const PaymentScreen = () => {
     );
   }
 
-  // Kamera modülü yüklenmemişse
-  if (!cameraModuleLoaded || !CameraView) {
+  // Kamera modülü yüklenmemişse kontrol et
+  // Eğer permission granted ise ama modül yüklenmemişse, modül yüklenmeye çalışıyor olabilir
+  if (Platform.OS !== 'web') {
+    if (!cameraModuleLoaded || !CameraView) {
+      // Permission granted ise, modül yükleniyor olabilir - kısa bir süre bekle
+      if (hasPermission) {
+        // Permission var ama modül henüz yüklenmemiş - kısa bir süre bekle
+        return (
+          <View style={styles.container}>
+            <View style={styles.content}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.infoText}>Kamera hazırlanıyor...</Text>
+            </View>
+          </View>
+        );
+      }
+      // Permission yok ve modül yüklenmemiş - permission kontrolüne geç (aşağıdaki if bloğu)
+    }
+  }
+
+  // Kamera izni verilmeden kamera render edilmemeli
+  // Sadece denied durumunda ayarlara git butonu göster
+  if (!hasPermission) {
+    const showSettingsButton = permissionStatus === 'denied';
+    
+    return (
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.title}>QR Kod Okut</Text>
+          <Text style={styles.subtitle}>
+            {permissionStatus === 'denied' 
+              ? 'Kamera izni reddedilmiş. Lütfen ayarlardan izin verin.'
+              : 'QR kod okutmak için kamera iznine ihtiyacımız var'}
+          </Text>
+
+          {/* Ayarlara Git Butonu - Sadece denied durumunda görünür */}
+          {showSettingsButton && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={handleOpenSettings}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
+            </TouchableOpacity>
+          )}
+
+          {permissionStatus === 'undetermined' && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={async () => {
+                if (requestPermission && cameraModuleLoaded) {
+                  try {
+                    const result = await requestPermission();
+                    console.log('Permission request result:', result);
+                  } catch (error) {
+                    console.error('Permission request error:', error);
+                  }
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsButtonText}>İzin İste</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.infoText}>
+            {showSettingsButton 
+              ? 'Ayarlardan kamera iznini açtıktan sonra uygulamaya geri dönün.'
+              : 'Kamera izni verildikten sonra QR kod okutabilirsiniz.'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Kamera izni verilmişse - kamera otomatik açılır
+  // CameraView ve CameraType kontrolü
+  if (!CameraView || !CameraType) {
     return (
       <View style={styles.container}>
         <View style={styles.content}>
@@ -159,34 +276,6 @@ const PaymentScreen = () => {
     );
   }
 
-  // Kamera izni verilmeden kamera render edilmemeli
-  if (!hasPermission) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>QR Kod Okut</Text>
-          <Text style={styles.subtitle}>
-            QR kod okutmak için kamera iznine ihtiyacımız var
-          </Text>
-
-          {/* Ayarlara Git Butonu - Sadece izin verilmemişse görünür */}
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={handleOpenSettings}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.infoText}>
-            Ayarlardan kamera iznini açtıktan sonra uygulamaya geri dönün.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // Kamera izni verilmişse - kamera otomatik açılır
   return (
     <View style={styles.container}>
       <CameraView

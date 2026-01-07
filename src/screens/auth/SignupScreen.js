@@ -512,9 +512,10 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: spacing.md,
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '85%',
+    width: '95%',
+    maxWidth: 1800,
+    maxHeight: '90%',
+    minHeight: 600, // Uzunluğu 3 katına çıkar (200 -> 600)
     flexDirection: 'column',
     ...shadows.large,
     overflow: 'hidden',
@@ -544,7 +545,8 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     flex: 1,
-    padding: spacing.lg,
+    padding: spacing.xl,
+    minHeight: 500,
   },
   modalBodyContent: {
     paddingBottom: spacing.xl,

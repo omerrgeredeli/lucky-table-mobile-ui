@@ -278,7 +278,7 @@ const LoyaltyDetailsScreen = () => {
           style={styles.actionButton}
           onPress={() => {
             setShowFilterModal(true);
-            setShowSort(false);
+            setShowSortModal(false);
           }}
         >
           <Text style={styles.actionButtonText}>
@@ -838,9 +838,10 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: colors.surface,
     borderRadius: spacing.md,
-    width: '100%',
-    maxWidth: 500,
-    maxHeight: '85%',
+    width: '95%',
+    maxWidth: 1200, // Genişletildi
+    maxHeight: '90%',
+    minHeight: 400, // Minimum yükseklik
     flexDirection: 'column',
     ...shadows.large,
     overflow: 'hidden',
@@ -872,6 +873,7 @@ const styles = StyleSheet.create({
   modalBody: {
     flex: 1,
     padding: spacing.lg,
+    minHeight: 400, // Genişletildi
   },
   modalBodyContent: {
     paddingBottom: spacing.xl,
