@@ -63,7 +63,7 @@ const NearbyCafesMap = () => {
           setMapsReady(true);
         }
         // Konum izni iste
-        requestLocationPermission();
+    requestLocationPermission();
       } catch (error) {
         console.error('Map initialization error:', error);
         setError('Harita yüklenirken bir hata oluştu.');
@@ -73,7 +73,7 @@ const NearbyCafesMap = () => {
     };
     initialize();
   }, []);
-  
+
   // AppState değişikliğini dinle (ayarlardan dönünce konum iznini yeniden kontrol et)
   useEffect(() => {
     if (Platform.OS === 'web') return;
@@ -118,7 +118,7 @@ const NearbyCafesMap = () => {
       if (status === 'granted') {
         // Kısa bir gecikme ile konum al
         setTimeout(() => {
-          getCurrentLocation();
+        getCurrentLocation();
         }, 100);
       } else {
         setError('Konum izni verilmedi. Haritayı görmek için ayarlardan izin verebilirsiniz.');
@@ -211,7 +211,7 @@ const NearbyCafesMap = () => {
       if (Platform.OS === 'web') {
         window.alert(error.message || 'Yakındaki kafeler yüklenemedi.');
       } else {
-        Alert.alert('Hata', error.message || 'Yakındaki kafeler yüklenemedi.');
+      Alert.alert('Hata', error.message || 'Yakındaki kafeler yüklenemedi.');
       }
       setNearbyCafes([]);
     } finally {
@@ -261,28 +261,28 @@ const NearbyCafesMap = () => {
 
   // Web için fallback render
   if (Platform.OS === 'web') {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Yakındaki Kafeler</Text>
-          <TouchableOpacity onPress={handleRefresh} disabled={loading}>
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Yakındaki Kafeler</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={loading}>
             <Text style={[styles.refreshButton, loading && styles.refreshButtonDisabled]}>
               {loading ? 'Yükleniyor...' : 'Yenile'}
             </Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
+      </View>
 
-        {!locationPermission ? (
-          <View style={styles.permissionContainer}>
-            <Text style={styles.permissionText}>
-              Yakındaki kafeleri görmek için konum izni gereklidir.
-            </Text>
-            <TouchableOpacity
-              style={styles.permissionButton}
-              onPress={requestLocationPermission}
-            >
-              <Text style={styles.permissionButtonText}>İzin Ver</Text>
-            </TouchableOpacity>
+      {!locationPermission ? (
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>
+            Yakındaki kafeleri görmek için konum izni gereklidir.
+          </Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestLocationPermission}
+          >
+            <Text style={styles.permissionButtonText}>İzin Ver</Text>
+          </TouchableOpacity>
             {error && (
               <TouchableOpacity
                 style={styles.settingsButton}
@@ -291,8 +291,8 @@ const NearbyCafesMap = () => {
                 <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
               </TouchableOpacity>
             )}
-          </View>
-        ) : (
+        </View>
+      ) : (
           <View style={styles.webMapContainer}>
             <Text style={styles.webMapText}>🗺️ Harita Görünümü</Text>
             <Text style={styles.webMapInfo}>

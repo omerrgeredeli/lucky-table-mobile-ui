@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography, shadows } from '../../theme';
+import Logo from '../../components/Logo';
 import LoyaltyList from './components/LoyaltyList';
+import { getUserProfile } from '../../services/userService';
 
 /**
  * Home Screen - Micro-Screen Architecture
@@ -17,6 +20,26 @@ import LoyaltyList from './components/LoyaltyList';
  */
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const profile = await getUserProfile();
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Profil bilgisi alınamadı:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayName = userProfile?.fullName || userProfile?.name || 'Kullanıcı';
 
   return (
     <View style={styles.container}>
@@ -25,12 +48,27 @@ const HomeScreen = () => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hoşgeldin Yazısı */}
+        {/* Logo */}
+        <Logo size="small" />
+
+        {/* Hoşgeldin Yazısı ve Bildirim İkonu */}
         <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeText}>Hoşgeldin</Text>
+          <View style={styles.welcomeRow}>
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.welcomeText}>Hoşgeldin {displayName}</Text>
+            )}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Notifications')}
+              style={styles.notificationIcon}
+            >
+              <Text style={styles.notificationIconText}>🔔</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Sadakat Bilgileri */}
+        {/* Favori Mekanlar */}
         <LoyaltyList />
       </ScrollView>
     </View>
@@ -52,10 +90,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     paddingVertical: spacing.md,
   },
+  welcomeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   welcomeText: {
     fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
+    flex: 1,
+  },
+  notificationIcon: {
+    padding: spacing.xs,
+  },
+  notificationIconText: {
+    fontSize: 24,
   },
 });
 

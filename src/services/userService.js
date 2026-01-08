@@ -24,7 +24,7 @@ export const getUserProfile = async () => {
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Profil bilgileri alınamadı');
-  }
+    }
 
   return response.data;
 };
@@ -41,7 +41,7 @@ export const updateUserProfile = async (profileData) => {
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Profil güncelleme başarısız');
-  }
+    }
 
   return response.data;
 };
@@ -70,11 +70,11 @@ export const getUserLoyaltyInfo = async () => {
 export const getHomeData = async () => {
   const service = getService();
   const response = await service.getHomeData();
-
+    
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Ana sayfa verileri alınamadı');
-  }
+    }
 
   return response.data;
 };
@@ -156,7 +156,7 @@ export const updateNotificationSettings = async (notificationsEnabled) => {
 
   if (!response.success) {
     throw new Error(response.error?.message || 'Bildirim ayarları güncelleme başarısız');
-  }
+      }
 
   return response.data;
 };
@@ -171,7 +171,7 @@ export const deleteAccount = async () => {
 
   if (!response.success) {
     throw new Error(response.error?.message || 'Üyelik iptali başarısız');
-  }
-
+    }
+    
   return response.data;
 };

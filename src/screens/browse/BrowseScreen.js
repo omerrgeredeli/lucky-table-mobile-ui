@@ -13,6 +13,7 @@ import {
 import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../theme';
+import Logo from '../../components/Logo';
 import BrowseMapScreen from './components/BrowseMapScreen';
 import BrowseFilterModal from './components/BrowseFilterModal';
 import Input from '../../components/Input';
@@ -254,6 +255,11 @@ const BrowseScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Logo */}
+      <View style={styles.logoContainer}>
+        <Logo size="small" />
+      </View>
+
       {/* Arama ve Filtre Butonu */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -396,6 +402,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  logoContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.sm,
   },
   searchContainer: {
     flexDirection: 'row',

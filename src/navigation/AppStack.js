@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors, typography } from '../theme';
 import BottomTabNavigator from './BottomTabNavigator';
 import LoyaltyDetailsScreen from '../screens/loyalty/LoyaltyDetailsScreen';
+import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,7 +35,14 @@ const AppStack = () => {
         name="LoyaltyDetails" 
         component={LoyaltyDetailsScreen}
         options={{
-          title: 'Sadakat Bilgileri',
+          title: 'Favori Mekanlar',
+        }}
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

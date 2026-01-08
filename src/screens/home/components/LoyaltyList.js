@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getUserLoyaltyInfo } from '../../../services/userService';
@@ -37,7 +38,7 @@ const LoyaltyList = () => {
       setLoyaltyData(data || []);
     } catch (err) {
       setError(err.message);
-      Alert.alert('Hata', 'Sadakat bilgileri yüklenemedi. Lütfen tekrar deneyin.');
+      Alert.alert('Hata', 'Favori mekanlar yüklenemedi. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -54,7 +55,25 @@ const LoyaltyList = () => {
 
     return (
       <View style={styles.cafeItem}>
+        <View style={styles.cafeHeader}>
+          {item.cafeLogo ? (
+            <Image
+              source={{ uri: item.cafeLogo }}
+              style={styles.cafeLogo}
+              defaultSource={require('../../../assets/default-cafe-logo.png')}
+              onError={() => {
+                // Logo yüklenemezse fallback göster
+              }}
+            />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.cafeName || 'Kafe')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
         <Text style={styles.cafeName}>{item.cafeName || 'Kafe Adı'}</Text>
+        </View>
         <View style={styles.statsContainer}>
           <Text style={styles.statText}>
             Toplam Sipariş: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
@@ -73,7 +92,7 @@ const LoyaltyList = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Sadakat Bilgileri</Text>
+        <Text style={styles.headerText}>Favori Mekanlar</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('LoyaltyDetails')}
           style={styles.viewAllButton}
@@ -81,6 +100,13 @@ const LoyaltyList = () => {
           <Text style={styles.viewAllText}>Tümünü Gör →</Text>
         </TouchableOpacity>
       </View>
+
+      {/* En Çok Tercih Edilen 3 Mekan Başlığı */}
+      {displayedCafes.length > 0 && (
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>En Çok Tercih Edilen 3 Mekan</Text>
+        </View>
+      )}
 
       <View style={styles.content}>
         {loading ? (
@@ -165,11 +191,32 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
+  cafeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  cafeLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  cafeLogoPlaceholder: {
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cafeLogoPlaceholderText: {
+    color: colors.white,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+  },
   cafeName: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    flex: 1,
   },
   statsContainer: {
     marginTop: spacing.xs,
@@ -192,6 +239,16 @@ const styles = StyleSheet.create({
   progressValue: {
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
+  },
+  sectionTitleContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
   },
 });
 

@@ -7,9 +7,10 @@ import { colors, typography, spacing, shadows } from '../theme';
  * Büyük L harfi ile modern logo tasarımı
  */
 const Logo = ({ size = 'large' }) => {
-  const logoSize = size === 'large' ? 100 : size === 'medium' ? 80 : 60;
-  const fontSize = size === 'large' ? 72 : size === 'medium' ? 56 : 42;
-  const textSize = size === 'large' ? 24 : size === 'medium' ? 20 : 16;
+  // size === 'small' için zil ikonu boyutunda (24px font size'a göre ~30px logo)
+  const logoSize = size === 'large' ? 100 : size === 'medium' ? 80 : size === 'small' ? 30 : 60;
+  const fontSize = size === 'large' ? 72 : size === 'medium' ? 56 : size === 'small' ? 22 : 42;
+  const textSize = size === 'large' ? 24 : size === 'medium' ? 20 : size === 'small' ? 12 : 16;
   const lineHeight = logoSize;
 
   return (

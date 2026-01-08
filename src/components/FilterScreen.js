@@ -36,9 +36,9 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    location: true,
-    date: true,
-    category: true,
+    location: false,
+    date: false,
+    category: false,
   });
 
   // Initialize with provided filters or reset
@@ -49,11 +49,11 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
       } else {
         setFilterState(initialFilterState);
       }
-      // Modal açıldığında tüm section'ları açık yap ki kullanıcı seçenekleri görebilsin
+      // Modal açıldığında tüm section'ları KAPALI yap (accordion mantığı - kullanıcı açacak)
       setExpandedSections({
-        location: true,
-        date: true,
-        category: true,
+        location: false,
+        date: false,
+        category: false,
       });
     }
   }, [visible, initialFilters]);

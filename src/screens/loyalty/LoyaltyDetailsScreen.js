@@ -501,18 +501,29 @@ const LoyaltyDetailsScreen = () => {
                   <>
                     <View style={styles.tableHeader}>
                       <Text style={[styles.tableHeaderText, styles.tableHeaderDate]}>Tarih</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderBranch]}>Şube</Text>
                       <Text style={[styles.tableHeaderText, styles.tableHeaderType]}>Sipariş Türü</Text>
                     </View>
-                    {filteredOrderHistory.map((order, index) => (
-                      <View key={index} style={styles.tableRow}>
-                        <Text style={[styles.tableCell, styles.tableCellDate]}>
-                          {formatDate(order.date)}
-                        </Text>
-                        <Text style={[styles.tableCell, styles.tableCellType]}>
-                          {order.orderType}
-                        </Text>
-                      </View>
-                    ))}
+                    {filteredOrderHistory.map((order, index) => {
+                      // Çoklu sipariş türünü alfabetik sırala ve '-' ile birleştir
+                      const orderTypes = order.orderTypes || (order.orderType ? [order.orderType] : []);
+                      const sortedOrderTypes = [...new Set(orderTypes)].sort();
+                      const orderTypesDisplay = sortedOrderTypes.join(' - ');
+                      
+                      return (
+                        <View key={index} style={styles.tableRow}>
+                          <Text style={[styles.tableCell, styles.tableCellDate]}>
+                            {formatDate(order.date)}
+                          </Text>
+                          <Text style={[styles.tableCell, styles.tableCellBranch]}>
+                            {order.branch || 'Merkez'}
+                          </Text>
+                          <Text style={[styles.tableCell, styles.tableCellType]}>
+                            {orderTypesDisplay}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </>
                 ) : (
                   <Text style={styles.emptyHistoryText}>
@@ -896,6 +907,9 @@ const styles = StyleSheet.create({
   tableHeaderDate: {
     flex: 1,
   },
+  tableHeaderBranch: {
+    flex: 1,
+  },
   tableHeaderType: {
     flex: 1,
   },
@@ -911,6 +925,9 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   tableCellDate: {
+    flex: 1,
+  },
+  tableCellBranch: {
     flex: 1,
   },
   tableCellType: {

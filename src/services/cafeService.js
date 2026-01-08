@@ -25,7 +25,7 @@ export const searchCafes = async (searchQuery) => {
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Kafe arama başarısız');
-  }
+      }
 
   return response.data;
 };
@@ -44,7 +44,7 @@ export const getNearbyCafes = async (latitude, longitude, radius = 5000) => {
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Yakındaki kafeler alınamadı');
-  }
+    }
 
   return response.data;
 };

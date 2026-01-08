@@ -35,18 +35,18 @@ export const login = async (email, password) => {
  * Kullanıcı kayıt işlemi
  * @param {string} email - Kullanıcı email'i
  * @param {string} password - Kullanıcı şifresi
- * @param {string} phone - Telefon numarası (opsiyonel)
+ * @param {Object} phoneData - Telefon bilgileri { fullName, countryCode, phoneNumber }
  * @returns {Promise<{success: boolean, data: any, error: any}>}
  */
-export const signup = async (email, password, phone = '') => {
+export const signup = async (email, password, phoneData = {}) => {
   const service = getService();
-  const response = await service.signup(email, password, phone);
+  const response = await service.signup(email, password, phoneData);
 
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Kayıt işlemi başarısız');
-  }
-
+    }
+    
   return response.data;
 };
 
@@ -62,7 +62,7 @@ export const forgotPassword = async (email) => {
   // Screen'ler için backward compatibility - hata durumunda throw et
   if (!response.success) {
     throw new Error(response.error?.message || 'Şifre sıfırlama isteği başarısız');
-  }
+    }
 
   return response.data;
 };

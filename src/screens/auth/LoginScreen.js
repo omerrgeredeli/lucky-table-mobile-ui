@@ -13,12 +13,19 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import { AuthContext } from '../../context/AuthContext';
 import { login, sendActivationCode } from '../../services/authService';
+import { GOOGLE_CLIENT_IDS, GOOGLE_CLIENT_SECRET } from '../../config/googleAuth';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
+import PasswordInput from '../../components/PasswordInput';
 import Logo from '../../components/Logo';
+
+// WebBrowser için gerekli
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Login Screen - Micro-Screen Architecture
@@ -250,6 +257,180 @@ const LoginScreen = () => {
     }
   };
 
+  // Google Sign-In handler
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      // Config'den platforma göre client ID ve secret al
+      const clientId = Platform.OS === 'web' 
+        ? GOOGLE_CLIENT_IDS.web
+        : Platform.OS === 'ios' 
+          ? GOOGLE_CLIENT_IDS.ios
+          : GOOGLE_CLIENT_IDS.android;
+      const clientSecret = Platform.OS === 'web' ? GOOGLE_CLIENT_SECRET.web : null;
+
+      // Google OAuth configuration
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+      };
+
+      // Redirect URI - platforma göre ayarla
+      // Web için doğrudan localhost:19006 kullan
+      // Mobile için useProxy: true kullan (Expo proxy)
+      let redirectUri;
+      if (Platform.OS === 'web') {
+        // Web için localhost:19006 kullan (Google Cloud Console'da bu URI kayıtlı olmalı)
+        redirectUri = typeof window !== 'undefined' 
+          ? `${window.location.origin}${window.location.pathname}`
+          : 'http://localhost:19006';
+      } else {
+        redirectUri = AuthSession.makeRedirectUri({
+          useProxy: true,
+          scheme: 'com.luckytable.app',
+        });
+      }
+      
+      // Debug: Redirect URI'yi console'a yazdır
+      console.log('Platform:', Platform.OS);
+      console.log('Redirect URI:', redirectUri);
+      console.log('Client ID:', clientId);
+
+      // Authorization Code Flow kullan (Google artık implicit flow desteklemiyor)
+      // Web için PKCE devre dışı (client_secret kullanılacak)
+      // Mobile için PKCE aktif
+      const request = new AuthSession.AuthRequest({
+        clientId: clientId,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.Code, // Token yerine Code kullan
+        redirectUri: redirectUri,
+        usePKCE: Platform.OS !== 'web', // Web için PKCE devre dışı, mobile için aktif
+      });
+
+      const result = await request.promptAsync(discovery);
+
+      if (result.type === 'success') {
+        // Authorization code alındı, token'a exchange et
+        const { code } = result.params;
+        
+        // PKCE code verifier'ı request'ten al (sadece mobile için)
+        const codeVerifier = request.codeVerifier;
+        
+        // Debug: code_verifier kontrolü
+        console.log('Code verifier:', codeVerifier ? 'Found' : 'Not found');
+        console.log('Client secret:', clientSecret ? 'Found' : 'Not found');
+        
+        // Token exchange
+        // Web için client_secret kullan, mobile için PKCE kullan
+        const tokenBody = {
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        };
+        
+        // Web için client_secret ekle (PKCE olmadan)
+        if (clientSecret) {
+          tokenBody.client_secret = clientSecret;
+        }
+        
+        // Mobile için PKCE code_verifier ekle (client_secret olmadan)
+        if (codeVerifier && !clientSecret) {
+          tokenBody.code_verifier = codeVerifier;
+        }
+        
+        const tokenResponse = await fetch(discovery.tokenEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams(tokenBody).toString(),
+        });
+
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { error_description: errorText };
+          }
+          throw new Error(errorData.error_description || errorData.error || 'Token exchange failed');
+        }
+
+        const tokenData = await tokenResponse.json();
+        const { access_token } = tokenData;
+
+        // Google user info al
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${access_token}` },
+        });
+        const userInfo = await userInfoResponse.json();
+
+        // Mock user oluştur veya mevcut kullanıcıyı bul
+        const { USE_MOCK_API } = await import('../../config/api');
+        if (USE_MOCK_API) {
+          const { getAllUsers, addUser } = await import('../../services/mock/mockUserStore');
+          const allUsers = getAllUsers();
+          
+          // Google email ile kullanıcı var mı kontrol et
+          let foundUser = allUsers.find(u => u.email.toLowerCase() === userInfo.email.toLowerCase());
+          
+          if (!foundUser) {
+            // Yeni mock user oluştur
+            const newUser = {
+              id: Date.now(),
+              email: userInfo.email.toLowerCase(),
+              password: 'google_signin', // Google sign-in için özel password
+              name: userInfo.name || userInfo.email.split('@')[0],
+              fullName: userInfo.name || userInfo.email.split('@')[0],
+              phone: '',
+              countryCode: 'TR',
+              phoneNumber: '',
+              notificationsEnabled: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            await addUser(newUser);
+            foundUser = newUser;
+          }
+
+          // Token oluştur
+          const token = `mock_jwt_token_${Date.now()}_${foundUser.id}_${foundUser.email.replace('@', '_at_')}`;
+          
+          // Token'ı kaydet
+          await AsyncStorage.setItem('userToken', token);
+          await AsyncStorage.setItem('userEmail', foundUser.email);
+
+          // AuthContext'e kaydet
+          await authLogin(token);
+        } else {
+          // Real API modunda - backend'e Google token gönder
+          // Şimdilik mock user oluştur
+          const token = `mock_jwt_token_${Date.now()}_google_${userInfo.email.replace('@', '_at_')}`;
+          await AsyncStorage.setItem('userToken', token);
+          await AsyncStorage.setItem('userEmail', userInfo.email);
+          await authLogin(token);
+        }
+      } else if (result.type === 'error') {
+        throw new Error(result.error?.message || 'Google girişi başarısız');
+      } else {
+        // User cancelled
+        setLoading(false);
+        return;
+      }
+    } catch (error) {
+      if (Platform.OS === 'web') {
+        window.alert('Hata: ' + (error.message || 'Google girişi başarısız. Lütfen tekrar deneyin.'));
+      } else {
+        Alert.alert('Hata', error.message || 'Google girişi başarısız. Lütfen tekrar deneyin.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Aktivasyon kodu ile giriş
   const handleActivationLogin = async () => {
     if (!validateActivationCode()) {
@@ -317,7 +498,7 @@ const LoginScreen = () => {
       if (Platform.OS === 'web') {
         window.alert(error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
       } else {
-        Alert.alert('Hata', error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
+      Alert.alert('Hata', error.message || 'Giriş yapılamadı. Lütfen tekrar deneyin.');
       }
     } finally {
       setLoading(false);
@@ -347,12 +528,11 @@ const LoginScreen = () => {
             error={errors.emailOrPhone}
           />
 
-          <Input
+          <PasswordInput
             label="Şifre"
             placeholder="Şifrenizi giriniz"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             error={errors.password}
           />
 
@@ -373,6 +553,19 @@ const LoginScreen = () => {
             onPress={handleLogin}
             loading={loading}
           />
+
+          {/* Butonlar arası spacing */}
+          <View style={styles.buttonSpacing} />
+
+          <Button
+            title="Gmail ile Giriş Yap"
+            onPress={handleGoogleSignIn}
+            variant="google"
+            loading={loading}
+          />
+
+          {/* Butonlar arası spacing */}
+          <View style={styles.buttonSpacing} />
 
           <Button
             title="Şifremi Unuttum"
@@ -587,6 +780,9 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
     fontWeight: typography.fontWeight.semibold,
+  },
+  buttonSpacing: {
+    height: spacing.md,
   },
 });
 

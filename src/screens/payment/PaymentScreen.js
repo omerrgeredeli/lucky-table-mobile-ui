@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
@@ -10,6 +11,7 @@ import {
   AppState,
 } from 'react-native';
 import { colors, spacing, typography, shadows } from '../../theme';
+import Logo from '../../components/Logo';
 
 // Conditional import for expo-camera (web'de çalışmaz)
 let CameraView, CameraType, useCameraPermissions;
@@ -175,15 +177,20 @@ const PaymentScreen = () => {
   if (Platform.OS === 'web') {
     return (
       <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>QR Kod Okut</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.logoContainer}>
+            <Logo size="small" />
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>QR Kod Okut</Text>
           <Text style={styles.subtitle}>
             QR kod tarama özelliği mobil cihazlarda kullanılabilir.
           </Text>
           <Text style={styles.infoText}>
             Android veya iOS cihazınızda uygulamayı açarak QR kod okutabilirsiniz.
           </Text>
-        </View>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -197,10 +204,15 @@ const PaymentScreen = () => {
         // Permission var ama modül henüz yüklenmemiş - kısa bir süre bekle
         return (
           <View style={styles.container}>
-            <View style={styles.content}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.infoText}>Kamera hazırlanıyor...</Text>
-            </View>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <View style={styles.logoContainer}>
+                <Logo size="small" />
+              </View>
+              <View style={styles.content}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.infoText}>Kamera hazırlanıyor...</Text>
+              </View>
+            </ScrollView>
           </View>
         );
       }
@@ -215,13 +227,17 @@ const PaymentScreen = () => {
     
     return (
       <View style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>QR Kod Okut</Text>
-          <Text style={styles.subtitle}>
-            {permissionStatus === 'denied' 
-              ? 'Kamera izni reddedilmiş. Lütfen ayarlardan izin verin.'
-              : 'QR kod okutmak için kamera iznine ihtiyacımız var'}
-          </Text>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.logoContainer}>
+            <Logo size="small" />
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>QR Kod Okut</Text>
+            <Text style={styles.subtitle}>
+              {permissionStatus === 'denied' 
+                ? 'Kamera izni reddedilmiş. Lütfen ayarlardan izin verin.'
+                : 'QR kod okutmak için kamera iznine ihtiyacımız var'}
+            </Text>
 
           {/* Ayarlara Git Butonu - Sadece denied durumunda görünür */}
           {showSettingsButton && (
@@ -257,8 +273,9 @@ const PaymentScreen = () => {
             {showSettingsButton 
               ? 'Ayarlardan kamera iznini açtıktan sonra uygulamaya geri dönün.'
               : 'Kamera izni verildikten sonra QR kod okutabilirsiniz.'}
-          </Text>
-        </View>
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -268,16 +285,24 @@ const PaymentScreen = () => {
   if (!CameraView || !CameraType) {
     return (
       <View style={styles.container}>
-        <View style={styles.content}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.infoText}>Kamera modülü yükleniyor...</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.logoContainer}>
+            <Logo size="small" />
+          </View>
+          <View style={styles.content}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.infoText}>Kamera modülü yükleniyor...</Text>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <View style={styles.logoContainerAbsolute}>
+        <Logo size="small" />
+      </View>
       <CameraView
         style={styles.camera}
         facing={CameraType.back}
@@ -303,6 +328,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    padding: spacing.md,
+  },
+  logoContainer: {
+    paddingBottom: spacing.sm,
+  },
+  logoContainerAbsolute: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 10,
+    alignItems: 'center',
   },
   content: {
     flex: 1,

@@ -18,7 +18,8 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_USE_MOCK_API": "true"
+        "EXPO_PUBLIC_USE_MOCK_API": "true",
+        "EXPO_PUBLIC_ENV": "development"
       }
     },
     "production": {
@@ -30,7 +31,12 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_USE_MOCK_API": "true"
+        "EXPO_PUBLIC_USE_MOCK_API": "false",
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "your-prod-android-client-id",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS": "your-prod-ios-client-id",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "your-prod-web-client-id",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_SECRET_WEB": "your-prod-web-client-secret"
       },
       "autoIncrement": true
     }

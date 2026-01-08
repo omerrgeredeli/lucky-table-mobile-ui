@@ -123,10 +123,10 @@ export const login = async (emailOrPhone, password) => {
  * Kullanıcı kayıt işlemi (Mock)
  * @param {string} email - Kullanıcı email'i
  * @param {string} password - Kullanıcı şifresi
- * @param {string} phone - Telefon numarası (opsiyonel)
+ * @param {Object} phoneData - Telefon bilgileri { fullName, countryCode, phoneNumber }
  * @returns {Promise<{success: boolean, data: any, error: any}>}
  */
-export const signup = async (email, password, phone = '') => {
+export const signup = async (email, password, phoneData = {}) => {
   await delay(400 + Math.random() * 300); // 400-700ms
 
   // Hata senaryosu: geçersiz email
@@ -167,16 +167,20 @@ export const signup = async (email, password, phone = '') => {
     );
   }
 
-  // Telefon numarasını temizle
-  const cleanedPhone = phone ? phone.replace(/\s/g, '').replace(/[()-]/g, '') : '';
+  // Telefon bilgilerini al
+  const { fullName = '', countryCode = 'TR', phoneNumber = '' } = phoneData;
+  const cleanedPhone = phoneNumber ? phoneNumber.replace(/\s/g, '').replace(/[()-]/g, '') : '';
 
   // Yeni kullanıcı oluştur
   const newUser = {
     id: Date.now(), // Unique ID
     email: normalizedEmail,
     password: password, // Gerçek uygulamada hash'lenmeli
-    name: email.split('@')[0], // Email'den isim türet
-    phone: cleanedPhone,
+    name: fullName || email.split('@')[0], // fullName varsa kullan, yoksa email'den türet
+    fullName: fullName || email.split('@')[0], // fullName alanı
+    phone: cleanedPhone, // Backward compatibility için
+    countryCode: countryCode || 'TR',
+    phoneNumber: cleanedPhone,
     notificationsEnabled: true, // Varsayılan
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -205,6 +209,7 @@ export const signup = async (email, password, phone = '') => {
         id: newUser.id,
         email: newUser.email,
         name: newUser.name,
+        fullName: newUser.fullName,
       },
     },
     null

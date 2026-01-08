@@ -24,6 +24,7 @@ import {
   deleteAccount,
 } from '../../services/userService';
 import { colors, spacing, typography, shadows } from '../../theme';
+import Logo from '../../components/Logo';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 
@@ -127,8 +128,8 @@ const ProfileScreen = () => {
     try {
       const { sendActivationCode } = await import('../../services/authService');
       await sendActivationCode(newEmail);
-      setShowEmailModal(false);
-      setShowActivationModal(true);
+    setShowEmailModal(false);
+    setShowActivationModal(true);
     } catch (error) {
       Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
     }
@@ -152,8 +153,8 @@ const ProfileScreen = () => {
     try {
       const { sendActivationCode } = await import('../../services/authService');
       await sendActivationCode(cleanedPhone);
-      setShowPhoneModal(false);
-      setShowActivationModal(true);
+    setShowPhoneModal(false);
+    setShowActivationModal(true);
     } catch (error) {
       Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
     }
@@ -184,13 +185,13 @@ const ProfileScreen = () => {
         setProfileData({ ...profileData, phone: newPhone });
       }
       
-      setShowActivationModal(false);
-      setActivationCode('');
+    setShowActivationModal(false);
+    setActivationCode('');
       setNewEmail('');
       setNewPhone('');
-      Alert.alert('Başarılı', 'Bilgileriniz güncellendi');
-      setHasChanges(false);
-      await loadProfile();
+    Alert.alert('Başarılı', 'Bilgileriniz güncellendi');
+    setHasChanges(false);
+    await loadProfile();
     } catch (error) {
       Alert.alert('Hata', error.message || 'Güncelleme başarısız');
     } finally {
@@ -213,18 +214,18 @@ const ProfileScreen = () => {
       // Backend'e üyelik iptali isteği
       await deleteAccount();
       
-      // Signup screen'e yönlendirme için flag kaydet
-      await AsyncStorage.setItem('redirectToSignup', 'true');
-      await logout();
+    // Signup screen'e yönlendirme için flag kaydet
+    await AsyncStorage.setItem('redirectToSignup', 'true');
+    await logout();
       
-      Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
-        {
-          text: 'Tamam',
-          onPress: () => {
-            // AppNavigator otomatik olarak AuthStack'e geçecek
-          },
+    Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
+      {
+        text: 'Tamam',
+        onPress: () => {
+          // AppNavigator otomatik olarak AuthStack'e geçecek
         },
-      ]);
+      },
+    ]);
     } catch (error) {
       Alert.alert('Hata', error.message || 'Üyelik iptali başarısız');
     } finally {
@@ -241,6 +242,9 @@ const ProfileScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+        {/* Logo */}
+        <Logo size="small" />
+
         {/* Üyelik Bilgileri */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Üyelik Bilgileri</Text>
@@ -367,7 +371,7 @@ const ProfileScreen = () => {
                 try {
                   await updateUserProfile(profileData);
                   setOriginalProfileData({ ...profileData });
-                  setHasChanges(false);
+                setHasChanges(false);
                   Alert.alert('Başarılı', 'Profil bilgileriniz güncellendi');
                   await loadProfile();
                 } catch (error) {
@@ -515,10 +519,10 @@ const ProfileScreen = () => {
                     // Eski şifre kontrolü için token'dan kullanıcı bilgisi alınmalı
                     // Mock'ta direkt güncelleme yapıyoruz
                     await updatePassword('', newPassword); // Mock'ta eski şifre kontrolü yok
-                    setShowPasswordModal(false);
-                    setNewPassword('');
-                    setConfirmPassword('');
-                    Alert.alert('Başarılı', 'Şifreniz güncellendi');
+                  setShowPasswordModal(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  Alert.alert('Başarılı', 'Şifreniz güncellendi');
                   } catch (error) {
                     Alert.alert('Hata', error.message || 'Şifre güncelleme başarısız');
                   } finally {

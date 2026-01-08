@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * In-Memory User Store
- * Format: { email: { id, email, password, name, phone, notificationsEnabled, createdAt, updatedAt } }
+ * Format: { email: { id, email, password, name, fullName, phone, countryCode, phoneNumber, notificationsEnabled, createdAt, updatedAt } }
  */
 const userStore = new Map();
 
@@ -24,7 +24,10 @@ const initializeTestUsers = () => {
     email: 'test@example.com',
     password: 'password123',
     name: 'Test User',
-    phone: '+90 555 123 4567',
+    fullName: 'Test User',
+    phone: '5551234567',
+    countryCode: 'TR',
+    phoneNumber: '5551234567',
     notificationsEnabled: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
