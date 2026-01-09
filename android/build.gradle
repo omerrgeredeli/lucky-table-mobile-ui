@@ -37,6 +37,19 @@ allprojects {
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
     }
+    
+    afterEvaluate { project ->
+        def android = project.extensions.findByName('android')
+        if (android != null) {
+            try {
+                if (android.compileSdkVersion == null) {
+                    android.compileSdkVersion rootProject.ext.compileSdkVersion
+                }
+            } catch (Exception e) {
+                // compileSdkVersion already set or not applicable
+            }
+        }
+    }
 }
 // @generated begin expo-camera-import - expo prebuild (DO NOT MODIFY) sync-f244f4f3d8bf7229102e8f992b525b8602c74770
 def expoCameraMavenPath = new File(["node", "--print", "require.resolve('expo-camera/package.json')"].execute(null, rootDir).text.trim(), "../android/maven")

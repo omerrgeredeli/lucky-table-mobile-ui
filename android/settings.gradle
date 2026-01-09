@@ -1,5 +1,9 @@
 rootProject.name = 'Lucky Table'
 
+// Include expo-modules-core for expo-module-gradle-plugin (before useExpoModules to avoid name conflict)
+def expoModulesCorePath = new File(["node", "--print", "require.resolve('expo-modules-core/package.json')"].execute(null, rootDir).text.trim()).getParentFile()
+includeBuild(expoModulesCorePath)
+
 apply from: new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle");
 useExpoModules()
 
