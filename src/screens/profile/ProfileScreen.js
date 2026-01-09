@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,10 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   getUserProfile,
   updateUserProfile,
@@ -34,7 +36,9 @@ import Input from '../../components/Input';
  */
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { logout } = useContext(AuthContext);
+  const { supportedLanguages, currentLanguage, changeLanguage, getCurrentLanguageInfo } = useLanguage();
 
   // State
   const [profileData, setProfileData] = useState({
@@ -54,6 +58,11 @@ const ProfileScreen = () => {
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showActivationModal, setShowActivationModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  
+  // Dil değiştirme state
+  const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage);
+  const [hasLanguageChange, setHasLanguageChange] = useState(false);
 
   // Edit states
   const [newEmail, setNewEmail] = useState('');
@@ -62,29 +71,29 @@ const ProfileScreen = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [activationCode, setActivationCode] = useState('');
 
-  // Şifre validasyon kuralları
-  const passwordRules = [
+  // Şifre validasyon kuralları - dil değişikliğinde güncellenir
+  const passwordRules = useMemo(() => [
     {
-      label: 'En az 8 karakter',
+      label: t('password.rules.minLength'),
       test: (pwd) => pwd.length >= 8,
     },
     {
-      label: 'En az 1 büyük harf',
+      label: t('password.rules.uppercase'),
       test: (pwd) => /[A-Z]/.test(pwd),
     },
     {
-      label: 'En az 1 küçük harf',
+      label: t('password.rules.lowercase'),
       test: (pwd) => /[a-z]/.test(pwd),
     },
     {
-      label: 'En az 1 rakam',
+      label: t('password.rules.number'),
       test: (pwd) => /[0-9]/.test(pwd),
     },
     {
-      label: 'En az 1 noktalama işareti',
+      label: t('password.rules.special'),
       test: (pwd) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
     },
-  ];
+  ], [t]);
 
   useEffect(() => {
     loadProfile();
@@ -247,12 +256,12 @@ const ProfileScreen = () => {
 
         {/* Üyelik Bilgileri */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Üyelik Bilgileri</Text>
+          <Text style={styles.sectionTitle}>{t('profile.membershipInfo')}</Text>
 
           {/* Email */}
           <View style={styles.infoRow}>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>E-posta</Text>
+              <Text style={styles.infoLabel}>{t('profile.email')}</Text>
               <Text style={styles.infoValue}>{profileData.email}</Text>
             </View>
             <TouchableOpacity onPress={handleEmailEdit} style={styles.editIcon}>
@@ -263,7 +272,7 @@ const ProfileScreen = () => {
           {/* Telefon */}
           <View style={styles.infoRow}>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Cep Telefonu</Text>
+              <Text style={styles.infoLabel}>{t('profile.phone')}</Text>
               <Text style={styles.infoValue}>{profileData.phone}</Text>
             </View>
             <TouchableOpacity onPress={handlePhoneEdit} style={styles.editIcon}>
@@ -274,8 +283,8 @@ const ProfileScreen = () => {
           {/* Şifre */}
           <View style={styles.infoRow}>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Şifre</Text>
-              <Text style={styles.infoValue}>••••••••</Text>
+              <Text style={styles.infoLabel}>{t('profile.password')}</Text>
+              <Text style={styles.infoValue}>{t('profile.passwordMasked')}</Text>
             </View>
             <TouchableOpacity onPress={handlePasswordEdit} style={styles.editIcon}>
               <Text style={styles.editIconText}>✏️</Text>
@@ -286,7 +295,7 @@ const ProfileScreen = () => {
         {/* Bildirimler */}
         <View style={styles.section}>
           <View style={styles.switchRow}>
-            <Text style={styles.sectionTitle}>Bildirimler</Text>
+            <Text style={styles.sectionTitle}>{t('profile.notifications')}</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={async (value) => {
@@ -296,7 +305,7 @@ const ProfileScreen = () => {
                 try {
                   await updateNotificationSettings(value);
                 } catch (error) {
-                  Alert.alert('Hata', error.message || 'Bildirim ayarları güncellenemedi');
+                  Alert.alert(t('common.error'), error.message || t('profile.notificationUpdateError'));
                   setNotificationsEnabled(!value); // Geri al
                 }
               }}
@@ -306,13 +315,32 @@ const ProfileScreen = () => {
           </View>
         </View>
 
+        {/* Dil Ayarları */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.languageRow}
+            onPress={() => {
+              setSelectedLanguage(currentLanguage);
+              setShowLanguageModal(true);
+            }}
+          >
+            <View style={styles.languageContent}>
+              <Text style={styles.sectionTitle}>{t('language.changeLanguage')}</Text>
+              <Text style={styles.languageValue}>
+                {getCurrentLanguageInfo().flag} {getCurrentLanguageInfo().name}
+              </Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Üyelik İptali */}
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.dangerButton}
             onPress={handleCancelMembership}
           >
-            <Text style={styles.dangerButtonText}>Üyeliğimi İptal Et</Text>
+            <Text style={styles.dangerButtonText}>{t('profile.cancelMembership')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -326,27 +354,27 @@ const ProfileScreen = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Üyelik İptali</Text>
+                <Text style={styles.modalTitle}>{t('profile.cancelMembershipTitle')}</Text>
                 <TouchableOpacity onPress={() => setShowCancelMembershipModal(false)}>
                   <Text style={styles.modalCloseText}>✕</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.modalBody}>
                 <Text style={styles.modalDescription}>
-                  Üyeliğinizi iptal etmek istediğinize emin misiniz?
+                  {t('profile.cancelMembershipConfirm')}
                 </Text>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonCancel]}
                     onPress={() => setShowCancelMembershipModal(false)}
                   >
-                    <Text style={styles.modalButtonTextCancel}>Hayır</Text>
+                    <Text style={styles.modalButtonTextCancel}>{t('common.no')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonConfirm]}
                     onPress={handleConfirmCancelMembership}
                   >
-                    <Text style={styles.modalButtonTextConfirm}>Evet</Text>
+                    <Text style={styles.modalButtonTextConfirm}>{t('common.yes')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -357,7 +385,7 @@ const ProfileScreen = () => {
         {/* Çıkış Yap */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>Çıkış Yap</Text>
+            <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -365,17 +393,17 @@ const ProfileScreen = () => {
         {hasChanges && (
           <View style={styles.saveContainer}>
             <Button
-              title="Kaydet"
+              title={t('common.save')}
               onPress={async () => {
                 setLoading(true);
                 try {
                   await updateUserProfile(profileData);
                   setOriginalProfileData({ ...profileData });
                 setHasChanges(false);
-                  Alert.alert('Başarılı', 'Profil bilgileriniz güncellendi');
+                  Alert.alert(t('common.success'), t('profile.profileUpdateSuccess'));
                   await loadProfile();
                 } catch (error) {
-                  Alert.alert('Hata', error.message || 'Profil güncellenemedi');
+                  Alert.alert(t('common.error'), error.message || t('profile.profileUpdateError'));
                 } finally {
                   setLoading(false);
                 }
@@ -396,21 +424,21 @@ const ProfileScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>E-posta Düzenle</Text>
+              <Text style={styles.modalTitle}>{t('profile.editEmail')}</Text>
               <TouchableOpacity onPress={() => setShowEmailModal(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
               <Input
-                label="Yeni E-posta"
-                placeholder="ornek@email.com"
+                label={t('profile.newEmail')}
+                placeholder={t('auth.emailPlaceholder')}
                 value={newEmail}
                 onChangeText={setNewEmail}
                 keyboardType="email-address"
               />
               <Button
-                title="Güncelle"
+                title={t('profile.update')}
                 onPress={handleEmailUpdate}
               />
             </View>
@@ -428,21 +456,21 @@ const ProfileScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Telefon Düzenle</Text>
+              <Text style={styles.modalTitle}>{t('profile.editPhone')}</Text>
               <TouchableOpacity onPress={() => setShowPhoneModal(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
               <Input
-                label="Yeni Telefon"
-                placeholder="05XX XXX XX XX"
+                label={t('profile.newPhone')}
+                placeholder={t('auth.phonePlaceholder')}
                 value={newPhone}
                 onChangeText={setNewPhone}
                 keyboardType="phone-pad"
               />
               <Button
-                title="Güncelle"
+                title={t('profile.update')}
                 onPress={handlePhoneUpdate}
               />
             </View>
@@ -460,21 +488,21 @@ const ProfileScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Şifre Değiştir</Text>
+              <Text style={styles.modalTitle}>{t('password.changePassword')}</Text>
               <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
               <Input
-                label="Yeni Şifre"
-                placeholder="Yeni şifrenizi giriniz"
+                label={t('password.newPassword')}
+                placeholder={t('password.newPasswordPlaceholder')}
                 value={newPassword}
                 onChangeText={setNewPassword}
               />
               <Input
-                label="Şifre Tekrar"
-                placeholder="Şifrenizi tekrar giriniz"
+                label={t('auth.confirmPassword')}
+                placeholder={t('auth.confirmPasswordPlaceholder')}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -548,7 +576,7 @@ const ProfileScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Aktivasyon Kodu</Text>
+              <Text style={styles.modalTitle}>{t('auth.activationCode')}</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowActivationModal(false);
@@ -560,21 +588,107 @@ const ProfileScreen = () => {
             </View>
             <View style={styles.modalBody}>
               <Text style={styles.modalDescription}>
-                Gönderilen aktivasyon kodunu giriniz
+                {t('auth.activationCodeDescription')}
               </Text>
               <Input
-                label="Aktivasyon Kodu"
-                placeholder="6 haneli kod"
+                label={t('auth.activationCode')}
+                placeholder={t('auth.activationCodePlaceholder')}
                 value={activationCode}
                 onChangeText={setActivationCode}
                 keyboardType="number-pad"
                 maxLength={6}
               />
               <Button
-                title="Doğrula"
+                title={t('auth.verify')}
                 onPress={handleActivationSubmit}
               />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Dil Seçimi Modal */}
+      <Modal
+        visible={showLanguageModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowLanguageModal(false);
+          setSelectedLanguage(currentLanguage);
+          setHasLanguageChange(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('language.selectLanguage')}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLanguageModal(false);
+                  setSelectedLanguage(currentLanguage);
+                  setHasLanguageChange(false);
+                }}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              {supportedLanguages.map((language) => (
+                <TouchableOpacity
+                  key={language.code}
+                  style={[
+                    styles.languageOption,
+                    selectedLanguage === language.code && styles.languageOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedLanguage(language.code);
+                    setHasLanguageChange(language.code !== currentLanguage);
+                  }}
+                >
+                  <View style={styles.languageOptionContent}>
+                    <Text style={styles.languageOptionFlag}>{language.flag}</Text>
+                    <Text
+                      style={[
+                        styles.languageOptionName,
+                        selectedLanguage === language.code && styles.languageOptionNameSelected,
+                      ]}
+                    >
+                      {language.name}
+                    </Text>
+                  </View>
+                  {selectedLanguage === language.code && (
+                    <View style={styles.checkmark}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+              {hasLanguageChange && (
+                <View style={styles.languageSaveContainer}>
+                  <Button
+                    title={t('common.save')}
+                    onPress={async () => {
+                      setLoading(true);
+                      try {
+                        const success = await changeLanguage(selectedLanguage);
+                        if (success) {
+                          setShowLanguageModal(false);
+                          setHasLanguageChange(false);
+                          Alert.alert(t('common.success'), t('language.languageChanged'));
+                        } else {
+                          Alert.alert(t('common.error'), t('common.error'));
+                        }
+                      } catch (error) {
+                        Alert.alert(t('common.error'), error.message || t('common.error'));
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    loading={loading}
+                  />
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -758,6 +872,74 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.white,
     fontWeight: typography.fontWeight.semibold,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  languageContent: {
+    flex: 1,
+  },
+  languageValue: {
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  arrow: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: spacing.sm,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  languageOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  languageOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  languageOptionFlag: {
+    fontSize: 28,
+    marginRight: spacing.md,
+  },
+  languageOptionName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.textPrimary,
+  },
+  languageOptionNameSelected: {
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  languageSaveContainer: {
+    marginTop: spacing.md,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: colors.white,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
   },
 });
 

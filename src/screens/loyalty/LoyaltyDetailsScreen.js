@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { getUserLoyaltyInfo } from '../../services/userService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import FilterScreen from '../../components/FilterScreen';
@@ -24,6 +25,7 @@ import { locationData } from '../../data/locationData';
  */
 const LoyaltyDetailsScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [loyaltyData, setLoyaltyData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,7 @@ const LoyaltyDetailsScreen = () => {
       setLoyaltyData(data || []);
       setFilteredData(data || []);
     } catch (error) {
-      Alert.alert('Hata', 'Sadakat bilgileri yüklenemedi.');
+      Alert.alert(t('common.error'), t('loyalty.loadError'));
     } finally {
       setLoading(false);
     }
@@ -235,24 +237,24 @@ const LoyaltyDetailsScreen = () => {
         }}
         activeOpacity={0.7}
       >
-        <Text style={styles.cafeName}>{item.cafeName || 'Kafe Adı'}</Text>
+        <Text style={styles.cafeName}>{item.cafeName || t('loyalty.cafeName')}</Text>
         <View style={styles.statsContainer}>
           {hasDateFilter && (
             <Text style={styles.statText}>
-              Tarih aralığı sipariş:{" "}
+              {t('loyalty.dateRangeOrder')}:{" "}
               <Text style={styles.statValue}>{item.dateRangeOrderCount || 0}</Text>
             </Text>
           )}
           <Text style={styles.statText}>
-            Toplam Sipariş: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
+            {t('loyalty.totalOrders')}: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
           </Text>
           {!hasDateFilter && (
             <>
               <Text style={styles.statText}>
-                Ücretsiz Ürün: <Text style={styles.statValue}>{item.freeProductAt || 10}</Text>. siparişte
+                {t('loyalty.freeProductAt')}: <Text style={styles.statValue}>{item.freeProductAt || 10}</Text> {t('loyalty.freeProductAtOrder')}
               </Text>
               <Text style={styles.progressText}>
-                Bir sonraki ücretsiz ürün için: <Text style={styles.progressValue}>{nextFreeAt}</Text> sipariş kaldı
+                {t('loyalty.nextFreeProduct')}: <Text style={styles.progressValue}>{nextFreeAt}</Text> {t('loyalty.ordersLeft')}
               </Text>
             </>
           )}
@@ -282,7 +284,7 @@ const LoyaltyDetailsScreen = () => {
           }}
         >
           <Text style={styles.actionButtonText}>
-            Filtrele{filterPayload && ' ✓'}
+            {t('loyalty.filter')}{filterPayload && ' ✓'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -292,7 +294,7 @@ const LoyaltyDetailsScreen = () => {
             setShowFilterModal(false);
           }}
         >
-          <Text style={styles.actionButtonText}>Sırala</Text>
+          <Text style={styles.actionButtonText}>{t('loyalty.sort')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.actionButton}
@@ -302,7 +304,7 @@ const LoyaltyDetailsScreen = () => {
             setShowFilterModal(false);
           }}
         >
-          <Text style={styles.actionButtonText}>Güncel Veriler</Text>
+          <Text style={styles.actionButtonText}>{t('loyalty.currentData')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -331,7 +333,7 @@ const LoyaltyDetailsScreen = () => {
           </TouchableWithoutFeedback>
           <View style={styles.sortModalContent}>
             <View style={styles.sortModalHeader}>
-              <Text style={styles.sortModalTitle}>Sıralama Seçenekleri</Text>
+              <Text style={styles.sortModalTitle}>{t('loyalty.sortOptions')}</Text>
               <TouchableOpacity
                 onPress={() => setShowSortModal(false)}
                 style={styles.sortModalCloseButton}
@@ -341,14 +343,14 @@ const LoyaltyDetailsScreen = () => {
             </View>
             <ScrollView style={styles.sortModalBody}>
               {[
-                { value: 'dateDesc', label: 'Tarihe göre (Yeni → Eski)' },
-                { value: 'dateAsc', label: 'Tarihe göre (Eski → Yeni)' },
-                { value: 'nameAsc', label: 'Alfabetik (A → Z)' },
-                { value: 'nameDesc', label: 'Alfabetik (Z → A)' },
-                { value: 'orderCountDesc', label: 'En çok kullanılan' },
-                { value: 'orderCountAsc', label: 'En az kullanılan' },
-                { value: 'nextOrderDesc', label: 'Sonraki ürün (Çok → Az)' },
-                { value: 'nextOrderAsc', label: 'Sonraki ürün (Az → Çok)' },
+                { value: 'dateDesc', label: t('loyalty.sortByDateDesc') },
+                { value: 'dateAsc', label: t('loyalty.sortByDateAsc') },
+                { value: 'nameAsc', label: t('loyalty.sortByNameAsc') },
+                { value: 'nameDesc', label: t('loyalty.sortByNameDesc') },
+                { value: 'orderCountDesc', label: t('loyalty.sortByOrderCountDesc') },
+                { value: 'orderCountAsc', label: t('loyalty.sortByOrderCountAsc') },
+                { value: 'nextOrderDesc', label: t('loyalty.sortByNextOrderDesc') },
+                { value: 'nextOrderAsc', label: t('loyalty.sortByNextOrderAsc') },
               ].map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -387,7 +389,7 @@ const LoyaltyDetailsScreen = () => {
         keyExtractor={(item, index) => `cafe-${index}`}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Henüz sipariş geçmişiniz bulunmuyor.</Text>
+          <Text style={styles.emptyText}>{t('loyalty.noOrderHistory')}</Text>
         }
       />
 
@@ -399,17 +401,17 @@ const LoyaltyDetailsScreen = () => {
             onPress={() => setCurrentPage(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            <Text style={styles.pageButtonText}>Önceki</Text>
+            <Text style={styles.pageButtonText}>{t('loyalty.previous')}</Text>
           </TouchableOpacity>
 
           <View style={styles.pageInfo}>
             <Text style={styles.pageInfoText} numberOfLines={1}>
-              Sayfa {currentPage} / {totalPages}
+              {t('loyalty.page')} {currentPage} / {totalPages}
             </Text>
           </View>
 
           <View style={styles.itemsPerPageContainer}>
-            <Text style={styles.itemsPerPageLabel}>Göster:</Text>
+            <Text style={styles.itemsPerPageLabel}>{t('loyalty.show')}:</Text>
             {[5, 10, 20, 50].map((num) => (
               <TouchableOpacity
                 key={num}
@@ -439,7 +441,7 @@ const LoyaltyDetailsScreen = () => {
             onPress={() => setCurrentPage(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            <Text style={styles.pageButtonText}>Sonraki</Text>
+            <Text style={styles.pageButtonText}>{t('loyalty.next')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -458,7 +460,7 @@ const LoyaltyDetailsScreen = () => {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {selectedCafe?.cafeName || 'Kafe'} - Sipariş Geçmişi
+                {selectedCafe?.cafeName || t('loyalty.cafeName')} - {t('loyalty.orderHistory')}
               </Text>
               <TouchableOpacity
                 onPress={() => setShowOrderHistoryModal(false)}
@@ -500,15 +502,18 @@ const LoyaltyDetailsScreen = () => {
                 return filteredOrderHistory.length > 0 ? (
                   <>
                     <View style={styles.tableHeader}>
-                      <Text style={[styles.tableHeaderText, styles.tableHeaderDate]}>Tarih</Text>
-                      <Text style={[styles.tableHeaderText, styles.tableHeaderBranch]}>Şube</Text>
-                      <Text style={[styles.tableHeaderText, styles.tableHeaderType]}>Sipariş Türü</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderDate]}>{t('loyalty.date')}</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderBranch]}>{t('loyalty.branch')}</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderType]}>{t('loyalty.orderType')}</Text>
                     </View>
                     {filteredOrderHistory.map((order, index) => {
                       // Çoklu sipariş türünü alfabetik sırala ve '-' ile birleştir
                       const orderTypes = order.orderTypes || (order.orderType ? [order.orderType] : []);
                       const sortedOrderTypes = [...new Set(orderTypes)].sort();
-                      const orderTypesDisplay = sortedOrderTypes.join(' - ');
+                      // Sipariş tiplerini translate et
+                      const orderTypesDisplay = sortedOrderTypes
+                        .map((type) => t(`filter.orderTypes.${type}`, { defaultValue: type }))
+                        .join(' - ');
                       
                       return (
                         <View key={index} style={styles.tableRow}>
@@ -516,7 +521,7 @@ const LoyaltyDetailsScreen = () => {
                             {formatDate(order.date)}
                           </Text>
                           <Text style={[styles.tableCell, styles.tableCellBranch]}>
-                            {order.branch || 'Merkez'}
+                            {order.branch || t('loyalty.centerBranch', { defaultValue: 'Merkez' })}
                           </Text>
                           <Text style={[styles.tableCell, styles.tableCellType]}>
                             {orderTypesDisplay}
@@ -528,8 +533,8 @@ const LoyaltyDetailsScreen = () => {
                 ) : (
                   <Text style={styles.emptyHistoryText}>
                     {filterPayload && (filterPayload.startDate || filterPayload.endDate)
-                      ? 'Seçilen tarih aralığında sipariş bulunmuyor.'
-                      : 'Henüz sipariş geçmişi bulunmuyor.'}
+                      ? t('loyalty.noOrderHistoryInRange')
+                      : t('loyalty.noOrderHistory')}
                   </Text>
                 );
               })()}
@@ -539,7 +544,7 @@ const LoyaltyDetailsScreen = () => {
                 style={styles.modalCloseButtonFooter}
                 onPress={() => setShowOrderHistoryModal(false)}
               >
-                <Text style={styles.modalCloseButtonText}>Kapat</Text>
+                <Text style={styles.modalCloseButtonText}>{t('common.close')}</Text>
               </TouchableOpacity>
             </View>
           </View>

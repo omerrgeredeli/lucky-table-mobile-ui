@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography, shadows } from '../../../theme';
 import Button from '../../../components/Button';
 
@@ -17,7 +18,9 @@ import Button from '../../../components/Button';
  * Restoran Türü (çoklu seçim), Mesafe (slider), Kampanya Tipi (çoklu seçim)
  */
 const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null }) => {
-  // Mock veriler
+  const { t } = useTranslation();
+  
+  // Mock veriler - i18n'den çekilecek
   const restaurantTypes = ['Kafe', 'Restoran', 'Pastane', 'Bar', 'Fast Food'];
   const campaignTypes = ['İndirim', 'Hediye', 'Puan', 'Özel Fırsat'];
 
@@ -151,7 +154,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              Filtrele
+              {t('filter.title')}
               {activeFilterCount > 0 && (
                 <Text style={styles.filterCount}> ({activeFilterCount})</Text>
               )}
@@ -173,7 +176,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                   }))
                 }
               >
-                <Text style={styles.filterSectionTitle}>Restoran Türü</Text>
+                <Text style={styles.filterSectionTitle}>{t('filter.restaurantType')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.restaurantType ? '▼' : '▶'}
                 </Text>
@@ -185,7 +188,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                         style={styles.selectAllButton}
                         onPress={selectAllRestaurantTypes}
                       >
-                        <Text style={styles.selectAllText}>Tümünü Seç</Text>
+                        <Text style={styles.selectAllText}>{t('filter.selectAll')}</Text>
                       </TouchableOpacity>
                     </View>
                   <View style={styles.checkboxContainer}>
@@ -218,7 +221,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                               isSelected && styles.checkboxLabelActive,
                             ]}
                           >
-                            {type}
+                            {t(`filter.restaurantTypes.${type}`, { defaultValue: type })}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -239,7 +242,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                   }))
                 }
               >
-                <Text style={styles.filterSectionTitle}>Maksimum Mesafe</Text>
+                <Text style={styles.filterSectionTitle}>{t('filter.maxDistance')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.distance ? '▼' : '▶'}
                 </Text>
@@ -248,7 +251,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                 <View style={styles.filterSectionContent}>
                   <View style={styles.sliderContainer}>
                     <Text style={styles.sliderLabel}>
-                      Seçilen: {filterState.maxDistance} km
+                      {t('filter.selected')}: {filterState.maxDistance} {t('filter.km')}
                     </Text>
                     {/* Mesafe seçenekleri - sadece butonlar */}
                     <View style={styles.sliderButtons}>
@@ -274,7 +277,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                                 styles.sliderButtonTextActive,
                             ]}
                           >
-                            {value} km
+                            {value} {t('filter.km')}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -295,7 +298,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                   }))
                 }
               >
-                <Text style={styles.filterSectionTitle}>Kampanya Tipi</Text>
+                <Text style={styles.filterSectionTitle}>{t('filter.campaignType')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.campaignType ? '▼' : '▶'}
                 </Text>
@@ -336,7 +339,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                                 isSelected && styles.checkboxLabelActive,
                               ]}
                             >
-                              {type}
+                              {t(`filter.campaignTypes.${type}`, { defaultValue: type })}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -353,14 +356,14 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
               style={styles.clearButtonFooter}
               onPress={handleClear}
             >
-              <Text style={styles.clearButtonText}>Temizle</Text>
+              <Text style={styles.clearButtonText}>{t('filter.clear')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.applyButton}
               onPress={handleApply}
             >
               <Text style={styles.applyButtonText}>
-                Uygula {activeFilterCount > 0 && `(${activeFilterCount})`}
+                {t('filter.applyFilters')} {activeFilterCount > 0 && `(${activeFilterCount})`}
               </Text>
             </TouchableOpacity>
           </View>

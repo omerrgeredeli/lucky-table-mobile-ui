@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
+import { LanguageProvider } from './src/context/LanguageContext';
+import { PermissionProvider } from './src/context/PermissionContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import initI18n from './src/config/i18n';
+import { colors } from './src/theme';
 
 /**
  * Deprecated uyarılarını filtrele (Web için)
@@ -27,14 +31,42 @@ if (Platform.OS === 'web' && __DEV__) {
 
 /**
  * Ana Uygulama Entry Point
- * AuthProvider ile tüm uygulamayı sarmalıyoruz
+ * i18n başlatıldıktan sonra uygulamayı render eder
  */
 export default function App() {
+  const [i18nReady, setI18nReady] = useState(false);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await initI18n();
+        setI18nReady(true);
+      } catch (error) {
+        console.error('i18n başlatma hatası:', error);
+        setI18nReady(true); // Hata olsa bile uygulamayı göster
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (!i18nReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <AuthProvider>
-      <StatusBar style="auto" />
-      <AppNavigator />
-    </AuthProvider>
+    <LanguageProvider>
+      <PermissionProvider>
+        <AuthProvider>
+          <StatusBar style="auto" />
+          <AppNavigator />
+        </AuthProvider>
+      </PermissionProvider>
+    </LanguageProvider>
   );
 }
 

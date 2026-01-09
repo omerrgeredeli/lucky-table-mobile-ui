@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
-  Linking,
   AppState,
+  Alert,
+  Modal,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { usePermissions } from '../../context/PermissionContext';
+import { AuthContext } from '../../context/AuthContext';
+import { processQrCode } from '../../services/qrService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Logo from '../../components/Logo';
 
 // Conditional import for expo-camera (web'de çalışmaz)
-let CameraView, CameraType, useCameraPermissions;
+let CameraView, CameraType;
 let cameraModuleLoaded = false;
 
 if (Platform.OS !== 'web') {
@@ -23,87 +28,39 @@ if (Platform.OS !== 'web') {
     if (Camera && Camera.CameraView) {
       CameraView = Camera.CameraView;
       CameraType = Camera.CameraType;
-      useCameraPermissions = Camera.useCameraPermissions;
       cameraModuleLoaded = true;
-      console.log('Camera module loaded successfully');
-    } else {
-      console.warn('expo-camera module structure is incorrect');
     }
   } catch (error) {
     console.warn('expo-camera could not be loaded:', error);
-    cameraModuleLoaded = false;
   }
-}
-
-// Fallback hook for web or when camera module is not available
-const fallbackCameraPermissions = () => {
-  return [
-    { granted: false, canAskAgain: false },
-    async () => ({ granted: false, canAskAgain: false }),
-  ];
-};
-
-if (!useCameraPermissions) {
-  useCameraPermissions = fallbackCameraPermissions;
 }
 
 /**
  * Payment Screen - QR Code Okuma
- * Kamera izni yönetimi ve QR kod tarama
+ * Tam izin yönetimi, QR kod işleme ve backend entegrasyonu
  */
 const PaymentScreen = () => {
-  // Kamera izni state - granted / denied / undetermined
-  const [permission, requestPermission] = useCameraPermissions();
-  const [appState, setAppState] = useState(AppState.currentState);
+  const { t } = useTranslation();
+  const {
+    cameraPermissionStatus,
+    isCameraActive,
+    requestCameraPermission,
+    checkCameraPermission,
+    setIsCameraActive,
+    hasAnyPermissionDenied,
+    openSettings,
+  } = usePermissions();
+  const { userToken } = React.useContext(AuthContext);
+
+  // State
   const [scanned, setScanned] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [qrResult, setQrResult] = useState(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [appState, setAppState] = useState(AppState.currentState);
 
-  // Kamera izni durumunu belirle
-  const getPermissionStatus = () => {
-    if (!permission) {
-      return 'undetermined'; // Henüz kontrol edilmemiş
-    }
-    // Permission objesi varsa granted özelliğini kontrol et
-    if (permission.granted === true) {
-      return 'granted';
-    }
-    if (permission.canAskAgain === false) {
-      return 'denied'; // Reddedilmiş ve ayarlara gitmek gerekiyor
-    }
-    return 'undetermined'; // Henüz sorulmamış, izin istenebilir
-  };
-
-  const permissionStatus = getPermissionStatus();
-  const hasPermission = permissionStatus === 'granted';
-  
-  // Debug için permission durumunu logla
-  useEffect(() => {
-    if (Platform.OS !== 'web') {
-      console.log('Camera permission status:', {
-        permission,
-        permissionStatus,
-        hasPermission,
-        cameraModuleLoaded,
-        hasCameraView: !!CameraView,
-      });
-    }
-  }, [permission, permissionStatus, hasPermission, cameraModuleLoaded]);
-
-  // İlk yüklemede izin iste (undetermined durumunda)
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-
-    // Kısa bir gecikme ile izin iste (component mount olduktan sonra)
-    const timer = setTimeout(() => {
-      if (permissionStatus === 'undetermined' && requestPermission && cameraModuleLoaded) {
-        // İlk kez izin iste
-        requestPermission().catch((error) => {
-          console.error('Permission request error:', error);
-        });
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [permissionStatus, requestPermission, cameraModuleLoaded]);
+  // Refs
+  const scanLockRef = useRef(false);
 
   // AppState değişikliğini dinle (ayarlardan dönünce kontrol et)
   useEffect(() => {
@@ -112,19 +69,12 @@ const PaymentScreen = () => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       // Uygulama aktif hale geldiğinde (ayarlardan dönünce)
       if (appState.match(/inactive|background/) && nextAppState === 'active') {
-        // Permission'ı yeniden kontrol et - hook'u yeniden çağır
-        // useCameraPermissions hook'u otomatik olarak güncellenecek
-        // Kısa bir gecikme ile state'in güncellenmesini bekle
+        // İzinleri tekrar kontrol et
         setTimeout(async () => {
-          console.log('App became active, checking camera permission...');
-          // Permission'ı yeniden kontrol et
-          if (requestPermission && cameraModuleLoaded) {
-            try {
-              const result = await requestPermission();
-              console.log('Permission check result:', result);
-            } catch (error) {
-              console.error('Permission check error:', error);
-            }
+          await checkCameraPermission();
+          // Eğer izin verildiyse kamera otomatik başlasın
+          if (cameraPermissionStatus === 'granted') {
+            setIsCameraActive(true);
           }
         }, 500);
       }
@@ -134,43 +84,116 @@ const PaymentScreen = () => {
     return () => {
       subscription?.remove();
     };
-  }, [appState, requestPermission, cameraModuleLoaded]);
+  }, [appState, cameraPermissionStatus, checkCameraPermission, setIsCameraActive]);
 
-  // Ayarlara git
-  const handleOpenSettings = async () => {
+  // Screen mount olduğunda izinleri kontrol et
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const checkPermissions = async () => {
+      await checkCameraPermission();
+      // İzin verildiyse kamera otomatik başlat
+      if (cameraPermissionStatus === 'granted') {
+        setIsCameraActive(true);
+      }
+    };
+
+    checkPermissions();
+  }, []);
+
+  // İzin verildiğinde kamera otomatik başlat
+  useEffect(() => {
+    if (cameraPermissionStatus === 'granted' && !isCameraActive) {
+      setIsCameraActive(true);
+    }
+  }, [cameraPermissionStatus, isCameraActive, setIsCameraActive]);
+
+  // QR kod okunduğunda
+  const handleBarCodeScanned = async ({ type, data }) => {
+    // Lock mekanizması - tekrar okutmayı engelle
+    if (scanLockRef.current || scanned || processing) {
+      return;
+    }
+
+    scanLockRef.current = true;
+    setScanned(true);
+    setProcessing(true);
+
     try {
-      if (Platform.OS === 'ios') {
-        await Linking.openURL('app-settings:');
+      console.log('QR Code scanned:', data);
+      console.log('QR Code type:', type);
+
+      // QR kod işleme servisi (mock/real ayrımı otomatik)
+      // userToken'dan userId çıkarılabilir veya getUserProfile servisi kullanılabilir
+      const result = await processQrCode(
+        data,
+        userToken || null, // userId - token'dan veya profile'dan alınabilir
+        null // deviceId - gerekirse eklenebilir
+      );
+
+      if (result.success) {
+        // Başarılı - sonucu göster
+        setQrResult(result);
+        setShowResultModal(true);
+        // Kamera geçici olarak durdur
+        setIsCameraActive(false);
       } else {
-        await Linking.openSettings();
+        // Hata durumu
+        Alert.alert(
+          t('payment.error'),
+          result.error || t('payment.qrProcessingError'),
+          [
+            {
+              text: t('common.ok'),
+              onPress: () => {
+                // 2 saniye sonra tekrar taramaya izin ver
+                setTimeout(() => {
+                  setScanned(false);
+                  scanLockRef.current = false;
+                  setProcessing(false);
+                }, 2000);
+              },
+            },
+          ]
+        );
       }
     } catch (error) {
-      console.error('Failed to open settings:', error);
+      console.error('QR processing error:', error);
+      Alert.alert(
+        t('payment.error'),
+        error.message || t('payment.qrProcessingError'),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => {
+              setTimeout(() => {
+                setScanned(false);
+                scanLockRef.current = false;
+                setProcessing(false);
+              }, 2000);
+            },
+          },
+        ]
+      );
     }
   };
 
-  // QR kod okunduğunda
-  const handleBarCodeScanned = ({ type, data }) => {
-    if (scanned) return; // Zaten okunmuşsa tekrar işleme alma
+  // Yeni QR okut
+  const handleNewScan = () => {
+    setQrResult(null);
+    setShowResultModal(false);
+    setScanned(false);
+    scanLockRef.current = false;
+    setProcessing(false);
+    setIsCameraActive(true);
+  };
 
-    setScanned(true);
-    
-    // QR kod içeriğini console.log ile yazdır
-    console.log('QR Code scanned:', data);
-    console.log('QR Code type:', type);
-    
-    // Backend entegrasyonu için hazır - QR kod verisi data değişkeninde
-    // Burada backend API çağrısı yapılabilir:
-    // Example: processQRCode(data).then(...)
-    
-    // Mock olarak sadece logluyoruz
-    // Gerçek uygulamada burada backend'e istek gönderilecek:
-    // await processPaymentQRCode(data);
-
-    // 2 saniye sonra tekrar taramaya izin ver
-    setTimeout(() => {
-      setScanned(false);
-    }, 2000);
+  // İzin iste
+  const handleRequestPermission = async () => {
+    const result = await requestCameraPermission();
+    if (result.granted) {
+      setIsCameraActive(true);
+    }
   };
 
   // Web için placeholder
@@ -182,107 +205,17 @@ const PaymentScreen = () => {
             <Logo size="small" />
           </View>
           <View style={styles.content}>
-            <Text style={styles.title}>QR Kod Okut</Text>
-          <Text style={styles.subtitle}>
-            QR kod tarama özelliği mobil cihazlarda kullanılabilir.
-          </Text>
-          <Text style={styles.infoText}>
-            Android veya iOS cihazınızda uygulamayı açarak QR kod okutabilirsiniz.
-          </Text>
+            <Text style={styles.title}>{t('payment.scanQR')}</Text>
+            <Text style={styles.subtitle}>{t('payment.scanQRSubtitle')}</Text>
+            <Text style={styles.infoText}>{t('payment.scanQRInfo')}</Text>
           </View>
         </ScrollView>
       </View>
     );
   }
 
-  // Kamera modülü yüklenmemişse kontrol et
-  // Eğer permission granted ise ama modül yüklenmemişse, modül yüklenmeye çalışıyor olabilir
-  if (Platform.OS !== 'web') {
-    if (!cameraModuleLoaded || !CameraView) {
-      // Permission granted ise, modül yükleniyor olabilir - kısa bir süre bekle
-      if (hasPermission) {
-        // Permission var ama modül henüz yüklenmemiş - kısa bir süre bekle
-        return (
-          <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-              <View style={styles.logoContainer}>
-                <Logo size="small" />
-              </View>
-              <View style={styles.content}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.infoText}>Kamera hazırlanıyor...</Text>
-              </View>
-            </ScrollView>
-          </View>
-        );
-      }
-      // Permission yok ve modül yüklenmemiş - permission kontrolüne geç (aşağıdaki if bloğu)
-    }
-  }
-
-  // Kamera izni verilmeden kamera render edilmemeli
-  // Sadece denied durumunda ayarlara git butonu göster
-  if (!hasPermission) {
-    const showSettingsButton = permissionStatus === 'denied';
-    
-    return (
-      <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.logoContainer}>
-            <Logo size="small" />
-          </View>
-          <View style={styles.content}>
-            <Text style={styles.title}>QR Kod Okut</Text>
-            <Text style={styles.subtitle}>
-              {permissionStatus === 'denied' 
-                ? 'Kamera izni reddedilmiş. Lütfen ayarlardan izin verin.'
-                : 'QR kod okutmak için kamera iznine ihtiyacımız var'}
-            </Text>
-
-          {/* Ayarlara Git Butonu - Sadece denied durumunda görünür */}
-          {showSettingsButton && (
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={handleOpenSettings}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.settingsButtonText}>Ayarlara Git</Text>
-            </TouchableOpacity>
-          )}
-
-          {permissionStatus === 'undetermined' && (
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={async () => {
-                if (requestPermission && cameraModuleLoaded) {
-                  try {
-                    const result = await requestPermission();
-                    console.log('Permission request result:', result);
-                  } catch (error) {
-                    console.error('Permission request error:', error);
-                  }
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.settingsButtonText}>İzin İste</Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={styles.infoText}>
-            {showSettingsButton 
-              ? 'Ayarlardan kamera iznini açtıktan sonra uygulamaya geri dönün.'
-              : 'Kamera izni verildikten sonra QR kod okutabilirsiniz.'}
-            </Text>
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  // Kamera izni verilmişse - kamera otomatik açılır
-  // CameraView ve CameraType kontrolü
-  if (!CameraView || !CameraType) {
+  // Kamera modülü yüklenmemişse
+  if (!cameraModuleLoaded || !CameraView || !CameraType) {
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -291,22 +224,100 @@ const PaymentScreen = () => {
           </View>
           <View style={styles.content}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.infoText}>Kamera modülü yükleniyor...</Text>
+            <Text style={styles.infoText}>{t('payment.cameraModuleLoading')}</Text>
           </View>
         </ScrollView>
       </View>
     );
   }
 
+  // İzin verilmemişse
+  if (cameraPermissionStatus !== 'granted') {
+    const showSettingsButton = cameraPermissionStatus === 'denied';
+
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.logoContainer}>
+            <Logo size="small" />
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>{t('payment.scanQR')}</Text>
+            <Text style={styles.subtitle}>
+              {cameraPermissionStatus === 'denied'
+                ? t('payment.cameraPermissionDenied')
+                : t('payment.cameraPermissionRequired')}
+            </Text>
+
+            {/* Ayarlara Git Butonu - denied durumunda veya herhangi bir izin eksikse */}
+            {showSettingsButton && (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={openSettings}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.settingsButtonText}>{t('payment.openSettings')}</Text>
+              </TouchableOpacity>
+            )}
+
+            {cameraPermissionStatus === 'undetermined' && (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={handleRequestPermission}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.settingsButtonText}>{t('payment.requestPermission')}</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.infoText}>
+              {showSettingsButton ? t('payment.settingsInfo') : t('payment.permissionInfo')}
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Kamera aktif değilse (QR sonrası durdurulmuş olabilir)
+  if (!isCameraActive) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.logoContainer}>
+            <Logo size="small" />
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.title}>{t('payment.scanQR')}</Text>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={handleNewScan}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsButtonText}>{t('payment.newScan')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Kamera aktif - QR tarama ekranı
   return (
     <View style={styles.container}>
       <View style={styles.logoContainerAbsolute}>
         <Logo size="small" />
       </View>
+      {processing && (
+        <View style={styles.processingOverlay}>
+          <ActivityIndicator size="large" color={colors.white} />
+          <Text style={styles.processingText}>{t('payment.processing')}</Text>
+        </View>
+      )}
       <CameraView
         style={styles.camera}
         facing={CameraType.back}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        onBarcodeScanned={scanned || processing ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
@@ -314,12 +325,52 @@ const PaymentScreen = () => {
         <View style={styles.overlay}>
           <View style={styles.scanArea}>
             <View style={styles.scanFrame} />
-            <Text style={styles.scanInstruction}>
-              QR kodu bu alana yerleştirin
-            </Text>
+            <Text style={styles.scanInstruction}>{t('payment.scanInstruction')}</Text>
           </View>
         </View>
       </CameraView>
+
+      {/* QR Sonuç Modal */}
+      <Modal
+        visible={showResultModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowResultModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.resultHeader}>
+              <Text style={styles.resultTitle}>{t('payment.paid')}</Text>
+            </View>
+            <View style={styles.resultBody}>
+              {qrResult && (
+                <>
+                  <Text style={styles.resultMessage}>{qrResult.message}</Text>
+                  <View style={styles.resultStats}>
+                    <View style={styles.resultStatItem}>
+                      <Text style={styles.resultStatLabel}>{t('payment.totalOrders')}</Text>
+                      <Text style={styles.resultStatValue}>{qrResult.totalOrderCount}</Text>
+                    </View>
+                    <View style={styles.resultStatItem}>
+                      <Text style={styles.resultStatLabel}>{t('payment.remainingForPromotion')}</Text>
+                      <Text style={styles.resultStatValue}>{qrResult.remainingForPromotion}</Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+            <View style={styles.resultFooter}>
+              <TouchableOpacity
+                style={styles.resultButton}
+                onPress={handleNewScan}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.resultButtonText}>{t('payment.newScan')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -415,6 +466,95 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     padding: spacing.sm,
     borderRadius: spacing.sm,
+  },
+  processingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  processingText: {
+    marginTop: spacing.md,
+    color: colors.white,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.md,
+    width: '90%',
+    maxWidth: 400,
+    ...shadows.large,
+  },
+  resultHeader: {
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+  },
+  resultTitle: {
+    fontSize: typography.fontSize.xxl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+  },
+  resultBody: {
+    padding: spacing.lg,
+  },
+  resultMessage: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  resultStats: {
+    marginTop: spacing.md,
+  },
+  resultStatItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  resultStatLabel: {
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
+  },
+  resultStatValue: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+  },
+  resultFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  resultButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: spacing.sm,
+    alignItems: 'center',
+  },
+  resultButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
   },
 });
 

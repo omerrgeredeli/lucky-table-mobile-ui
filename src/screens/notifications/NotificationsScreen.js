@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography } from '../../theme';
 import Logo from '../../components/Logo';
 
@@ -17,19 +18,20 @@ import Logo from '../../components/Logo';
  */
 const NotificationsScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   // Mock bildirim verileri
   const mockNotifications = [
-    { id: 1, date: '12.09.2024', message: 'X Kafesi\'ne gittiniz' },
-    { id: 2, date: '08.09.2024', message: 'Y Cafe\'de sipariş verdiniz' },
-    { id: 3, date: '05.09.2024', message: 'Z Restoran\'da ödeme yaptınız' },
-    { id: 4, date: '03.09.2024', message: 'A Kafe\'ye gittiniz' },
-    { id: 5, date: '01.09.2024', message: 'B Cafe\'de sipariş verdiniz' },
-    { id: 6, date: '28.08.2024', message: 'C Restoran\'da ödeme yaptınız' },
-    { id: 7, date: '25.08.2024', message: 'D Kafe\'ye gittiniz' },
-    { id: 8, date: '22.08.2024', message: 'E Cafe\'de sipariş verdiniz' },
-    { id: 9, date: '20.08.2024', message: 'F Restoran\'da ödeme yaptınız' },
-    { id: 10, date: '18.08.2024', message: 'G Kafe\'ye gittiniz' },
+    { id: 1, date: '12.09.2024', type: 'cafeVisited', cafeName: 'X Kafesi' },
+    { id: 2, date: '08.09.2024', type: 'orderPlaced', cafeName: 'Y Cafe' },
+    { id: 3, date: '05.09.2024', type: 'paymentMade', restaurantName: 'Z Restoran' },
+    { id: 4, date: '03.09.2024', type: 'cafeVisited', cafeName: 'A Kafe' },
+    { id: 5, date: '01.09.2024', type: 'orderPlaced', cafeName: 'B Cafe' },
+    { id: 6, date: '28.08.2024', type: 'paymentMade', restaurantName: 'C Restoran' },
+    { id: 7, date: '25.08.2024', type: 'cafeVisited', cafeName: 'D Kafe' },
+    { id: 8, date: '22.08.2024', type: 'orderPlaced', cafeName: 'E Cafe' },
+    { id: 9, date: '20.08.2024', type: 'paymentMade', restaurantName: 'F Restoran' },
+    { id: 10, date: '18.08.2024', type: 'cafeVisited', cafeName: 'G Kafe' },
   ];
 
   return (
@@ -54,18 +56,28 @@ const NotificationsScreen = () => {
 
         {/* Bildirimler Listesi */}
         <View style={styles.notificationsContainer}>
-          <Text style={styles.sectionTitle}>Bildirimler</Text>
-          <FlatList
-            data={mockNotifications}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.notificationItem}>
-                <Text style={styles.notificationDate}>{item.date}</Text>
-                <Text style={styles.notificationMessage}>{item.message}</Text>
-              </View>
-            )}
-            scrollEnabled={false}
-          />
+          <Text style={styles.sectionTitle}>{t('notifications.title')}</Text>
+              <FlatList
+                data={mockNotifications}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => {
+                  let message = '';
+                  if (item.type === 'cafeVisited') {
+                    message = t('notifications.cafeVisited', { cafeName: item.cafeName });
+                  } else if (item.type === 'orderPlaced') {
+                    message = t('notifications.orderPlaced', { cafeName: item.cafeName });
+                  } else if (item.type === 'paymentMade') {
+                    message = t('notifications.paymentMade', { restaurantName: item.restaurantName });
+                  }
+                  return (
+                    <View style={styles.notificationItem}>
+                      <Text style={styles.notificationDate}>{item.date}</Text>
+                      <Text style={styles.notificationMessage}>{message}</Text>
+                    </View>
+                  );
+                }}
+                scrollEnabled={false}
+              />
         </View>
       </ScrollView>
     </View>

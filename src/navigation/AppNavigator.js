@@ -1,20 +1,26 @@
 import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { colors } from '../theme';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
+import LanguageSelectionScreen from '../screens/onboarding/LanguageSelectionScreen';
+
+const Stack = createNativeStackNavigator();
 
 /**
  * Ana Navigation Container
- * Auth durumuna göre AuthStack veya AppStack gösterir
+ * Önce dil seçimi kontrolü, sonra Auth durumuna göre AuthStack veya AppStack gösterir
  */
 const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useContext(AuthContext);
+  const { isLanguageSelected, isCheckingLanguage } = useLanguage();
 
   // Loading durumunda spinner göster
-  if (isLoading) {
+  if (isLoading || isCheckingLanguage) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -24,7 +30,21 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <AppStack /> : <AuthStack />}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!isLanguageSelected ? (
+          // Dil seçilmemişse dil seçimi ekranını göster
+          <Stack.Screen
+            name="LanguageSelection"
+            component={LanguageSelectionScreen}
+          />
+        ) : isAuthenticated ? (
+          // Dil seçilmiş ve giriş yapılmışsa AppStack
+          <Stack.Screen name="App" component={AppStack} />
+        ) : (
+          // Dil seçilmiş ama giriş yapılmamışsa AuthStack
+          <Stack.Screen name="Auth" component={AuthStack} />
+        )}
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };

@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -33,6 +34,7 @@ WebBrowser.maybeCompleteAuthSession();
  */
 const LoginScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { login: authLogin } = useContext(AuthContext);
 
   // Local state - sadece bu ekrana özel
@@ -516,12 +518,12 @@ const LoginScreen = () => {
       >
         <View style={styles.content}>
           <Logo size="large" />
-          <Text style={styles.title}>Hoş Geldiniz</Text>
-          <Text style={styles.subtitle}>Hesabınıza giriş yapın</Text>
+          <Text style={styles.title}>{t('auth.welcome')}</Text>
+          <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
 
           <Input
-            label="Email veya Cep Telefonu"
-            placeholder="ornek@email.com veya 05XX XXX XX XX"
+            label={t('auth.emailOrPhone')}
+            placeholder={t('auth.emailOrPhonePlaceholder')}
             value={emailOrPhone}
             onChangeText={setEmailOrPhone}
             keyboardType="default"
@@ -529,8 +531,8 @@ const LoginScreen = () => {
           />
 
           <PasswordInput
-            label="Şifre"
-            placeholder="Şifrenizi giriniz"
+            label={t('auth.password')}
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             error={errors.password}
@@ -545,11 +547,11 @@ const LoginScreen = () => {
             <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
               {rememberMe && <Text style={styles.checkmark}>✓</Text>}
             </View>
-            <Text style={styles.rememberMeText}>Beni hatırla</Text>
+            <Text style={styles.rememberMeText}>{t('auth.rememberMe')}</Text>
           </TouchableOpacity>
 
           <Button
-            title="Giriş Yap"
+            title={t('auth.login')}
             onPress={handleLogin}
             loading={loading}
           />
@@ -558,7 +560,7 @@ const LoginScreen = () => {
           <View style={styles.buttonSpacing} />
 
           <Button
-            title="Gmail ile Giriş Yap"
+            title={t('auth.loginWithGoogle')}
             onPress={handleGoogleSignIn}
             variant="google"
             loading={loading}
@@ -568,18 +570,18 @@ const LoginScreen = () => {
           <View style={styles.buttonSpacing} />
 
           <Button
-            title="Şifremi Unuttum"
+            title={t('auth.forgotPassword')}
             onPress={() => navigation.navigate('ForgotPassword')}
             variant="secondary"
           />
 
           <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Hesabınız yok mu? </Text>
+            <Text style={styles.signupText}>{t('auth.dontHaveAccount')} </Text>
             <Text
               style={styles.signupLink}
               onPress={() => navigation.navigate('Signup')}
             >
-              Kayıt Ol
+              {t('auth.signup')}
             </Text>
           </View>
         </View>
@@ -603,7 +605,7 @@ const LoginScreen = () => {
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Aktivasyon Kodu</Text>
+                  <Text style={styles.modalTitle}>{t('auth.activationCode')}</Text>
                   <TouchableOpacity
                     onPress={() => {
                       setShowActivationModal(false);
@@ -617,19 +619,19 @@ const LoginScreen = () => {
                 <View style={styles.modalBody}>
                   <Text style={styles.modalDescription}>
                     {getLoginType() === 'email' 
-                      ? `${emailOrPhone} adresine gönderilen aktivasyon kodunu giriniz.`
-                      : `${emailOrPhone} numarasına gönderilen aktivasyon kodunu giriniz.`}
+                      ? t('auth.activationCodeDescription') + ` ${emailOrPhone}`
+                      : t('auth.activationCodeDescription') + ` ${emailOrPhone}`}
                   </Text>
                   <Input
-                    label="Aktivasyon Kodu"
-                    placeholder="6 haneli kod"
+                    label={t('auth.activationCode')}
+                    placeholder={t('auth.activationCodePlaceholder')}
                     value={activationCode}
                     onChangeText={setActivationCode}
                     keyboardType="number-pad"
                     error={errors.activationCode}
                   />
                   <Button
-                    title="Giriş Yap"
+                    title={t('auth.login')}
                     onPress={handleActivationLogin}
                     loading={loading}
                   />
@@ -640,7 +642,7 @@ const LoginScreen = () => {
                     }}
                     style={styles.modalCancelButton}
                   >
-                    <Text style={styles.modalCancelText}>İptal</Text>
+                    <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

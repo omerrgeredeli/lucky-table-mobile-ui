@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signup } from '../../services/authService';
 import { colors, spacing, typography, shadows } from '../../theme';
@@ -35,6 +36,7 @@ const COUNTRIES = [
  */
 const SignupScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   // Local state - sadece bu ekrana özel
   const [fullName, setFullName] = useState('');
@@ -54,28 +56,28 @@ const SignupScreen = () => {
   const [scrollOffset, setScrollOffset] = useState(0);
 
   // Şifre validasyon kuralları - her kuralı ayrı kontrol et
-  const passwordRules = [
+  const passwordRules = useMemo(() => [
     {
-      label: 'En az 8 karakter',
+      label: t('password.rules.minLength'),
       test: (pwd) => pwd.length >= 8,
     },
     {
-      label: 'En az 1 büyük harf',
+      label: t('password.rules.uppercase'),
       test: (pwd) => /[A-Z]/.test(pwd),
     },
     {
-      label: 'En az 1 küçük harf',
+      label: t('password.rules.lowercase'),
       test: (pwd) => /[a-z]/.test(pwd),
     },
     {
-      label: 'En az 1 rakam',
+      label: t('password.rules.number'),
       test: (pwd) => /[0-9]/.test(pwd),
     },
     {
-      label: 'En az 1 noktalama işareti',
+      label: t('password.rules.special'),
       test: (pwd) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
     },
-  ];
+  ], [t]);
 
   // Şifre validasyonu - detaylı kontrol
   const validatePassword = (pwd) => {
@@ -106,25 +108,25 @@ const SignupScreen = () => {
     const newErrors = {};
 
     if (!fullName.trim()) {
-      newErrors.fullName = 'İsim soyisim gereklidir';
+      newErrors.fullName = t('auth.fullNameRequired');
     }
 
     if (!email.trim()) {
-      newErrors.email = 'Email gereklidir';
+      newErrors.email = t('auth.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Geçerli bir email adresi giriniz';
+      newErrors.email = t('auth.invalidEmail');
     }
 
     if (!phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Cep telefonu numarası gereklidir';
+      newErrors.phoneNumber = t('auth.phoneRequired');
     } else if (!validatePhoneNumber(phoneNumber, countryCode)) {
       const phoneLengths = { TR: 10, DE: 11, US: 10, UK: 10 };
       const requiredLength = phoneLengths[countryCode] || 10;
-      newErrors.phoneNumber = `Telefon numarası ${requiredLength} haneli olmalıdır`;
+      newErrors.phoneNumber = t('auth.phoneLengthError', { length: requiredLength });
     }
 
     if (!password.trim()) {
-      newErrors.password = 'Şifre gereklidir';
+      newErrors.password = t('auth.passwordRequired');
     } else {
       const passwordErrors = validatePassword(password);
       if (passwordErrors.length > 0) {
@@ -133,13 +135,13 @@ const SignupScreen = () => {
     }
 
     if (!confirmPassword.trim()) {
-      newErrors.confirmPassword = 'Şifre tekrarı gereklidir';
+      newErrors.confirmPassword = t('auth.confirmPasswordRequired');
     } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Şifreler eşleşmiyor';
+      newErrors.confirmPassword = t('auth.passwordsNotMatch');
     }
 
     if (!kvkkAccepted) {
-      newErrors.kvkk = 'KVKK şartlarını kabul etmelisiniz';
+      newErrors.kvkk = t('auth.kvkkRequired');
     }
 
     setErrors(newErrors);
@@ -172,15 +174,15 @@ const SignupScreen = () => {
       // Web'de Alert.alert bazen çalışmıyor, setTimeout ile gecikme ekle
       setTimeout(() => {
         if (Platform.OS === 'web') {
-          window.alert('Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.');
+          window.alert(t('auth.signupSuccess'));
           navigation.navigate('Login');
         } else {
           Alert.alert(
-            'Başarılı',
-            'Kayıt işlemi tamamlandı. Giriş yapabilirsiniz.',
+            t('common.success'),
+            t('auth.signupSuccess'),
             [
               {
-                text: 'Tamam',
+                text: t('common.ok'),
                 onPress: () => {
                   navigation.navigate('Login');
                 },
@@ -191,9 +193,9 @@ const SignupScreen = () => {
       }, 100);
     } catch (error) {
       if (Platform.OS === 'web') {
-        window.alert('Hata: ' + (error.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.'));
+        window.alert(t('common.error') + ': ' + (error.message || t('auth.signupError')));
       } else {
-        Alert.alert('Hata', error.message || 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.');
+        Alert.alert(t('common.error'), error.message || t('auth.signupError'));
       }
     } finally {
       setLoading(false);
@@ -224,20 +226,20 @@ const SignupScreen = () => {
       >
         <View style={styles.content}>
           <Logo size="large" />
-          <Text style={styles.title}>Kayıt Ol</Text>
-          <Text style={styles.subtitle}>Yeni hesap oluşturun</Text>
+          <Text style={styles.title}>{t('auth.signupTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.signupSubtitle')}</Text>
 
           <Input
-            label="Ad Soyad"
-            placeholder="Adınız ve soyadınız"
+            label={t('auth.fullName')}
+            placeholder={t('auth.fullNamePlaceholder')}
             value={fullName}
             onChangeText={setFullName}
             error={errors.fullName}
           />
 
           <Input
-            label="Email"
-            placeholder="ornek@email.com"
+            label={t('auth.email')}
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -245,7 +247,7 @@ const SignupScreen = () => {
           />
 
           <PhoneInput
-            label="Cep Telefonu"
+            label={t('auth.phone')}
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             countryCode={countryCode}
@@ -264,8 +266,8 @@ const SignupScreen = () => {
           />
 
           <PasswordInput
-            label="Şifre"
-            placeholder="Şifrenizi giriniz"
+            label={t('auth.password')}
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             error={errors.password}
@@ -293,8 +295,8 @@ const SignupScreen = () => {
           )}
 
           <PasswordInput
-            label="Şifre Tekrar"
-            placeholder="Şifrenizi tekrar giriniz"
+            label={t('auth.confirmPassword')}
+            placeholder={t('auth.confirmPasswordPlaceholder')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             error={errors.confirmPassword}
@@ -319,9 +321,9 @@ const SignupScreen = () => {
                       setShowKvkkModal(true);
                     }}
                   >
-                    KVKK şartlarını
+                    {t('auth.kvkkAccept')}
                   </Text>
-                  <Text style={styles.checkboxTextNormal}> onaylıyorum</Text>
+                  <Text style={styles.checkboxTextNormal}> {t('auth.kvkkAcceptSuffix')}</Text>
                 </Text>
               </View>
             </TouchableOpacity>
@@ -338,23 +340,23 @@ const SignupScreen = () => {
               <View style={[styles.checkbox, emailConsent && styles.checkboxChecked]}>
                 {emailConsent && <Text style={styles.checkmark}>✓</Text>}
               </View>
-              <Text style={styles.checkboxText}>Reklam ve tanıtım için e-posta onayı veriyorum</Text>
+              <Text style={styles.checkboxText}>{t('auth.emailConsent')}</Text>
             </TouchableOpacity>
           </View>
 
           <Button
-            title="Kayıt Ol"
+            title={t('auth.signup')}
             onPress={handleSignup}
             loading={loading}
           />
 
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Zaten hesabınız var mı? </Text>
+            <Text style={styles.loginText}>{t('auth.alreadyHaveAccount')} </Text>
             <Text
               style={styles.loginLink}
               onPress={() => navigation.navigate('Login')}
             >
-              Giriş Yap
+              {t('auth.loginHere')}
             </Text>
           </View>
         </View>
@@ -420,7 +422,7 @@ const SignupScreen = () => {
           </TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>KVKK Aydınlatma Metni</Text>
+              <Text style={styles.modalTitle}>{t('kvkk.title')}</Text>
             </View>
             <ScrollView 
               style={styles.modalBody}
@@ -433,47 +435,34 @@ const SignupScreen = () => {
               scrollEventThrottle={16}
             >
               <Text style={styles.modalText} selectable={true}>
-                <Text style={styles.modalTextBold}>1. Veri Sorumlusu:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.dataController')}</Text>
                 {'\n\n'}
-                Lucky Table uygulaması kapsamında kişisel verileriniz, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") uyarınca işlenmektedir.
+                {t('kvkk.dataControllerText')}
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>2. İşlenen Kişisel Veriler:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.processedData')}</Text>
                 {'\n\n'}
-                • E-posta adresi{'\n'}
-                • Telefon numarası{'\n'}
-                • Şifre (şifrelenmiş olarak){'\n'}
-                • Konum bilgisi (izin verilmesi halinde){'\n'}
-                • Kullanım verileri
+                {t('kvkk.processedDataItems')}
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>3. Veri İşleme Amaçları:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.processingPurposes')}</Text>
                 {'\n\n'}
-                • Hesap oluşturma ve yönetimi{'\n'}
-                • Hizmet sunumu{'\n'}
-                • İletişim ve müşteri desteği{'\n'}
-                • Yasal yükümlülüklerin yerine getirilmesi
+                {t('kvkk.processingPurposesItems')}
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>4. Veri İşleme Hukuki Sebepleri:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.legalBasis')}</Text>
                 {'\n\n'}
-                • Açık rıza{'\n'}
-                • Sözleşmenin kurulması ve ifası{'\n'}
-                • Yasal yükümlülüklerin yerine getirilmesi
+                {t('kvkk.legalBasisItems')}
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>5. Verilerin Paylaşılması:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.dataSharing')}</Text>
                 {'\n\n'}
-                Kişisel verileriniz, yukarıda belirtilen amaçlar doğrultusunda, yasal zorunluluklar çerçevesinde yetkili kamu kurum ve kuruluşları ile paylaşılabilir.
+                {t('kvkk.dataSharingText')}
                 {'\n\n'}
-                <Text style={styles.modalTextBold}>6. Haklarınız:</Text>
+                <Text style={styles.modalTextBold}>{t('kvkk.rights')}</Text>
                 {'\n\n'}
-                KVKK'nın 11. maddesi uyarınca, kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işleme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, silinmesini veya yok edilmesini isteme, düzeltme/silme/yok etme işlemlerinin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemler ile analiz edilmesi nedeniyle aleyhinize bir sonuç doğmasına itiraz etme ve kanuna aykırı işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz.
-                {'\n\n'}
-                <Text style={styles.modalTextBold}>7. İletişim:</Text>
-                {'\n\n'}
-                Haklarınızı kullanmak için bizimle iletişime geçebilirsiniz.
+                {t('kvkk.rightsText')}
               </Text>
             </ScrollView>
             <View style={styles.modalFooter}>
               <Button
-                title="Kapat"
+                title={t('common.close')}
                 onPress={() => setShowKvkkModal(false)}
               />
             </View>

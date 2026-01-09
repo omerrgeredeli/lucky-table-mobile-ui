@@ -9,6 +9,7 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography, shadows } from '../theme';
 import { locationData } from '../data/locationData';
 import { foodCategories } from '../data/foodCategories';
@@ -21,6 +22,8 @@ import DatePickerModal from './DatePickerModal';
  * Backend entegrasyonuna hazır
  */
 const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
+  const { t } = useTranslation();
+  
   // Initial filter state
   const initialFilterState = {
     cityId: null,
@@ -235,7 +238,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
         <View style={styles.modalContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Filtrele</Text>
+            <Text style={styles.headerTitle}>{t('filter.title')}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
@@ -253,7 +256,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 onPress={() => toggleSection('location')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sectionTitle}>🏙️ Konum</Text>
+                <Text style={styles.sectionTitle}>🏙️ {t('filter.location')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.location ? '▼' : '▶'}
                 </Text>
@@ -263,7 +266,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 <View style={styles.sectionContent}>
                   {/* Şehir Seçimi - Scroll Liste */}
                   <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>Şehir</Text>
+                    <Text style={styles.filterLabel}>{t('filter.city')}</Text>
                     <ScrollView 
                       style={styles.scrollList}
                       nestedScrollEnabled={true}
@@ -282,7 +285,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                             filterState.cityId === null && styles.listItemTextActive,
                           ]}
                         >
-                          Tümü
+                          {t('filter.all')}
                         </Text>
                         {filterState.cityId === null && (
                           <Text style={styles.checkmark}>✓</Text>
@@ -316,7 +319,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                   {/* İlçe Seçimi - Sadece şehir seçilmişse göster - Scroll Liste */}
                   {selectedCity && (
                     <View style={styles.filterGroup}>
-                      <Text style={styles.filterLabel}>İlçe</Text>
+                      <Text style={styles.filterLabel}>{t('filter.district')}</Text>
                       <ScrollView 
                         style={styles.scrollList}
                         nestedScrollEnabled={true}
@@ -370,7 +373,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                   {/* Semt Seçimi - Sadece ilçe seçilmişse göster - Scroll Liste */}
                   {selectedDistrict && (
                     <View style={styles.filterGroup}>
-                      <Text style={styles.filterLabel}>Semt</Text>
+                      <Text style={styles.filterLabel}>{t('filter.neighborhood')}</Text>
                       <ScrollView 
                         style={styles.scrollList}
                         nestedScrollEnabled={true}
@@ -431,7 +434,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 onPress={() => toggleSection('date')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sectionTitle}>📅 Tarih Aralığı</Text>
+                <Text style={styles.sectionTitle}>📅 {t('filter.dateRange')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.date ? '▼' : '▶'}
                 </Text>
@@ -441,25 +444,25 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 <View style={styles.sectionContent}>
                   <View style={styles.dateRow}>
                     <View style={styles.dateInputContainer}>
-                      <Text style={styles.dateLabel}>Başlangıç Tarihi</Text>
+                      <Text style={styles.dateLabel}>{t('filter.startDate')}</Text>
                       <TouchableOpacity
                         style={styles.dateInput}
                         onPress={() => setShowStartDatePicker(true)}
                       >
                         <Text style={styles.dateInputText}>
-                          {filterState.startDate ? formatDate(filterState.startDate) : 'Tarih Seç'}
+                          {filterState.startDate ? formatDate(filterState.startDate) : t('filter.selectDate')}
                         </Text>
                       </TouchableOpacity>
                     </View>
 
                     <View style={styles.dateInputContainer}>
-                      <Text style={styles.dateLabel}>Bitiş Tarihi</Text>
+                      <Text style={styles.dateLabel}>{t('filter.endDate')}</Text>
                       <TouchableOpacity
                         style={styles.dateInput}
                         onPress={() => setShowEndDatePicker(true)}
                       >
                         <Text style={styles.dateInputText}>
-                          {filterState.endDate ? formatDate(filterState.endDate) : 'Tarih Seç'}
+                          {filterState.endDate ? formatDate(filterState.endDate) : t('filter.selectDate')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -475,7 +478,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 onPress={() => toggleSection('category')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.sectionTitle}>🍔 Yiyecek / İçecek</Text>
+                <Text style={styles.sectionTitle}>🍔 {t('filter.foodDrink')}</Text>
                 <Text style={styles.expandIcon}>
                   {expandedSections.category ? '▼' : '▶'}
                 </Text>
@@ -485,7 +488,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                 <View style={styles.sectionContent}>
                   {/* Ana Kategori Seçimi */}
                   <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>Kategori</Text>
+                    <Text style={styles.filterLabel}>{t('filter.category')}</Text>
                     <View style={styles.categoryRow}>
                       {['FOOD', 'DRINK', 'BOTH'].map((type) => (
                         <TouchableOpacity
@@ -502,7 +505,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                               filterState.categoryType === type && styles.categoryButtonTextActive,
                             ]}
                           >
-                            {foodCategories[type].label}
+                            {t(`filter.categories.${type}`)}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -512,7 +515,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                   {/* Alt Kategoriler - Sadece ana kategori seçilmişse göster */}
                   {filterState.categoryType && (
                     <View style={styles.filterGroup}>
-                      <Text style={styles.filterLabel}>Alt Kategoriler</Text>
+                      <Text style={styles.filterLabel}>{t('filter.subCategories')}</Text>
                       <View style={styles.subCategoryContainer}>
                         {availableSubCategories.map((subCategory) => {
                           const isSelected = filterState.subCategories.includes(subCategory.id);
@@ -532,7 +535,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                                 ]}
                               >
                                 {isSelected ? '✓ ' : ''}
-                                {subCategory.name}
+                                {t(`filter.subCategories.${subCategory.id}`, { defaultValue: subCategory.name })}
                               </Text>
                             </TouchableOpacity>
                           );
@@ -552,14 +555,14 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
               onPress={handleClear}
               activeOpacity={0.7}
             >
-              <Text style={styles.clearButtonText}>🧹 Temizle</Text>
+              <Text style={styles.clearButtonText}>🧹 {t('filter.clear')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.applyButton}
               onPress={handleApply}
               activeOpacity={0.7}
             >
-              <Text style={styles.applyButtonText}>✅ Filtreleri Uygula</Text>
+              <Text style={styles.applyButtonText}>✅ {t('filter.applyFilters')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -10,6 +10,7 @@ import {
   Platform,
   AppState,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../theme';
@@ -24,6 +25,7 @@ import { sortCafesByDistance } from '../../utils/distanceUtils';
  * Sahibinden.com benzeri filtreleme sistemi ile kafeler listelenir
  */
 const BrowseScreen = () => {
+  const { t } = useTranslation();
   const [allCafes, setAllCafes] = useState([]); // Tüm kafeler (filtrelenmemiş)
   const [displayedCafes, setDisplayedCafes] = useState([]); // Gösterilecek kafeler (filtrelenmiş + sıralanmış)
   const [loading, setLoading] = useState(false);
@@ -225,11 +227,11 @@ const BrowseScreen = () => {
   // Kafe item render
   const renderCafeItem = ({ item }) => (
     <View style={styles.cafeItem}>
-      <Text style={styles.cafeName}>{item.name || 'Kafe Adı'}</Text>
+      <Text style={styles.cafeName}>{item.name || t('browse.cafeName')}</Text>
       {item.address && <Text style={styles.cafeAddress}>{item.address}</Text>}
       {item.distance !== undefined && (
         <Text style={styles.cafeDistance}>
-          {item.distance.toFixed(2)} km uzaklıkta
+          {item.distance.toFixed(2)} {t('browse.kmAway')}
         </Text>
       )}
       {item.restaurantType && (
@@ -264,7 +266,7 @@ const BrowseScreen = () => {
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Input
-            placeholder="Kafe ara..."
+            placeholder={t('browse.searchPlaceholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
@@ -273,14 +275,14 @@ const BrowseScreen = () => {
           />
         </View>
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Text style={styles.searchButtonText}>Ara</Text>
+          <Text style={styles.searchButtonText}>{t('browse.search')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.filterToggleButton}
           onPress={() => setShowFilterModal(true)}
         >
           <Text style={styles.filterToggleButtonText}>
-            Filtrele{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
+            {t('browse.filter')}{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -292,21 +294,21 @@ const BrowseScreen = () => {
           <View style={styles.listTitleContainer}>
             <Text style={styles.listTitle}>
               {hasSearched
-                ? `Arama Sonuçları (${displayedCafes.length})`
-                : `Yakındaki Kafeler (${displayedCafes.length})`}
+                ? `${t('browse.searchResults')} (${displayedCafes.length})`
+                : `${t('browse.nearbyCafes')} (${displayedCafes.length})`}
             </Text>
           </View>
 
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Yükleniyor...</Text>
+              <Text style={styles.loadingText}>{t('browse.loading')}</Text>
             </View>
           ) : displayedCafes.length === 0 ? (
             <Text style={styles.emptyText}>
               {hasSearched
-                ? 'Arama sonucu bulunamadı.'
-                : 'Yakınınızda kafe bulunamadı.'}
+                ? t('browse.noSearchResults')
+                : t('browse.noNearbyCafes')}
             </Text>
           ) : (
             <View style={styles.cafeListContainer}>
@@ -327,14 +329,14 @@ const BrowseScreen = () => {
                     onPress={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
-                    <Text style={styles.pageButtonText}>Önceki</Text>
+                    <Text style={styles.pageButtonText}>{t('browse.previous')}</Text>
                   </TouchableOpacity>
                   <Text style={styles.pageInfo}>
-                    Sayfa {currentPage} /{' '}
+                    {t('browse.page')} {currentPage} /{' '}
                     {Math.ceil(displayedCafes.length / itemsPerPage)}
                   </Text>
                   <View style={styles.itemsPerPageContainer}>
-                    <Text style={styles.itemsPerPageLabel}>Göster:</Text>
+                    <Text style={styles.itemsPerPageLabel}>{t('browse.show')}:</Text>
                     {[5, 10, 20, 50].map((num) => (
                       <TouchableOpacity
                         key={num}
@@ -373,7 +375,7 @@ const BrowseScreen = () => {
                       Math.ceil(displayedCafes.length / itemsPerPage)
                     }
                   >
-                    <Text style={styles.pageButtonText}>Sonraki</Text>
+                    <Text style={styles.pageButtonText}>{t('browse.next')}</Text>
                   </TouchableOpacity>
                 </View>
               )}

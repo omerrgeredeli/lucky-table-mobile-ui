@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Logo from '../../components/Logo';
 import LoyaltyList from './components/LoyaltyList';
@@ -20,6 +21,7 @@ import { getUserProfile } from '../../services/userService';
  */
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,7 @@ const HomeScreen = () => {
     }
   };
 
-  const displayName = userProfile?.fullName || userProfile?.name || 'Kullanıcı';
+  const displayName = userProfile?.fullName || userProfile?.name || t('home.user');
 
   return (
     <View style={styles.container}>
@@ -57,7 +59,7 @@ const HomeScreen = () => {
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Text style={styles.welcomeText}>Hoşgeldin {displayName}</Text>
+              <Text style={styles.welcomeText}>{t('home.welcome')} {displayName}</Text>
             )}
             <TouchableOpacity
               onPress={() => navigation.navigate('Notifications')}

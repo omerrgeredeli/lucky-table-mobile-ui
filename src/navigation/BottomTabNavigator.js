@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, typography } from '../theme';
 import HomeScreen from '../screens/home/HomeScreen';
 import BrowseScreen from '../screens/browse/BrowseScreen';
@@ -14,6 +15,8 @@ const Tab = createBottomTabNavigator();
  * Ana Sayfa, Göz At, Ödeme Yap, Profil sekmeleri
  */
 const BottomTabNavigator = () => {
+  const { t } = useTranslation();
+  
   return (
     <Tab.Navigator
       screenOptions={{
@@ -38,7 +41,7 @@ const BottomTabNavigator = () => {
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Ana Sayfa',
+          tabBarLabel: t('navigation.home'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>🏠</Text>
           ),
@@ -48,7 +51,7 @@ const BottomTabNavigator = () => {
         name="Browse"
         component={BrowseScreen}
         options={{
-          tabBarLabel: 'Göz At',
+          tabBarLabel: t('navigation.browse'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>🔍</Text>
           ),
@@ -58,7 +61,7 @@ const BottomTabNavigator = () => {
         name="Payment"
         component={PaymentScreen}
         options={{
-          tabBarLabel: 'Ödeme Yap',
+          tabBarLabel: t('navigation.payment'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>💳</Text>
           ),
@@ -68,7 +71,7 @@ const BottomTabNavigator = () => {
         name="Profile"
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profil',
+          tabBarLabel: t('navigation.profile'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>👤</Text>
           ),

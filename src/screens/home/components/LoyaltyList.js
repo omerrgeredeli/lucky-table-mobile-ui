@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { getUserLoyaltyInfo } from '../../../services/userService';
 import { colors, spacing, typography, shadows } from '../../../theme';
 
@@ -20,6 +21,7 @@ import { colors, spacing, typography, shadows } from '../../../theme';
  */
 const LoyaltyList = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [loyaltyData, setLoyaltyData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -38,7 +40,7 @@ const LoyaltyList = () => {
       setLoyaltyData(data || []);
     } catch (err) {
       setError(err.message);
-      Alert.alert('Hata', 'Favori mekanlar yüklenemedi. Lütfen tekrar deneyin.');
+      Alert.alert(t('common.error'), t('loyalty.loadError'));
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ const LoyaltyList = () => {
             <Image
               source={{ uri: item.cafeLogo }}
               style={styles.cafeLogo}
-              defaultSource={require('../../../assets/default-cafe-logo.png')}
+              // defaultSource removed for web compatibility
               onError={() => {
                 // Logo yüklenemezse fallback göster
               }}
@@ -72,17 +74,17 @@ const LoyaltyList = () => {
               </Text>
             </View>
           )}
-        <Text style={styles.cafeName}>{item.cafeName || 'Kafe Adı'}</Text>
+        <Text style={styles.cafeName}>{item.cafeName || t('loyalty.cafeName')}</Text>
         </View>
         <View style={styles.statsContainer}>
           <Text style={styles.statText}>
-            Toplam Sipariş: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
+            {t('loyalty.totalOrders')}: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
           </Text>
           <Text style={styles.statText}>
-            Ücretsiz Ürün: <Text style={styles.statValue}>{item.freeProductAt || 10}</Text>. siparişte
+            {t('loyalty.freeProductAt')}: <Text style={styles.statValue}>{item.freeProductAt || 10}</Text> {t('loyalty.freeProductAtOrder')}
           </Text>
           <Text style={styles.progressText}>
-            Bir sonraki ücretsiz ürün için: <Text style={styles.progressValue}>{nextFreeAt}</Text> sipariş kaldı
+            {t('loyalty.nextFreeProduct')}: <Text style={styles.progressValue}>{nextFreeAt}</Text> {t('loyalty.ordersLeft')}
           </Text>
         </View>
       </View>
@@ -92,19 +94,19 @@ const LoyaltyList = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Favori Mekanlar</Text>
+        <Text style={styles.headerText}>{t('loyalty.favoritePlaces')}</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('LoyaltyDetails')}
           style={styles.viewAllButton}
         >
-          <Text style={styles.viewAllText}>Tümünü Gör →</Text>
+          <Text style={styles.viewAllText}>{t('loyalty.viewAll')} →</Text>
         </TouchableOpacity>
       </View>
 
       {/* En Çok Tercih Edilen 3 Mekan Başlığı */}
       {displayedCafes.length > 0 && (
         <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>En Çok Tercih Edilen 3 Mekan</Text>
+          <Text style={styles.sectionTitle}>{t('loyalty.top3Places')}</Text>
         </View>
       )}
 
@@ -112,12 +114,12 @@ const LoyaltyList = () => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Yükleniyor...</Text>
+            <Text style={styles.loadingText}>{t('loyalty.loading')}</Text>
           </View>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : displayedCafes.length === 0 ? (
-          <Text style={styles.emptyText}>Henüz sipariş geçmişiniz bulunmuyor.</Text>
+          <Text style={styles.emptyText}>{t('loyalty.noOrderHistory')}</Text>
         ) : (
           <FlatList
             data={displayedCafes}
