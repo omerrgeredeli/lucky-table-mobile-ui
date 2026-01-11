@@ -81,7 +81,8 @@
         {
           "cameraPermission": "Allow Lucky Table to access your camera to scan QR codes."
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }
