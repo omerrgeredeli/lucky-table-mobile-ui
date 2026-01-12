@@ -394,6 +394,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['DRINK'], // İçecek
       foodSubCategories: ['kahve', 'çay'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '07:00', close: '23:00' }, // Mock açılış/kapanış - gerçek kullanımda backend'den gelecek
+      isOpen: true, // Mock açık/kapalı durumu - gerçek kullanımda backend'den gelecek
     },
     {
       id: 2,
@@ -405,6 +408,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['DRINK'],
       foodSubCategories: ['kahve', 'çay'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '08:00', close: '22:00' },
+      isOpen: true,
     },
     {
       id: 3,
@@ -416,6 +422,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['kahve', 'sandviç', 'pasta'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '08:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 4,
@@ -427,6 +436,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['kahve', 'pasta', 'salata'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '09:00', close: '22:00' },
+      isOpen: false, // Kapalı örnek
     },
     {
       id: 5,
@@ -438,6 +450,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['FOOD'],
       foodSubCategories: ['dondurma', 'pasta', 'tatlı'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '10:00', close: '22:00' },
+      isOpen: true,
     },
     {
       id: 6,
@@ -449,6 +464,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['DRINK'],
       foodSubCategories: ['kahve', 'soğuk-içecek'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '07:30', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 7,
@@ -460,6 +478,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['kahve', 'çay', 'pasta'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '08:00', close: '22:00' },
+      isOpen: true,
     },
     {
       id: 8,
@@ -471,6 +492,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['FOOD'],
       foodSubCategories: ['burger', 'patates'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '10:00', close: '24:00' },
+      isOpen: true,
     },
     {
       id: 9,
@@ -482,6 +506,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['FOOD'],
       foodSubCategories: ['pizza', 'salata'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '11:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 10,
@@ -493,6 +520,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['FOOD'],
       foodSubCategories: ['pizza'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '11:00', close: '24:00' },
+      isOpen: true,
     },
     {
       id: 11,
@@ -504,6 +534,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['FOOD'],
       foodSubCategories: ['simit', 'çay'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '06:00', close: '22:00' },
+      isOpen: false, // Kapalı örnek
     },
     {
       id: 12,
@@ -515,6 +548,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['FOOD'],
       foodSubCategories: ['döner', 'lahmacun'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '09:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 13,
@@ -526,6 +562,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['FOOD'],
       foodSubCategories: ['tavuk', 'patates'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '10:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 14,
@@ -537,6 +576,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['FOOD'],
       foodSubCategories: ['burger', 'patates'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '07:00', close: '24:00' },
+      isOpen: true,
     },
     {
       id: 15,
@@ -548,6 +590,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['FOOD'],
       foodSubCategories: ['tavuk', 'patates'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '10:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 16,
@@ -559,6 +604,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['FOOD'],
       foodSubCategories: ['et', 'salata'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '12:00', close: '24:00' },
+      isOpen: false, // Kapalı örnek
     },
     {
       id: 17,
@@ -570,6 +618,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['pizza', 'burger', 'kahve'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '09:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 18,
@@ -581,6 +632,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['pizza', 'burger', 'döner'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '10:00', close: '23:00' },
+      isOpen: true,
     },
     {
       id: 19,
@@ -592,6 +646,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: false,
       foodCategories: ['BOTH'],
       foodSubCategories: ['pizza', 'burger', 'kahve'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '08:00', close: '24:00' },
+      isOpen: true,
     },
     {
       id: 20,
@@ -603,6 +660,9 @@ export const mockNearbyCafes = (latitude, longitude) => {
       hasCampaign: true,
       foodCategories: ['BOTH'],
       foodSubCategories: ['sandviç', 'salata', 'soğuk-içecek'],
+      // cafeLogo: HomeScreen gibi null - placeholder gösterilecek
+      openingHours: { open: '08:00', close: '22:00' },
+      isOpen: true,
     },
   ];
   
@@ -641,3 +701,296 @@ export const mockSignupResponse = (email, password) => {
   };
 };
 
+// Mock Promotions Data - Backend entity yapısına uygun
+export const mockPromotionsData = [
+  {
+    promotionId: 1,
+    userId: 1,
+    promotionEarnedDate: '2024-01-10',
+    promotionExpireDate: '2024-02-10',
+    isUsed: false,
+    venueName: 'Starbucks',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 2,
+    userId: 1,
+    promotionEarnedDate: '2024-01-15',
+    promotionExpireDate: '2024-02-15',
+    isUsed: false,
+    venueName: 'Kahve Dünyası',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 3,
+    userId: 1,
+    promotionEarnedDate: '2024-01-20',
+    promotionExpireDate: '2024-02-20',
+    isUsed: false,
+    venueName: 'Gloria Jeans',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 4,
+    userId: 1,
+    promotionEarnedDate: '2023-12-01',
+    promotionExpireDate: '2024-01-01',
+    isUsed: false,
+    venueName: 'Coffeeshop Company',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 5,
+    userId: 1,
+    promotionEarnedDate: '2023-12-05',
+    promotionExpireDate: '2024-01-05',
+    isUsed: true,
+    venueName: 'Mado',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 6,
+    userId: 1,
+    promotionEarnedDate: '2023-11-20',
+    promotionExpireDate: '2023-12-20',
+    isUsed: false,
+    venueName: 'Caffe Nero',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 7,
+    userId: 1,
+    promotionEarnedDate: '2024-01-25',
+    promotionExpireDate: '2024-02-25',
+    isUsed: false,
+    venueName: 'Burger King',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 8,
+    userId: 1,
+    promotionEarnedDate: '2023-11-15',
+    promotionExpireDate: '2023-12-15',
+    isUsed: true,
+    venueName: 'Pizza Hut',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 9,
+    userId: 1,
+    promotionEarnedDate: '2024-01-30',
+    promotionExpireDate: '2024-03-01',
+    isUsed: false,
+    venueName: 'Domino\'s Pizza',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 10,
+    userId: 1,
+    promotionEarnedDate: '2023-10-10',
+    promotionExpireDate: '2023-11-10',
+    isUsed: false,
+    venueName: 'Simit Sarayı',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 11,
+    userId: 1,
+    promotionEarnedDate: '2024-02-01',
+    promotionExpireDate: '2024-03-03',
+    isUsed: false,
+    venueName: 'KFC',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 12,
+    userId: 1,
+    promotionEarnedDate: '2023-09-20',
+    promotionExpireDate: '2023-10-20',
+    isUsed: true,
+    venueName: 'McDonald\'s',
+    promotionType: 'FREE_COFFEE',
+  },
+  // Aktif Promosyonlar - Test için (BrowseScreen'deki kafe isimleri baz alınarak)
+  // Expire date'ler 2026 Ocak, Şubat ve Mart aylarına dağıtıldı
+  {
+    promotionId: 25,
+    userId: 1,
+    promotionEarnedDate: '2024-12-01',
+    promotionExpireDate: '2026-01-15', // Ocak
+    isUsed: false,
+    venueName: 'Starbucks',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 26,
+    userId: 1,
+    promotionEarnedDate: '2024-12-02',
+    promotionExpireDate: '2026-01-20', // Ocak
+    isUsed: false,
+    venueName: 'Kahve Dünyası',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 27,
+    userId: 1,
+    promotionEarnedDate: '2024-12-03',
+    promotionExpireDate: '2026-01-25', // Ocak
+    isUsed: false,
+    venueName: 'Gloria Jeans',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 28,
+    userId: 1,
+    promotionEarnedDate: '2024-12-04',
+    promotionExpireDate: '2026-02-05', // Şubat
+    isUsed: false,
+    venueName: 'Coffeeshop Company',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 29,
+    userId: 1,
+    promotionEarnedDate: '2024-12-05',
+    promotionExpireDate: '2026-02-10', // Şubat
+    isUsed: false,
+    venueName: 'Mado',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 30,
+    userId: 1,
+    promotionEarnedDate: '2024-12-06',
+    promotionExpireDate: '2026-02-15', // Şubat
+    isUsed: false,
+    venueName: 'Caffe Nero',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 31,
+    userId: 1,
+    promotionEarnedDate: '2024-12-07',
+    promotionExpireDate: '2026-02-20', // Şubat
+    isUsed: false,
+    venueName: 'Kahve Diyarı',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 32,
+    userId: 1,
+    promotionEarnedDate: '2024-12-08',
+    promotionExpireDate: '2026-03-05', // Mart
+    isUsed: false,
+    venueName: 'Burger King',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 33,
+    userId: 1,
+    promotionEarnedDate: '2024-12-09',
+    promotionExpireDate: '2026-03-10', // Mart
+    isUsed: false,
+    venueName: 'Pizza Hut',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 34,
+    userId: 1,
+    promotionEarnedDate: '2024-12-10',
+    promotionExpireDate: '2026-03-15', // Mart
+    isUsed: false,
+    venueName: 'Domino\'s Pizza',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 35,
+    userId: 1,
+    promotionEarnedDate: '2024-12-11',
+    promotionExpireDate: '2026-03-20', // Mart
+    isUsed: false,
+    venueName: 'Simit Sarayı',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 36,
+    userId: 1,
+    promotionEarnedDate: '2024-12-12',
+    promotionExpireDate: '2026-03-25', // Mart
+    isUsed: false,
+    venueName: 'Baydoner',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 37,
+    userId: 1,
+    promotionEarnedDate: '2024-12-13',
+    promotionExpireDate: '2026-03-30', // Mart
+    isUsed: false,
+    venueName: 'KFC',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 38,
+    userId: 1,
+    promotionEarnedDate: '2024-12-14',
+    promotionExpireDate: '2026-04-05', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'McDonald\'s',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 39,
+    userId: 1,
+    promotionEarnedDate: '2024-12-15',
+    promotionExpireDate: '2026-04-10', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'Popeyes',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 40,
+    userId: 1,
+    promotionEarnedDate: '2024-12-16',
+    promotionExpireDate: '2026-04-15', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'Nusret',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 41,
+    userId: 1,
+    promotionEarnedDate: '2024-12-17',
+    promotionExpireDate: '2026-04-20', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'Zomato',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 42,
+    userId: 1,
+    promotionEarnedDate: '2024-12-18',
+    promotionExpireDate: '2026-04-25', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'Yemeksepeti',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 43,
+    userId: 1,
+    promotionEarnedDate: '2024-12-19',
+    promotionExpireDate: '2026-04-30', // Nisan (ekstra)
+    isUsed: false,
+    venueName: 'Getir',
+    promotionType: 'FREE_COFFEE',
+  },
+  {
+    promotionId: 44,
+    userId: 1,
+    promotionEarnedDate: '2024-12-20',
+    promotionExpireDate: '2026-05-05', // Mayıs (ekstra)
+    isUsed: false,
+    venueName: 'Migros',
+    promotionType: 'FREE_COFFEE',
+  },
+];

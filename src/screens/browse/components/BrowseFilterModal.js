@@ -72,19 +72,28 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
     });
   };
 
-  // "Tümü" seçeneği için
-  const selectAllRestaurantTypes = () => {
-    setFilterState((prev) => ({
-      ...prev,
-      restaurantTypes: [...restaurantTypes],
-    }));
+  // "Tümünü Seç/Kaldır" toggle mantığı - Restoran Türü
+  const toggleAllRestaurantTypes = () => {
+    setFilterState((prev) => {
+      const currentTypes = prev.restaurantTypes || [];
+      const allSelected = currentTypes.length === restaurantTypes.length;
+      return {
+        ...prev,
+        restaurantTypes: allSelected ? [] : [...restaurantTypes],
+      };
+    });
   };
 
-  const clearRestaurantTypes = () => {
-    setFilterState((prev) => ({
-      ...prev,
-      restaurantTypes: [],
-    }));
+  // "Tümünü Seç/Kaldır" toggle mantığı - Kampanya Tipi
+  const toggleAllCampaignTypes = () => {
+    setFilterState((prev) => {
+      const currentTypes = prev.campaignTypes || [];
+      const allSelected = currentTypes.length === campaignTypes.length;
+      return {
+        ...prev,
+        campaignTypes: allSelected ? [] : [...campaignTypes],
+      };
+    });
   };
 
   // Mesafe slider değişimi (basit input ile simüle ediyoruz, gerçek slider için @react-native-community/slider kullanılabilir)
@@ -186,12 +195,16 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                     <View style={styles.selectAllContainer}>
                       <TouchableOpacity
                         style={styles.selectAllButton}
-                        onPress={selectAllRestaurantTypes}
+                        onPress={toggleAllRestaurantTypes}
                       >
-                        <Text style={styles.selectAllText}>{t('filter.selectAll')}</Text>
+                        <Text style={styles.selectAllText}>
+                          {(filterState.restaurantTypes || []).length === restaurantTypes.length
+                            ? t('filter.deselectAll', { defaultValue: 'Tümünü Kaldır' })
+                            : t('filter.selectAll', { defaultValue: 'Tümünü Seç' })}
+                        </Text>
                       </TouchableOpacity>
                     </View>
-                  <View style={styles.checkboxContainer}>
+                  <View style={styles.buttonContainer}>
                     {restaurantTypes.map((type) => {
                       const isSelected =
                         filterState.restaurantTypes &&
@@ -200,25 +213,15 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                         <TouchableOpacity
                           key={type}
                           style={[
-                            styles.checkboxItem,
-                            isSelected && styles.checkboxItemActive,
+                            styles.filterButton,
+                            isSelected && styles.filterButtonActive,
                           ]}
                           onPress={() => toggleRestaurantType(type)}
                         >
-                          <View
-                            style={[
-                              styles.checkbox,
-                              isSelected && styles.checkboxActive,
-                            ]}
-                          >
-                            {isSelected && (
-                              <Text style={styles.checkmark}>✓</Text>
-                            )}
-                          </View>
                           <Text
                             style={[
-                              styles.checkboxLabel,
-                              isSelected && styles.checkboxLabelActive,
+                              styles.filterButtonText,
+                              isSelected && styles.filterButtonTextActive,
                             ]}
                           >
                             {t(`filter.restaurantTypes.${type}`, { defaultValue: type })}
@@ -250,10 +253,7 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
               {expandedSections.distance && (
                 <View style={styles.filterSectionContent}>
                   <View style={styles.sliderContainer}>
-                    <Text style={styles.sliderLabel}>
-                      {t('filter.selected')}: {filterState.maxDistance} {t('filter.km')}
-                    </Text>
-                    {/* Mesafe seçenekleri - sadece butonlar */}
+                    {/* Mesafe seçenekleri - sadece butonlar, sola yaslı */}
                     <View style={styles.sliderButtons}>
                       {[1, 2, 5, 10, 20, 50].map((value) => (
                         <TouchableOpacity
@@ -305,11 +305,23 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
               </TouchableOpacity>
               {expandedSections.campaignType && (
                 <View style={styles.filterSectionContent}>
+                  <View style={styles.selectAllContainer}>
+                    <TouchableOpacity
+                      style={styles.selectAllButton}
+                      onPress={toggleAllCampaignTypes}
+                    >
+                      <Text style={styles.selectAllText}>
+                        {(filterState.campaignTypes || []).length === campaignTypes.length
+                          ? t('filter.deselectAll', { defaultValue: 'Tümünü Kaldır' })
+                          : t('filter.selectAll', { defaultValue: 'Tümünü Seç' })}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <ScrollView
                     style={styles.campaignScrollView}
                     nestedScrollEnabled={true}
                   >
-                    <View style={styles.checkboxContainer}>
+                    <View style={styles.buttonContainer}>
                       {campaignTypes.map((type) => {
                         const isSelected =
                           filterState.campaignTypes &&
@@ -318,25 +330,15 @@ const BrowseFilterModal = ({ visible, onClose, onApply, initialFilters = null })
                           <TouchableOpacity
                             key={type}
                             style={[
-                              styles.checkboxItem,
-                              isSelected && styles.checkboxItemActive,
+                              styles.filterButton,
+                              isSelected && styles.filterButtonActive,
                             ]}
                             onPress={() => toggleCampaignType(type)}
                           >
-                            <View
-                              style={[
-                                styles.checkbox,
-                                isSelected && styles.checkboxActive,
-                              ]}
-                            >
-                              {isSelected && (
-                                <Text style={styles.checkmark}>✓</Text>
-                              )}
-                            </View>
                             <Text
                               style={[
-                                styles.checkboxLabel,
-                                isSelected && styles.checkboxLabelActive,
+                                styles.filterButtonText,
+                                isSelected && styles.filterButtonTextActive,
                               ]}
                             >
                               {t(`filter.campaignTypes.${type}`, { defaultValue: type })}
@@ -464,62 +466,39 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.error || '#FF3B30',
   },
-  checkboxContainer: {
+  buttonContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  checkboxItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.md,
-    marginBottom: spacing.sm,
+  filterButton: {
     paddingVertical: spacing.xs,
-  },
-  checkboxItemActive: {
-    // Active state styling
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
+    paddingHorizontal: spacing.md,
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: spacing.sm,
+    backgroundColor: colors.background,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 4,
-    marginRight: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
   },
-  checkboxActive: {
+  filterButtonActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  checkmark: {
-    color: colors.white,
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-  },
-  checkboxLabel: {
+  filterButtonText: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
   },
-  checkboxLabelActive: {
-    color: colors.primary,
+  filterButtonTextActive: {
+    color: colors.white,
     fontWeight: typography.fontWeight.semibold,
   },
   sliderContainer: {
     paddingVertical: spacing.sm,
   },
-  sliderLabel: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.primary,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
   sliderButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start', // Sola yaslı
     marginTop: spacing.sm,
   },
   sliderButton: {

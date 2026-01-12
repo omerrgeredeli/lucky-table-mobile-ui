@@ -20,7 +20,9 @@ if (Platform.OS === 'web' && __DEV__) {
       typeof message === 'string' &&
       (message.includes('Image: style.resizeMode is deprecated') ||
        message.includes('Image: style.tintColor is deprecated') ||
-       message.includes('Animated: `useNativeDriver` is not supported'))
+       message.includes('Animated: `useNativeDriver` is not supported') ||
+       message.includes('props.pointerEvents is deprecated') ||
+       message.includes('shadow') && message.includes('deprecated'))
     ) {
       // Bu uyarıları görmezden gel
       return;

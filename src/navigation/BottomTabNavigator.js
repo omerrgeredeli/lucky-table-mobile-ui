@@ -6,6 +6,7 @@ import { colors, typography } from '../theme';
 import HomeScreen from '../screens/home/HomeScreen';
 import BrowseScreen from '../screens/browse/BrowseScreen';
 import PaymentScreen from '../screens/payment/PaymentScreen';
+import PromotionsScreen from '../screens/promotions/PromotionsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -64,6 +65,16 @@ const BottomTabNavigator = () => {
           tabBarLabel: t('navigation.payment'),
           tabBarIcon: ({ color, size }) => (
             <Text style={{ fontSize: size, color }}>💳</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Promotions"
+        component={PromotionsScreen}
+        options={{
+          tabBarLabel: t('navigation.promotions'),
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size, color }}>🎁</Text>
           ),
         }}
       />

@@ -235,7 +235,7 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
             <View style={{ height: itemHeight }} />
           </ScrollView>
           {/* Seçili item highlight */}
-          <View style={styles.selectedIndicator} pointerEvents="none" />
+          <View style={[styles.selectedIndicator, { pointerEvents: 'none' }]} />
         </View>
       </View>
     );

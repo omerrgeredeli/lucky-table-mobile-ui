@@ -130,3 +130,22 @@ export const getHomeData = async () => {
   });
 };
 
+/**
+ * Aktif promosyonları getir
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
+ */
+export const getActivePromotions = async () => {
+  return await apiCall('/user/promotions/active', {
+    method: 'GET',
+  });
+};
+
+/**
+ * Geçmiş promosyonları getir
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
+ */
+export const getPastPromotions = async () => {
+  return await apiCall('/user/promotions/past', {
+    method: 'GET',
+  });
+};

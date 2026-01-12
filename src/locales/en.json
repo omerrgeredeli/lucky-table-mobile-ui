@@ -152,9 +152,11 @@
     "home": "Home",
     "browse": "Browse",
     "payment": "Payment",
+    "promotions": "Earned Promotions",
     "profile": "Profile",
     "loyaltyDetails": "Favorite Places",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "pastPromotions": "Past Promotions"
   },
   "browse": {
     "title": "Browse",
@@ -185,7 +187,8 @@
     "previous": "Previous",
     "next": "Next",
     "page": "Page",
-    "show": "Show"
+    "show": "Show",
+    "showOnlyOpen": "Show only open now"
   },
   "payment": {
     "title": "Payment",
@@ -216,6 +219,28 @@
     "remainingForPromotion": "Remaining for Promotion",
     "error": "Error",
     "qrProcessingError": "QR code processing error"
+  },
+  "promotions": {
+    "title": "Earned Promotions",
+    "pastTitle": "Past Promotions",
+    "past": "Past",
+    "freeCoffeeEarned": "You earned free coffee from {{venueName}}",
+    "usePromotion": "Use Promotion",
+    "showNearbyVenues": "Show Nearby Venues",
+    "promotionDetails": "Promotion Details",
+    "earnedDate": "Earned Date",
+    "expireDate": "Expiry Date",
+    "status": "Status",
+    "active": "Active",
+    "used": "Used",
+    "expired": "Expired",
+    "loading": "Loading...",
+    "loadError": "Failed to load promotions. Please try again.",
+    "noPromotions": "You don't have any active promotions yet.",
+    "noPastPromotions": "You don't have any past promotions yet.",
+    "qrCodeTitle": "Use Promotion",
+    "qrCodeInstruction": "Venue staff will scan this QR code",
+    "qrCodeNote": "Note: This action will not increase your total order count"
   },
   "loyalty": {
     "title": "Favorite Places",
@@ -288,6 +313,7 @@
     "maxDistance": "Maximum Distance",
     "campaignType": "Campaign Type",
     "selectAll": "Select All",
+    "deselectAll": "Deselect All",
     "selected": "Selected",
     "km": "km",
     "categories": {

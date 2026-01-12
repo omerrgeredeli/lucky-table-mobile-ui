@@ -25,8 +25,17 @@ const PaymentScreen = () => {
   const { t } = useTranslation();
   const { userToken } = React.useContext(AuthContext);
   
-  // Expo Camera permissions hook (SDK 51)
-  const [permission, requestPermission] = useCameraPermissions();
+  // Expo Camera permissions hook (SDK 51) - Web modunda desteklenmiyor
+  // Web modunda fallback değerler kullan
+  let permission, requestPermission;
+  if (Platform.OS === 'web') {
+    // Web modunda kamera izni yok
+    permission = { granted: false, canAskAgain: false };
+    requestPermission = async () => ({ granted: false });
+  } else {
+    // Native modlarda hook'u kullan
+    [permission, requestPermission] = useCameraPermissions();
+  }
 
   // State
   const [scanned, setScanned] = useState(false);

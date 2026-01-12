@@ -153,9 +153,11 @@
     "home": "Home",
     "browse": "Sfoglia",
     "payment": "Pagamento",
+    "promotions": "Promozioni ottenute",
     "profile": "Profilo",
     "loyaltyDetails": "Luoghi preferiti",
-    "notifications": "Notifiche"
+    "notifications": "Notifiche",
+    "pastPromotions": "Promozioni passate"
   },
   "browse": {
     "title": "Sfoglia",
@@ -186,7 +188,8 @@
     "previous": "Precedente",
     "next": "Successivo",
     "page": "Pagina",
-    "show": "Mostra"
+    "show": "Mostra",
+    "showOnlyOpen": "Mostra solo aperti"
   },
   "payment": {
     "title": "Pagamento",
@@ -217,6 +220,28 @@
     "remainingForPromotion": "Rimanente per promozione",
     "error": "Errore",
     "qrProcessingError": "Errore di elaborazione codice QR"
+  },
+  "promotions": {
+    "title": "Promozioni ottenute",
+    "pastTitle": "Promozioni passate",
+    "past": "Passato",
+    "freeCoffeeEarned": "Hai ottenuto un caffè gratuito da {{venueName}}",
+    "usePromotion": "Usa promozione",
+    "showNearbyVenues": "Mostra locali nelle vicinanze",
+    "promotionDetails": "Dettagli promozione",
+    "earnedDate": "Data di ottenimento",
+    "expireDate": "Data di scadenza",
+    "status": "Stato",
+    "active": "Attivo",
+    "used": "Usato",
+    "expired": "Scaduto",
+    "loading": "Caricamento...",
+    "loadError": "Impossibile caricare le promozioni. Riprova.",
+    "noPromotions": "Non hai ancora promozioni attive.",
+    "noPastPromotions": "Non hai ancora promozioni passate.",
+    "qrCodeTitle": "Usa promozione",
+    "qrCodeInstruction": "Il personale scannerà questo codice QR",
+    "qrCodeNote": "Nota: Questa azione non aumenterà il numero totale di ordini"
   },
   "loyalty": {
     "title": "Luoghi preferiti",
@@ -289,6 +314,7 @@
     "maxDistance": "Distanza massima",
     "campaignType": "Tipo di campagna",
     "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto",
     "selected": "Selezionato",
     "km": "km",
     "categories": {

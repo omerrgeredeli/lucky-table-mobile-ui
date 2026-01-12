@@ -11,6 +11,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Platform,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,7 @@ import { getUserLoyaltyInfo } from '../../services/userService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import FilterScreen from '../../components/FilterScreen';
 import { locationData } from '../../data/locationData';
+import Logo from '../../components/Logo';
 
 /**
  * Loyalty Details Screen - Sadakat Bilgileri Detay
@@ -237,7 +239,26 @@ const LoyaltyDetailsScreen = () => {
         }}
         activeOpacity={0.7}
       >
-        <Text style={styles.cafeName}>{item.cafeName || t('loyalty.cafeName')}</Text>
+        {/* Logo ve Kafe Adı - HomeScreen ile aynı yapı */}
+        <View style={styles.cafeHeader}>
+          {(item.cafeLogo || item.logoUrl) ? (
+            <Image
+              source={{ uri: item.cafeLogo || item.logoUrl }}
+              style={styles.cafeLogo}
+              // resizeMode kaldırıldı - HomeScreen ile aynı (default kullanılacak)
+              onError={() => {
+                // Logo yüklenemezse fallback göster
+              }}
+            />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.cafeName || 'Kafe')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.cafeName}>{item.cafeName || t('loyalty.cafeName')}</Text>
+        </View>
         <View style={styles.statsContainer}>
           {hasDateFilter && (
             <Text style={styles.statText}>
@@ -274,6 +295,27 @@ const LoyaltyDetailsScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Logo ve Geri Butonu - En Üst */}
+      <View style={styles.logoContainer}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Home')}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.logoWrapper}>
+          <Logo size="small" />
+        </View>
+      </View>
+
+      {/* Yeşil Zemin Üzerine Beyaz Yazı Başlık - Sola Yaslı */}
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>
+          {t('loyalty.favoritePlaces')} ({filteredData.length})
+        </Text>
+      </View>
+
       {/* Filtre ve Sıralama Butonları */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity
@@ -559,6 +601,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    position: 'absolute',
+    left: spacing.md,
+    padding: spacing.xs,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.xxl || 28, // Boyutu büyüt
+    color: colors.primary, // Yeşil renk
+    fontWeight: typography.fontWeight.bold,
+  },
+  logoWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    padding: spacing.md,
+    backgroundColor: colors.primary,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
   actionsContainer: {
     flexDirection: 'row',
     padding: spacing.md,
@@ -742,11 +819,34 @@ const styles = StyleSheet.create({
     borderRadius: spacing.sm,
     ...shadows.small,
   },
+  cafeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm, // HomeScreen ile aynı
+  },
+  cafeLogo: {
+    width: 40, // HomeScreen ile aynı (LoyaltyList'te 40x40)
+    height: 40, // HomeScreen ile aynı
+    borderRadius: spacing.xs, // HomeScreen ile aynı
+    marginRight: spacing.sm, // HomeScreen ile aynı
+    // resizeMode kaldırıldı - HomeScreen ile aynı (default kullanılacak)
+  },
+  cafeLogoPlaceholder: {
+    backgroundColor: colors.primary, // HomeScreen ile aynı
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cafeLogoPlaceholderText: {
+    color: colors.white, // HomeScreen ile aynı
+    fontSize: typography.fontSize.lg, // HomeScreen ile aynı
+    fontWeight: typography.fontWeight.bold, // HomeScreen ile aynı
+  },
   cafeName: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    flex: 1, // HomeScreen ile aynı
+    marginBottom: 0, // marginBottom kaldırıldı, cafeHeader'da marginBottom var
   },
   statsContainer: {
     marginTop: spacing.xs,

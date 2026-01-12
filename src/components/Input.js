@@ -26,12 +26,13 @@ const Input = ({
   editable = true,
   multiline = false,
   numberOfLines = 1,
+  style, // Custom style prop eklendi
 }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !label && styles.containerNoLabel]}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
-        style={[styles.input, error && styles.inputError, !editable && styles.inputDisabled]}
+        style={[styles.input, error && styles.inputError, !editable && styles.inputDisabled, style]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
@@ -51,7 +52,10 @@ const Input = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.md, // Label varsa margin
+  },
+  containerNoLabel: {
+    marginBottom: 0, // Label yoksa margin yok
   },
   label: {
     fontSize: typography.fontSize.sm,

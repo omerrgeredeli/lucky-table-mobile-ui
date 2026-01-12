@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,12 @@ import {
   FlatList,
   Platform,
   AppState,
+  Image,
+  Switch,
+  Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../theme';
@@ -26,16 +30,20 @@ import { sortCafesByDistance } from '../../utils/distanceUtils';
  */
 const BrowseScreen = () => {
   const { t } = useTranslation();
+  const route = useRoute();
   const [allCafes, setAllCafes] = useState([]); // Tüm kafeler (filtrelenmemiş)
   const [displayedCafes, setDisplayedCafes] = useState([]); // Gösterilecek kafeler (filtrelenmiş + sıralanmış)
   const [loading, setLoading] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
   const [hasSearched, setHasSearched] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [appState, setAppState] = useState(AppState.currentState);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(true); // "Şu anda açık olanlar" switch - default açık
+  const scrollViewRef = useRef(null);
+  const mapContainerRef = useRef(null);
 
   // Filtre state (modal içinde değiştirilir, uygulanana kadar listede değişiklik olmaz)
   const [activeFilters, setActiveFilters] = useState({
@@ -54,6 +62,15 @@ const BrowseScreen = () => {
   useEffect(() => {
     checkLocationAndLoadCafes();
   }, []);
+
+  // Route params değiştiğinde arama yap
+  useEffect(() => {
+    if (route.params?.searchQuery) {
+      setSearchQuery(route.params.searchQuery);
+      setHasSearched(true);
+      // Arama otomatik olarak applyFiltersAndSort içinde yapılacak
+    }
+  }, [route.params?.searchQuery]);
 
   // AppState değişikliğini dinle (ayarlardan dönünce kontrol et)
   useEffect(() => {
@@ -77,7 +94,7 @@ const BrowseScreen = () => {
   // Arama sadece "Ara" butonuna basılınca yapılır
   useEffect(() => {
     applyFiltersAndSort();
-  }, [allCafes, activeFilters, userLocation, hasSearched, searchQuery]);
+  }, [allCafes, activeFilters, userLocation, hasSearched, searchQuery, showOnlyOpen]);
 
   // Konum izni kontrolü ve kafeleri yükle
   const checkLocationAndLoadCafes = async () => {
@@ -196,6 +213,15 @@ const BrowseScreen = () => {
       });
     }
 
+    // "Şu anda açık olanlar" filtresi
+    if (showOnlyOpen) {
+      filtered = filtered.filter((cafe) => {
+        // Mock: isOpen property'si varsa kullan, yoksa varsayılan olarak true kabul et
+        // Gerçek kullanımda backend'den gelen isOpen veya openingHours'a göre hesaplanacak
+        return cafe.isOpen !== false; // undefined veya true ise açık kabul et
+      });
+    }
+
     // Mesafeye göre sırala
     const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
     const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
@@ -224,27 +250,105 @@ const BrowseScreen = () => {
     // applyFiltersAndSort useEffect ile otomatik çağrılacak
   };
 
+  // Haritaya scroll yap
+  const scrollToMap = () => {
+    if (scrollViewRef.current && mapContainerRef.current) {
+      // Harita container'ının pozisyonunu ölç
+      mapContainerRef.current.measureLayout(
+        scrollViewRef.current,
+        (x, y) => {
+          // Smooth scroll ile haritaya git
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, y - spacing.md), // Biraz üstten başlasın
+            animated: true,
+          });
+        },
+        () => {
+          // Fallback: measureLayout başarısız olursa scrollToEnd kullan
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }
+      );
+    }
+  };
+
   // Kafe item render
-  const renderCafeItem = ({ item }) => (
-    <View style={styles.cafeItem}>
-      <Text style={styles.cafeName}>{item.name || t('browse.cafeName')}</Text>
-      {item.address && <Text style={styles.cafeAddress}>{item.address}</Text>}
+  const renderCafeItem = ({ item }) => {
+    const isClosed = item.isOpen === false;
+    const openingHours = item.openingHours || { open: '08:00', close: '22:00' };
+    const hoursText = `${openingHours.open} - ${openingHours.close}`;
+
+    return (
+      <View style={[styles.cafeItem, isClosed && !showOnlyOpen && styles.cafeItemClosed]}>
+        <View style={styles.cafeItemContent}>
+          {/* Logo - HomeScreen ile BİREBİR aynı */}
+          {item.cafeLogo ? (
+            <Image
+              source={{ uri: item.cafeLogo }}
+              style={styles.cafeLogo}
+              // defaultSource removed for web compatibility
+              onError={() => {
+                // Logo yüklenemezse fallback göster
+              }}
+            />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.name || 'Kafe')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          {/* Orta kısım - Kafe bilgileri */}
+          <View style={styles.cafeInfoContainer}>
+            <Text style={[styles.cafeName, isClosed && !showOnlyOpen && styles.cafeNameClosed]}>
+              {item.name || t('browse.cafeName')}
+            </Text>
+            {item.address && (
+              <Text style={[styles.cafeAddress, isClosed && !showOnlyOpen && styles.cafeAddressClosed]}>
+                {item.address}
+              </Text>
+            )}
       {item.distance !== undefined && (
-        <Text style={styles.cafeDistance}>
+              <Text style={[styles.cafeDistance, isClosed && !showOnlyOpen && styles.cafeDistanceClosed]}>
           {item.distance.toFixed(2)} {t('browse.kmAway')}
         </Text>
       )}
       {item.restaurantType && (
-        <Text style={styles.cafeType}>{item.restaurantType}</Text>
+              <Text style={[styles.cafeType, isClosed && !showOnlyOpen && styles.cafeTypeClosed]}>
+                {item.restaurantType}
+              </Text>
       )}
+          </View>
+
+          {/* Sağ taraf - Açılış/Kapanış saatleri */}
+          <View style={styles.cafeHoursContainer}>
+            <Text style={[styles.cafeHours, isClosed && !showOnlyOpen && styles.cafeHoursClosed]}>
+              {hoursText}
+            </Text>
+          </View>
+        </View>
     </View>
   );
+  };
 
   // Pagination için gösterilecek veriler
   const paginatedData = displayedCafes.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Total pages hesaplama - LoyaltyDetailsScreen ile aynı mantık
+  const totalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
+  
+  // itemsPerPage değişince sayfa numarasını kontrol et (LoyaltyDetailsScreen'den)
+  useEffect(() => {
+    const newTotalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    } else if (newTotalPages === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [itemsPerPage, displayedCafes.length]);
 
   // Aktif filtre sayısı
   const getActiveFilterCount = () => {
@@ -274,7 +378,10 @@ const BrowseScreen = () => {
             onSubmitEditing={handleSearch}
           />
         </View>
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+        <TouchableOpacity 
+          style={styles.searchButton} 
+          onPress={handleSearch}
+        >
           <Text style={styles.searchButtonText}>{t('browse.search')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -288,7 +395,10 @@ const BrowseScreen = () => {
       </View>
 
       {/* Liste */}
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView}
+      >
         {/* Sonuçlar */}
         <View style={styles.resultsContainer}>
           <View style={styles.listTitleContainer}>
@@ -297,6 +407,16 @@ const BrowseScreen = () => {
                 ? `${t('browse.searchResults')} (${displayedCafes.length})`
                 : `${t('browse.nearbyCafes')} (${displayedCafes.length})`}
             </Text>
+            {/* "Şu anda açık olanlar" Switch */}
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>{t('browse.showOnlyOpen')}</Text>
+              <Switch
+                value={showOnlyOpen}
+                onValueChange={setShowOnlyOpen}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
           </View>
 
           {loading ? (
@@ -318,8 +438,8 @@ const BrowseScreen = () => {
                 keyExtractor={(item, index) => `cafe-${item.id || index}`}
                 scrollEnabled={false}
               />
-              {/* Pagination */}
-              {displayedCafes.length > itemsPerPage && (
+              {/* Pagination - LoyaltyDetailsScreen ile aynı görünürlük kontrolü */}
+              {displayedCafes.length > 0 && totalPages > 0 && (
                 <View style={styles.paginationContainer}>
                   <TouchableOpacity
                     style={[
@@ -332,8 +452,7 @@ const BrowseScreen = () => {
                     <Text style={styles.pageButtonText}>{t('browse.previous')}</Text>
                   </TouchableOpacity>
                   <Text style={styles.pageInfo}>
-                    {t('browse.page')} {currentPage} /{' '}
-                    {Math.ceil(displayedCafes.length / itemsPerPage)}
+                    {t('browse.page')} {currentPage} / {totalPages}
                   </Text>
                   <View style={styles.itemsPerPageContainer}>
                     <Text style={styles.itemsPerPageLabel}>{t('browse.show')}:</Text>
@@ -365,15 +484,11 @@ const BrowseScreen = () => {
                   <TouchableOpacity
                     style={[
                       styles.pageButton,
-                      currentPage ===
-                        Math.ceil(displayedCafes.length / itemsPerPage) &&
+                      currentPage === totalPages &&
                         styles.pageButtonDisabled,
                     ]}
                     onPress={() => setCurrentPage(currentPage + 1)}
-                    disabled={
-                      currentPage ===
-                      Math.ceil(displayedCafes.length / itemsPerPage)
-                    }
+                    disabled={currentPage === totalPages}
                   >
                     <Text style={styles.pageButtonText}>{t('browse.next')}</Text>
                   </TouchableOpacity>
@@ -384,10 +499,19 @@ const BrowseScreen = () => {
         </View>
 
         {/* Harita - Filtrelenmiş kafeler harita üzerinde gösterilecek */}
-        <View style={styles.mapContainer}>
+        <View ref={mapContainerRef} style={styles.mapContainer}>
           <BrowseMapScreen cafes={displayedCafes} userLocation={userLocation} />
         </View>
       </ScrollView>
+
+      {/* Floating Harita Iconu - Sağ Alt Köşe */}
+      <TouchableOpacity
+        style={styles.floatingMapButton}
+        onPress={scrollToMap}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.floatingMapIcon}>🗺️</Text>
+      </TouchableOpacity>
 
       {/* Filtre Modal */}
       <BrowseFilterModal
@@ -412,26 +536,39 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     padding: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    alignItems: 'center',
+    alignItems: 'center', // Dikey hizalama için
   },
   searchInputContainer: {
     flex: 1,
     marginRight: spacing.sm,
+    height: 44, // Sabit yükseklik - butonlarla aynı hizada olması için (padding dahil)
+    justifyContent: 'center', // İçeriği dikey olarak ortala
   },
   searchInput: {
     backgroundColor: colors.background,
+    height: 44, // Input yüksekliği butonlarla aynı
+    paddingVertical: spacing.xs + 2, // Üst-alt padding eşit
+    paddingHorizontal: spacing.md,
+    margin: 0, // Margin sıfırla
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.sm,
+    fontSize: typography.fontSize.md,
   },
   searchButton: {
-    paddingVertical: spacing.sm,
+    height: 44, // Buton yüksekliği input ile aynı
+    paddingVertical: 0, // Padding sıfırla, height ile kontrol et
     paddingHorizontal: spacing.md,
     backgroundColor: colors.primary,
     borderRadius: spacing.sm,
     minWidth: 60,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center', // İçeriği dikey olarak ortala
     marginRight: spacing.sm,
   },
   searchButtonText: {
@@ -440,13 +577,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semibold,
   },
   filterToggleButton: {
-    paddingVertical: spacing.sm,
+    height: 44, // Buton yüksekliği input ile aynı
+    paddingVertical: 0, // Padding sıfırla, height ile kontrol et
     paddingHorizontal: spacing.md,
     backgroundColor: colors.secondary || colors.primary,
     borderRadius: spacing.sm,
     minWidth: 80,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center', // İçeriği dikey olarak ortala
   },
   filterToggleButtonText: {
     fontSize: typography.fontSize.sm,
@@ -464,6 +602,9 @@ const styles = StyleSheet.create({
     ...shadows.small,
   },
   listTitleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.md,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
@@ -473,6 +614,17 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
+    flex: 1,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: spacing.md,
+  },
+  switchLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
   },
   loadingContainer: {
     padding: spacing.xl,
@@ -491,7 +643,36 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: spacing.sm,
     marginBottom: spacing.sm,
+    overflow: 'visible', // Logo görünürlüğü için
     ...shadows.small,
+  },
+  cafeItemClosed: {
+    opacity: 0.5, // Kapalı kafeler daha sönük
+  },
+  cafeItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center', // HomeScreen cafeHeader ile aynı
+    overflow: 'visible', // Logo görünürlüğü için
+  },
+  cafeLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  cafeLogoPlaceholder: {
+    backgroundColor: colors.primary, // HomeScreen ile BİREBİR aynı
+    justifyContent: 'center', // HomeScreen ile BİREBİR aynı
+    alignItems: 'center', // HomeScreen ile BİREBİR aynı
+  },
+  cafeLogoPlaceholderText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
+  cafeInfoContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
   },
   cafeName: {
     fontSize: typography.fontSize.md,
@@ -499,10 +680,16 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
+  cafeNameClosed: {
+    color: colors.textSecondary,
+  },
   cafeAddress: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
+  },
+  cafeAddressClosed: {
+    opacity: 0.7,
   },
   cafeDistance: {
     fontSize: typography.fontSize.xs,
@@ -510,10 +697,28 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
     marginBottom: spacing.xs,
   },
+  cafeDistanceClosed: {
+    opacity: 0.7,
+  },
   cafeType: {
     fontSize: typography.fontSize.xs,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  cafeTypeClosed: {
+    opacity: 0.7,
+  },
+  cafeHoursContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+  },
+  cafeHours: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  cafeHoursClosed: {
+    opacity: 0.7,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -581,6 +786,23 @@ const styles = StyleSheet.create({
     height: 400,
     margin: spacing.md,
     marginTop: spacing.sm,
+  },
+  floatingMapButton: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
+    elevation: 5, // Android için shadow
+    zIndex: 1000,
+  },
+  floatingMapIcon: {
+    fontSize: 24,
   },
 });
 

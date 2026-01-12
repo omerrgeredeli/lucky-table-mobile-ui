@@ -1,11 +1,24 @@
 /**
  * Tema Shadow (Gölge) Tanımları
- * iOS ve Android uyumlu gölge stilleri
+ * iOS, Android ve Web uyumlu gölge stilleri
  */
+
+import { Platform } from 'react-native';
+
+// Web için boxShadow oluştur
+const createBoxShadow = (offsetY, blur, opacity) => {
+  if (Platform.OS === 'web') {
+    return {
+      boxShadow: `0 ${offsetY}px ${blur}px rgba(0, 0, 0, ${opacity})`,
+    };
+  }
+  return {};
+};
 
 export const shadows = {
   // Küçük gölge - Hafif elevation
   small: {
+    ...createBoxShadow(1, 2, 0.1),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -18,6 +31,7 @@ export const shadows = {
 
   // Orta gölge - Standart card gölgesi
   medium: {
+    ...createBoxShadow(2, 4, 0.1),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -30,6 +44,7 @@ export const shadows = {
 
   // Büyük gölge - Öne çıkan elementler için
   large: {
+    ...createBoxShadow(4, 8, 0.15),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -42,6 +57,7 @@ export const shadows = {
 
   // Çok büyük gölge - Modal, popup gibi elementler için
   xlarge: {
+    ...createBoxShadow(8, 16, 0.2),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -153,9 +153,11 @@
     "home": "Главная",
     "browse": "Обзор",
     "payment": "Оплата",
+    "promotions": "Полученные акции",
     "profile": "Профиль",
     "loyaltyDetails": "Избранные места",
-    "notifications": "Уведомления"
+    "notifications": "Уведомления",
+    "pastPromotions": "Прошедшие акции"
   },
   "browse": {
     "title": "Обзор",
@@ -186,7 +188,8 @@
     "previous": "Предыдущая",
     "next": "Следующая",
     "page": "Страница",
-    "show": "Показать"
+    "show": "Показать",
+    "showOnlyOpen": "Показать только открытые"
   },
   "payment": {
     "title": "Оплата",
@@ -217,6 +220,28 @@
     "remainingForPromotion": "Осталось для акции",
     "error": "Ошибка",
     "qrProcessingError": "Ошибка обработки QR-кода"
+  },
+  "promotions": {
+    "title": "Полученные акции",
+    "pastTitle": "Прошедшие акции",
+    "past": "Прошлое",
+    "freeCoffeeEarned": "Вы получили бесплатный кофе от {{venueName}}",
+    "usePromotion": "Использовать акцию",
+    "showNearbyVenues": "Показать ближайшие места",
+    "promotionDetails": "Детали акции",
+    "earnedDate": "Дата получения",
+    "expireDate": "Дата истечения",
+    "status": "Статус",
+    "active": "Активна",
+    "used": "Использована",
+    "expired": "Истекла",
+    "loading": "Загрузка...",
+    "loadError": "Не удалось загрузить акции. Пожалуйста, попробуйте снова.",
+    "noPromotions": "У вас пока нет активных акций.",
+    "noPastPromotions": "У вас пока нет прошедших акций.",
+    "qrCodeTitle": "Использовать акцию",
+    "qrCodeInstruction": "Персонал отсканирует этот QR-код",
+    "qrCodeNote": "Примечание: Это действие не увеличит общее количество заказов"
   },
   "loyalty": {
     "title": "Избранные места",
@@ -289,6 +314,7 @@
     "maxDistance": "Максимальное расстояние",
     "campaignType": "Тип кампании",
     "selectAll": "Выбрать все",
+    "deselectAll": "Снять все",
     "selected": "Выбрано",
     "km": "км",
     "categories": {

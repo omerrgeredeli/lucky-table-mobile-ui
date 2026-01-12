@@ -5,6 +5,7 @@ import { colors, typography } from '../theme';
 import BottomTabNavigator from './BottomTabNavigator';
 import LoyaltyDetailsScreen from '../screens/loyalty/LoyaltyDetailsScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
+import PastPromotionsScreen from '../screens/promotions/PastPromotionsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,7 +39,7 @@ const AppStack = () => {
         name="LoyaltyDetails" 
         component={LoyaltyDetailsScreen}
         options={{
-          title: t('navigation.loyaltyDetails'),
+          headerShown: false, // Header'ı kaldır
         }}
       />
       <Stack.Screen 
@@ -46,6 +47,13 @@ const AppStack = () => {
         component={NotificationsScreen}
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen 
+        name="PastPromotions" 
+        component={PastPromotionsScreen}
+        options={{
+          headerShown: false, // Header'ı kaldır
         }}
       />
     </Stack.Navigator>

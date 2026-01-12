@@ -4,7 +4,7 @@
  * Shared user store kullanır
  */
 
-import { mockLoyaltyData } from '../../utils/mockData';
+import { mockLoyaltyData, mockPromotionsData } from '../../utils/mockData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getUserById,
@@ -559,6 +559,94 @@ export const getHomeData = async () => {
       totalOrders: mockLoyaltyData.reduce((sum, item) => sum + (item.orderCount || 0), 0),
       totalCafes: mockLoyaltyData.length,
     },
+    null
+  );
+};
+
+/**
+ * Aktif promosyonları getir (Mock)
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
+ */
+export const getActivePromotions = async () => {
+  await delay(400 + Math.random() * 300); // 400-700ms
+
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    return createResponse(
+      false,
+      null,
+      {
+        code: 'UNAUTHORIZED',
+        message: 'Token bulunamadı. Lütfen giriş yapın.',
+      }
+    );
+  }
+
+  // Aktif promosyonlar: expire date bugünden sonra ve kullanılmamış
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const activePromotions = mockPromotionsData.filter(promo => {
+    const expireDate = new Date(promo.promotionExpireDate);
+    expireDate.setHours(0, 0, 0, 0);
+    return expireDate >= today && !promo.isUsed;
+  });
+
+  // Expire date'e göre sırala (en yakın önce)
+  activePromotions.sort((a, b) => {
+    const dateA = new Date(a.promotionExpireDate);
+    const dateB = new Date(b.promotionExpireDate);
+    return dateA - dateB;
+  });
+
+  return createResponse(
+    true,
+    activePromotions,
+    null
+  );
+};
+
+/**
+ * Geçmiş promosyonları getir (Mock)
+ * @returns {Promise<{success: boolean, data: any, error: any}>}
+ */
+export const getPastPromotions = async () => {
+  await delay(400 + Math.random() * 300); // 400-700ms
+
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    return createResponse(
+      false,
+      null,
+      {
+        code: 'UNAUTHORIZED',
+        message: 'Token bulunamadı. Lütfen giriş yapın.',
+      }
+    );
+  }
+
+  // Geçmiş promosyonlar: expire date bugünden önce veya kullanılmış
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const pastPromotions = mockPromotionsData.filter(promo => {
+    const expireDate = new Date(promo.promotionExpireDate);
+    expireDate.setHours(0, 0, 0, 0);
+    return expireDate < today || promo.isUsed;
+  });
+
+  // Expire date'e göre sırala (en yakın zamanda bitmiş önce)
+  pastPromotions.sort((a, b) => {
+    const dateA = new Date(a.promotionExpireDate);
+    const dateB = new Date(b.promotionExpireDate);
+    return dateB - dateA; // Ters sıralama (en yakın zamanda bitmiş önce)
+  });
+
+  return createResponse(
+    true,
+    pastPromotions,
     null
   );
 };

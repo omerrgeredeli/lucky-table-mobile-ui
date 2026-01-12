@@ -153,9 +153,11 @@
     "home": "Accueil",
     "browse": "Parcourir",
     "payment": "Paiement",
+    "promotions": "Promotions gagnées",
     "profile": "Profil",
     "loyaltyDetails": "Lieux favoris",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "pastPromotions": "Promotions passées"
   },
   "browse": {
     "title": "Parcourir",
@@ -186,7 +188,8 @@
     "previous": "Précédent",
     "next": "Suivant",
     "page": "Page",
-    "show": "Afficher"
+    "show": "Afficher",
+    "showOnlyOpen": "Afficher uniquement les ouverts"
   },
   "payment": {
     "title": "Paiement",
@@ -217,6 +220,28 @@
     "remainingForPromotion": "Restant pour la promotion",
     "error": "Erreur",
     "qrProcessingError": "Erreur de traitement du code QR"
+  },
+  "promotions": {
+    "title": "Promotions gagnées",
+    "pastTitle": "Promotions passées",
+    "past": "Passé",
+    "freeCoffeeEarned": "Vous avez gagné un café gratuit de {{venueName}}",
+    "usePromotion": "Utiliser la promotion",
+    "showNearbyVenues": "Afficher les lieux à proximité",
+    "promotionDetails": "Détails de la promotion",
+    "earnedDate": "Date de gain",
+    "expireDate": "Date d'expiration",
+    "status": "Statut",
+    "active": "Actif",
+    "used": "Utilisé",
+    "expired": "Expiré",
+    "loading": "Chargement...",
+    "loadError": "Échec du chargement des promotions. Veuillez réessayer.",
+    "noPromotions": "Vous n'avez pas encore de promotions actives.",
+    "noPastPromotions": "Vous n'avez pas encore de promotions passées.",
+    "qrCodeTitle": "Utiliser la promotion",
+    "qrCodeInstruction": "Le personnel scannera ce code QR",
+    "qrCodeNote": "Note : Cette action n'augmentera pas votre nombre total de commandes"
   },
   "loyalty": {
     "title": "Lieux favoris",
@@ -289,6 +314,7 @@
     "maxDistance": "Distance maximale",
     "campaignType": "Type de campagne",
     "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
     "selected": "Sélectionné",
     "km": "km",
     "categories": {

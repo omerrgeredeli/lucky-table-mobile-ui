@@ -152,9 +152,11 @@
     "home": "Ana Sayfa",
     "browse": "Göz At",
     "payment": "Ödeme Yap",
+    "promotions": "Kazanılan Promosyonlar",
     "profile": "Profil",
     "loyaltyDetails": "Favori Mekanlar",
-    "notifications": "Bildirimler"
+    "notifications": "Bildirimler",
+    "pastPromotions": "Geçmiş Promosyonlar"
   },
   "browse": {
     "title": "Göz At",
@@ -185,7 +187,8 @@
     "previous": "Önceki",
     "next": "Sonraki",
     "page": "Sayfa",
-    "show": "Göster"
+    "show": "Göster",
+    "showOnlyOpen": "Şu anda açık olanlar"
   },
   "payment": {
     "title": "Ödeme Yap",
@@ -216,6 +219,28 @@
     "remainingForPromotion": "Promosyon İçin Kalan",
     "error": "Hata",
     "qrProcessingError": "QR kod işleme hatası"
+  },
+  "promotions": {
+    "title": "Kazanılan Promosyonlar",
+    "pastTitle": "Geçmiş Promosyonlar",
+    "past": "Geçmiş",
+    "freeCoffeeEarned": "{{venueName}} mekanından ücretsiz kahve kazandınız",
+    "usePromotion": "Promosyonu Kullan",
+    "showNearbyVenues": "En Yakın Kafeleri Göster",
+    "promotionDetails": "Promosyon Detayları",
+    "earnedDate": "Kazanma Tarihi",
+    "expireDate": "Bitiş Tarihi",
+    "status": "Durum",
+    "active": "Aktif",
+    "used": "Kullanıldı",
+    "expired": "Süresi Doldu",
+    "loading": "Yükleniyor...",
+    "loadError": "Promosyonlar yüklenemedi. Lütfen tekrar deneyin.",
+    "noPromotions": "Henüz aktif promosyonunuz bulunmuyor.",
+    "noPastPromotions": "Henüz geçmiş promosyonunuz bulunmuyor.",
+    "qrCodeTitle": "Promosyon Kullan",
+    "qrCodeInstruction": "Mekan personeli bu QR kodu okutacak",
+    "qrCodeNote": "Not: Bu işlem toplam sipariş sayınızı artırmaz"
   },
   "loyalty": {
     "title": "Favori Mekanlar",
@@ -288,6 +313,7 @@
     "maxDistance": "Maksimum Mesafe",
     "campaignType": "Kampanya Tipi",
     "selectAll": "Tümünü Seç",
+    "deselectAll": "Tümünü Kaldır",
     "selected": "Seçilen",
     "km": "km",
     "categories": {

@@ -153,9 +153,11 @@
     "home": "Startseite",
     "browse": "Durchsuchen",
     "payment": "Zahlung",
+    "promotions": "Verdiente Aktionen",
     "profile": "Profil",
     "loyaltyDetails": "Lieblingsorte",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "pastPromotions": "Vergangene Aktionen"
   },
   "browse": {
     "title": "Durchsuchen",
@@ -186,7 +188,8 @@
     "previous": "Vorherige",
     "next": "Nächste",
     "page": "Seite",
-    "show": "Anzeigen"
+    "show": "Anzeigen",
+    "showOnlyOpen": "Nur geöffnete anzeigen"
   },
   "payment": {
     "title": "Zahlung",
@@ -217,6 +220,28 @@
     "remainingForPromotion": "Verbleibend für Promotion",
     "error": "Fehler",
     "qrProcessingError": "QR-Code-Verarbeitungsfehler"
+  },
+  "promotions": {
+    "title": "Verdiente Aktionen",
+    "pastTitle": "Vergangene Aktionen",
+    "past": "Vergangen",
+    "freeCoffeeEarned": "Sie haben kostenlosen Kaffee von {{venueName}} verdient",
+    "usePromotion": "Aktion nutzen",
+    "showNearbyVenues": "Nahegelegene Orte anzeigen",
+    "promotionDetails": "Aktionsdetails",
+    "earnedDate": "Verdient am",
+    "expireDate": "Ablaufdatum",
+    "status": "Status",
+    "active": "Aktiv",
+    "used": "Verwendet",
+    "expired": "Abgelaufen",
+    "loading": "Lädt...",
+    "loadError": "Aktionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "noPromotions": "Sie haben noch keine aktiven Aktionen.",
+    "noPastPromotions": "Sie haben noch keine vergangenen Aktionen.",
+    "qrCodeTitle": "Aktion nutzen",
+    "qrCodeInstruction": "Das Personal wird diesen QR-Code scannen",
+    "qrCodeNote": "Hinweis: Diese Aktion erhöht nicht Ihre Gesamtbestellanzahl"
   },
   "loyalty": {
     "title": "Lieblingsorte",
@@ -289,6 +314,7 @@
     "maxDistance": "Maximale Entfernung",
     "campaignType": "Kampagnentyp",
     "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen",
     "selected": "Ausgewählt",
     "km": "km",
     "categories": {

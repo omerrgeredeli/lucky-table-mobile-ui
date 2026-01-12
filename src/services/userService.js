@@ -175,3 +175,33 @@ export const deleteAccount = async () => {
     
   return response.data;
 };
+
+/**
+ * Aktif promosyonları getir
+ * @returns {Promise<Array>} Aktif promosyon listesi
+ */
+export const getActivePromotions = async () => {
+  const service = getService();
+  const response = await service.getActivePromotions();
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Aktif promosyonlar alınamadı');
+  }
+
+  return response.data;
+};
+
+/**
+ * Geçmiş promosyonları getir
+ * @returns {Promise<Array>} Geçmiş promosyon listesi
+ */
+export const getPastPromotions = async () => {
+  const service = getService();
+  const response = await service.getPastPromotions();
+
+  if (!response.success) {
+    throw new Error(response.error?.message || 'Geçmiş promosyonlar alınamadı');
+  }
+
+  return response.data;
+};
