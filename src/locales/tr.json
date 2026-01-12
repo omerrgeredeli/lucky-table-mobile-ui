@@ -400,5 +400,25 @@
     "dataSharingText": "Kişisel verileriniz, yukarıda belirtilen amaçlar doğrultusunda, yasal zorunluluklar çerçevesinde yetkili kamu kurum ve kuruluşları ile paylaşılabilir.",
     "rights": "6. Haklarınız:",
     "rightsText": "KVKK'nın 11. maddesi uyarınca, kişisel verilerinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep etme, işleme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme, yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, eksik veya yanlış işlenmişse düzeltilmesini isteme, silinmesini veya yok edilmesini isteme, düzeltme/silme/yok etme işlemlerinin aktarıldığı üçüncü kişilere bildirilmesini isteme, münhasıran otomatik sistemler ile analiz edilmesi nedeniyle aleyhinize bir sonuç doğmasına itiraz etme ve kanuna aykırı işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme haklarına sahipsiniz."
+  },
+  "business": {
+    "businessName": "İşletme",
+    "generateQRCode": "QR Kod Üret",
+    "scanQRCode": "QR Kod Tara",
+    "qrCode": "QR Kod",
+    "qrCodeGenerating": "QR kod oluşturuluyor...",
+    "selectOrderType": "Sipariş Tipi Seçin",
+    "selectOrderTypeMessage": "Lütfen en az bir sipariş tipi seçin",
+    "error": "Hata",
+    "qrGenerationError": "QR kod oluşturulamadı",
+    "success": "Başarılı",
+    "promotionScanned": "Kod okuma başarılı",
+    "scanError": "Kod okuma başarısız",
+    "webNotSupported": "Web Desteklenmiyor",
+    "webCameraMessage": "Kamera özelliği web modunda desteklenmemektedir",
+    "cameraPermissionRequired": "Kamera izni gerekli",
+    "cameraNotAvailable": "Kamera kullanılamıyor",
+    "scanInstruction": "QR kodu okutun",
+    "processing": "İşleniyor..."
   }
 }

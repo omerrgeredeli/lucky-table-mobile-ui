@@ -401,5 +401,25 @@
     "dataSharingText": "I tuoi dati personali possono essere condivisi con istituzioni e organizzazioni pubbliche autorizzate nel quadro degli obblighi legali, in linea con le finalità sopra indicate.",
     "rights": "6. I tuoi diritti:",
     "rightsText": "In conformità all'articolo 11 del KVKK, hai il diritto di sapere se i tuoi dati personali sono trattati, di richiedere informazioni se trattati, di conoscere lo scopo del trattamento e se sono utilizzati in conformità al loro scopo, di conoscere i terzi ai quali i tuoi dati personali sono trasferiti in patria o all'estero, di richiedere la correzione se incompleti o trattati in modo errato, di richiedere la cancellazione o la distruzione, di richiedere la notifica di correzione/cancellazione/distruzione ai terzi ai quali i tuoi dati personali sono trasferiti, di opporti a un risultato contro di te a causa dell'analisi esclusivamente mediante sistemi automatizzati, e di richiedere il risarcimento del danno se subisci un danno a causa di un trattamento illegale."
+  },
+  "business": {
+    "businessName": "Azienda",
+    "generateQRCode": "Genera codice QR",
+    "scanQRCode": "Scansiona codice QR",
+    "qrCode": "Codice QR",
+    "qrCodeGenerating": "Generazione codice QR...",
+    "selectOrderType": "Seleziona tipo di ordine",
+    "selectOrderTypeMessage": "Seleziona almeno un tipo di ordine",
+    "error": "Errore",
+    "qrGenerationError": "Impossibile generare il codice QR",
+    "success": "Successo",
+    "promotionScanned": "Codice scansionato con successo",
+    "scanError": "Scansione codice fallita",
+    "webNotSupported": "Web non supportato",
+    "webCameraMessage": "La funzione fotocamera non è supportata in modalità web",
+    "cameraPermissionRequired": "Autorizzazione fotocamera richiesta",
+    "cameraNotAvailable": "Fotocamera non disponibile",
+    "scanInstruction": "Scansiona il codice QR",
+    "processing": "Elaborazione..."
   }
 }

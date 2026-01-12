@@ -401,5 +401,25 @@
     "dataSharingText": "Vos données personnelles peuvent être partagées avec des institutions et organisations publiques autorisées dans le cadre des obligations légales, conformément aux finalités énoncées ci-dessus.",
     "rights": "6. Vos droits :",
     "rightsText": "Conformément à l'article 11 de la KVKK, vous avez le droit de savoir si vos données personnelles sont traitées, de demander des informations si elles sont traitées, de connaître la finalité du traitement et si elles sont utilisées conformément à leur finalité, de connaître les tiers auxquels vos données personnelles sont transférées au pays ou à l'étranger, de demander une correction si elles sont incomplètes ou incorrectement traitées, de demander la suppression ou la destruction, de demander la notification de correction/suppression/destruction aux tiers auxquels vos données personnelles sont transférées, de vous opposer à un résultat contre vous en raison d'une analyse exclusivement par des systèmes automatisés, et de demander une indemnisation pour dommages si vous subissez un dommage en raison d'un traitement illégal."
+  },
+  "business": {
+    "businessName": "Entreprise",
+    "generateQRCode": "Générer le code QR",
+    "scanQRCode": "Scanner le code QR",
+    "qrCode": "Code QR",
+    "qrCodeGenerating": "Génération du code QR...",
+    "selectOrderType": "Sélectionner le type de commande",
+    "selectOrderTypeMessage": "Veuillez sélectionner au moins un type de commande",
+    "error": "Erreur",
+    "qrGenerationError": "Échec de la génération du code QR",
+    "success": "Succès",
+    "promotionScanned": "Code scanné avec succès",
+    "scanError": "Échec du scan du code",
+    "webNotSupported": "Web non pris en charge",
+    "webCameraMessage": "La fonction caméra n'est pas prise en charge en mode web",
+    "cameraPermissionRequired": "Autorisation de la caméra requise",
+    "cameraNotAvailable": "Caméra non disponible",
+    "scanInstruction": "Scanner le code QR",
+    "processing": "Traitement en cours..."
   }
 }

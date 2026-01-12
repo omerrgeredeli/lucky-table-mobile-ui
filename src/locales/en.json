@@ -400,5 +400,25 @@
     "dataSharingText": "Your personal data may be shared with authorized public institutions and organizations within the framework of legal obligations, in line with the purposes stated above.",
     "rights": "6. Your Rights:",
     "rightsText": "In accordance with Article 11 of the KVKK, you have the right to learn whether your personal data is processed, to request information if processed, to learn the purpose of processing and whether they are used in accordance with their purpose, to know the third parties to whom your personal data is transferred at home or abroad, to request correction if incomplete or incorrectly processed, to request deletion or destruction, to request notification of correction/deletion/destruction to third parties to whom your personal data is transferred, to object to a result against you due to analysis exclusively by automated systems, and to demand compensation for damage if you suffer damage due to unlawful processing."
+  },
+  "business": {
+    "businessName": "Business",
+    "generateQRCode": "Generate QR Code",
+    "scanQRCode": "Scan QR Code",
+    "qrCode": "QR Code",
+    "qrCodeGenerating": "Generating QR code...",
+    "selectOrderType": "Select Order Type",
+    "selectOrderTypeMessage": "Please select at least one order type",
+    "error": "Error",
+    "qrGenerationError": "Failed to generate QR code",
+    "success": "Success",
+    "promotionScanned": "Code scanned successfully",
+    "scanError": "Code scan failed",
+    "webNotSupported": "Web Not Supported",
+    "webCameraMessage": "Camera feature is not supported in web mode",
+    "cameraPermissionRequired": "Camera permission required",
+    "cameraNotAvailable": "Camera not available",
+    "scanInstruction": "Scan QR code",
+    "processing": "Processing..."
   }
 }

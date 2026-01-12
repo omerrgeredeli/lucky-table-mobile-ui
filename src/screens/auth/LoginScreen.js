@@ -285,7 +285,7 @@ const LoginScreen = () => {
       if (Platform.OS === 'web') {
         // Web için localhost:19006 kullan (Google Cloud Console'da bu URI kayıtlı olmalı)
         redirectUri = typeof window !== 'undefined' 
-          ? `${window.location.origin}${window.location.pathname}`
+          ? (typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'http://localhost:19006')
           : 'http://localhost:19006';
       } else {
         redirectUri = AuthSession.makeRedirectUri({

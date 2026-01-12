@@ -43,6 +43,15 @@ export const login = async (emailOrPhone, password) => {
     // Email ile login
     normalizedEmail = emailOrPhone.toLowerCase().trim();
     user = getUserByEmail(normalizedEmail);
+    
+    // Debug: Business account kontrolü
+    if (normalizedEmail === 'business@example.com') {
+      console.log('🔍 Business account login attempt:', {
+        email: normalizedEmail,
+        userFound: !!user,
+        userRole: user?.role,
+      });
+    }
   } else {
     // Telefon numarası ile login
     const cleanedPhone = emailOrPhone.replace(/\s/g, '').replace(/[()-]/g, '');
@@ -71,6 +80,10 @@ export const login = async (emailOrPhone, password) => {
 
   // Hata senaryosu: kullanıcı bulunamadı
   if (!user) {
+    // Debug: Tüm kullanıcıları listele
+    const allUsers = getAllUsers();
+    console.warn('⚠️ User not found. Available users:', allUsers.map(u => u.email));
+    
     return createResponse(
       false,
       null,
@@ -93,8 +106,9 @@ export const login = async (emailOrPhone, password) => {
     );
   }
 
-  // Başarılı giriş - token'a email bilgisini de ekle (veri tutarlılığı için)
-  const token = `mock_jwt_token_${Date.now()}_${user.id}_${normalizedEmail.replace('@', '_at_')}`;
+  // Başarılı giriş - token'a email ve role bilgisini ekle
+  const userRole = user.role || 'customer'; // Varsayılan customer
+  const token = `mock_jwt_token_${Date.now()}_${user.id}_${normalizedEmail.replace('@', '_at_')}_${userRole}`;
   
   // Token'ı AsyncStorage'a kaydet (email bilgisi ile)
   try {
@@ -113,6 +127,7 @@ export const login = async (emailOrPhone, password) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        role: userRole,
       },
     },
     null
@@ -171,7 +186,7 @@ export const signup = async (email, password, phoneData = {}) => {
   const { fullName = '', countryCode = 'TR', phoneNumber = '' } = phoneData;
   const cleanedPhone = phoneNumber ? phoneNumber.replace(/\s/g, '').replace(/[()-]/g, '') : '';
 
-  // Yeni kullanıcı oluştur
+  // Yeni kullanıcı oluştur (signup her zaman customer role ile)
   const newUser = {
     id: Date.now(), // Unique ID
     email: normalizedEmail,
@@ -182,6 +197,7 @@ export const signup = async (email, password, phoneData = {}) => {
     countryCode: countryCode || 'TR',
     phoneNumber: cleanedPhone,
     notificationsEnabled: true, // Varsayılan
+    role: 'customer', // Signup her zaman customer role ile
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -189,8 +205,8 @@ export const signup = async (email, password, phoneData = {}) => {
   // Store'a ekle
   await addUser(newUser);
 
-  // Başarılı kayıt - token'a email bilgisini de ekle
-  const token = `mock_jwt_token_${Date.now()}_${newUser.id}_${normalizedEmail.replace('@', '_at_')}`;
+  // Başarılı kayıt - token'a email ve role bilgisini ekle
+  const token = `mock_jwt_token_${Date.now()}_${newUser.id}_${normalizedEmail.replace('@', '_at_')}_customer`;
   
   // Token'ı AsyncStorage'a kaydet (email bilgisi ile)
   try {
@@ -200,7 +216,7 @@ export const signup = async (email, password, phoneData = {}) => {
   } catch (error) {
     console.warn('Token kaydetme hatası:', error);
   }
-
+  
   return createResponse(
     true,
     {
@@ -210,6 +226,7 @@ export const signup = async (email, password, phoneData = {}) => {
         email: newUser.email,
         name: newUser.name,
         fullName: newUser.fullName,
+        role: 'customer',
       },
     },
     null

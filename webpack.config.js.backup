@@ -24,6 +24,10 @@ module.exports = async function (env, argv) {
     'react-native/Libraries/Components/Text/Text': 'react-native-web/dist/exports/Text',
   };
   
+  // Relative path'ler için de alias ekle (ReactNativePrivateInterface.js için)
+  config.resolve.alias['../Utilities/Platform'] = 'react-native-web/dist/exports/Platform';
+  config.resolve.alias['../../Utilities/Platform'] = 'react-native-web/dist/exports/Platform';
+  
   // Resolve extensions'a .web.js ekle (web-specific modüller için)
   if (!config.resolve.extensions) {
     config.resolve.extensions = ['.web.js', '.js', '.json', '.web.jsx', '.jsx'];
@@ -72,6 +76,21 @@ module.exports = async function (env, argv) {
   relativePatterns.forEach((pattern) => {
     config.plugins.push(createReplacement(pattern));
   });
+  
+  // ReactNativePrivateInterface.js için "../Utilities/Platform" relative path'ini handle et
+  // Daha geniş pattern kullan - herhangi bir context'ten gelen relative path'i yakala
+  config.plugins.push(
+    new webpack.NormalModuleReplacementPlugin(
+      /\.\.\/Utilities\/Platform$/,
+      require.resolve('react-native-web/dist/exports/Platform')
+    )
+  );
+  
+  // Ayrıca resolve.modules'a react-native-web ekle
+  if (!config.resolve.modules) {
+    config.resolve.modules = ['node_modules'];
+  }
+  config.resolve.modules.push('node_modules/react-native-web');
   
   // Absolute path'ler için IgnorePlugin kullan
   config.plugins.push(

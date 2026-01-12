@@ -3,34 +3,33 @@ import { Platform, AppState, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Conditional import for expo-camera (web'de çalışmaz)
-let useCameraPermissions;
-if (Platform.OS !== 'web') {
+// Conditional import for expo-camera - Lazy loading (web'de hiç yüklenmez)
+// NOT: require() çağrısı fonksiyon içinde olmalı, dosya seviyesinde DEĞİL
+const loadCameraPermissions = () => {
+  if (Platform.OS === 'web') {
+    return () => [
+      { granted: false, canAskAgain: false },
+      async () => ({ granted: false, canAskAgain: false }),
+    ];
+  }
   try {
+    // require() sadece native platformlarda çalışır
     const Camera = require('expo-camera');
-    useCameraPermissions = Camera.useCameraPermissions;
+    return Camera.useCameraPermissions;
   } catch (error) {
     console.warn('expo-camera could not be loaded:', error);
+    return () => [
+      { granted: false, canAskAgain: false },
+      async () => ({ granted: false, canAskAgain: false }),
+    ];
   }
-}
-
-// Fallback hook for web
-const fallbackCameraPermissions = () => {
-  return [
-    { granted: false, canAskAgain: false },
-    async () => ({ granted: false, canAskAgain: false }),
-  ];
 };
-
-if (!useCameraPermissions) {
-  useCameraPermissions = fallbackCameraPermissions;
-}
 
 const PermissionContext = createContext();
 
 export const PermissionProvider = ({ children }) => {
-  // Camera permission hook - conditional
-  const cameraPermissionHook = useCameraPermissions();
+  // Camera permission hook - lazy load
+  const cameraPermissionHook = loadCameraPermissions()();
   const [cameraPermission, requestCameraPermission] = cameraPermissionHook || [
     { granted: false, canAskAgain: false },
     async () => ({ granted: false, canAskAgain: false }),

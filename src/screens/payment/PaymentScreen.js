@@ -11,11 +11,29 @@ import {
   Linking,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { AuthContext } from '../../context/AuthContext';
 import { processQrCode } from '../../services/qrService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Logo from '../../components/Logo';
+
+// Conditional import for expo-camera - Lazy loading (web'de hiç yüklenmez)
+// NOT: require() çağrısı fonksiyon içinde olmalı, dosya seviyesinde DEĞİL
+const loadCamera = () => {
+  if (Platform.OS === 'web') {
+    return { CameraView: null, useCameraPermissions: null };
+  }
+  try {
+    // require() sadece native platformlarda çalışır
+    const Camera = require('expo-camera');
+    return {
+      CameraView: Camera.CameraView,
+      useCameraPermissions: Camera.useCameraPermissions,
+    };
+  } catch (error) {
+    console.warn('expo-camera could not be loaded:', error);
+    return { CameraView: null, useCameraPermissions: null };
+  }
+};
 
 /**
  * Payment Screen - QR Code Okuma
@@ -25,16 +43,19 @@ const PaymentScreen = () => {
   const { t } = useTranslation();
   const { userToken } = React.useContext(AuthContext);
   
-  // Expo Camera permissions hook (SDK 51) - Web modunda desteklenmiyor
+  // Expo Camera permissions hook (SDK 51) - Lazy load
+  const cameraModule = loadCamera();
+  const actualUseCameraPermissions = cameraModule.useCameraPermissions;
+  
   // Web modunda fallback değerler kullan
   let permission, requestPermission;
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || !actualUseCameraPermissions) {
     // Web modunda kamera izni yok
     permission = { granted: false, canAskAgain: false };
     requestPermission = async () => ({ granted: false });
   } else {
     // Native modlarda hook'u kullan
-    [permission, requestPermission] = useCameraPermissions();
+    [permission, requestPermission] = actualUseCameraPermissions();
   }
 
   // State
@@ -245,21 +266,36 @@ const PaymentScreen = () => {
         </View>
       )}
 
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        onBarcodeScanned={scanned || processing ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
-        }}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.scanArea}>
-            <View style={styles.scanFrame} />
-            <Text style={styles.scanInstruction}>{t('payment.scanInstruction')}</Text>
+      {(() => {
+        const ActualCameraView = cameraModule.CameraView;
+        return ActualCameraView ? (
+          <ActualCameraView
+            style={styles.camera}
+            facing="back"
+            onBarcodeScanned={scanned || processing ? undefined : handleBarCodeScanned}
+            barcodeScannerSettings={{
+              barcodeTypes: ['qr'],
+            }}
+          >
+            <View style={styles.overlay}>
+              <View style={styles.scanArea}>
+                <View style={styles.scanFrame} />
+                <Text style={styles.scanInstruction}>{t('payment.scanInstruction')}</Text>
+              </View>
+            </View>
+          </ActualCameraView>
+        ) : (
+          <View style={styles.camera}>
+            <View style={styles.overlay}>
+              <View style={styles.scanArea}>
+                <Text style={styles.scanInstruction}>
+                  {t('payment.cameraNotAvailable') || 'Camera not available on web'}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
-      </CameraView>
+        );
+      })()}
 
       {/* QR Sonuç Modal */}
       <Modal

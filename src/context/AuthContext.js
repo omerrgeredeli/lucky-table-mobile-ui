@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserRoleFromToken } from '../utils/tokenUtils';
 
 // Auth Context oluşturuluyor
 export const AuthContext = createContext();
@@ -9,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState(null);
+  const [userRole, setUserRole] = useState(null); // 'customer' veya 'user'
 
   // Uygulama başlangıcında token kontrolü
   useEffect(() => {
@@ -34,10 +36,16 @@ export const AuthProvider = ({ children }) => {
             // Mock modunda token varsa geçerli kabul et
             setUserToken(token);
             setIsAuthenticated(true);
+            // Role'ü token'dan çıkar
+            const role = await getUserRoleFromToken(token);
+            setUserRole(role);
           } else {
             // Real API modunda token'ı validate et (şimdilik sadece varlığını kontrol et)
             setUserToken(token);
             setIsAuthenticated(true);
+            // Role'ü token'dan çıkar
+            const role = await getUserRoleFromToken(token);
+            setUserRole(role);
           }
         } catch (error) {
           console.warn('Token validation error:', error);
@@ -47,11 +55,14 @@ export const AuthProvider = ({ children }) => {
             // Module bulunamadı hatası - token'ı koru
             setUserToken(token);
             setIsAuthenticated(true);
+            const role = await getUserRoleFromToken(token);
+            setUserRole(role);
           } else {
             // Diğer hatalarda token'ı temizle
             await AsyncStorage.removeItem('userToken');
             setUserToken(null);
             setIsAuthenticated(false);
+            setUserRole(null);
           }
         }
       }
@@ -65,24 +76,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login - token'ı kaydet
+  // Login - token'ı kaydet ve role'ü çıkar
   const login = async (token) => {
     try {
       await AsyncStorage.setItem('userToken', token);
       setUserToken(token);
       setIsAuthenticated(true);
+      // Role'ü token'dan çıkar
+      const role = await getUserRoleFromToken(token);
+      setUserRole(role);
     } catch (error) {
       console.error('Login hatası:', error);
       throw error;
     }
   };
 
-  // Logout - token'ı sil
+  // Logout - token'ı sil ve role'ü temizle
   const logout = async () => {
     try {
       await AsyncStorage.removeItem('userToken');
       setUserToken(null);
       setIsAuthenticated(false);
+      setUserRole(null);
     } catch (error) {
       console.error('Logout hatası:', error);
       throw error;
@@ -93,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isLoading,
     userToken,
+    userRole, // 'customer' veya 'user'
     login,
     logout,
   };

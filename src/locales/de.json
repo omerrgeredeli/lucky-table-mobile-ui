@@ -401,5 +401,25 @@
     "dataSharingText": "Ihre personenbezogenen Daten können im Rahmen gesetzlicher Verpflichtungen mit autorisierten öffentlichen Institutionen und Organisationen geteilt werden, entsprechend den oben genannten Zwecken.",
     "rights": "6. Ihre Rechte:",
     "rightsText": "Gemäß Artikel 11 des KVKK haben Sie das Recht zu erfahren, ob Ihre personenbezogenen Daten verarbeitet werden, Informationen anzufordern, wenn sie verarbeitet werden, den Zweck der Verarbeitung zu erfahren und ob sie entsprechend ihrem Zweck verwendet werden, die Dritten zu kennen, an die Ihre personenbezogenen Daten im In- oder Ausland übertragen werden, eine Berichtigung zu verlangen, wenn sie unvollständig oder falsch verarbeitet wurden, die Löschung oder Vernichtung zu verlangen, die Benachrichtigung über Berichtigung/Löschung/Vernichtung an die Dritten zu verlangen, an die Ihre personenbezogenen Daten übertragen wurden, sich gegen ein Ergebnis zu wenden, das gegen Sie aufgrund einer ausschließlich automatisierten Systemanalyse entsteht, und Schadensersatz zu verlangen, wenn Sie aufgrund einer rechtswidrigen Verarbeitung Schaden erleiden."
+  },
+  "business": {
+    "businessName": "Geschäft",
+    "generateQRCode": "QR-Code generieren",
+    "scanQRCode": "QR-Code scannen",
+    "qrCode": "QR-Code",
+    "qrCodeGenerating": "QR-Code wird generiert...",
+    "selectOrderType": "Bestelltyp auswählen",
+    "selectOrderTypeMessage": "Bitte wählen Sie mindestens einen Bestelltyp aus",
+    "error": "Fehler",
+    "qrGenerationError": "QR-Code konnte nicht generiert werden",
+    "success": "Erfolg",
+    "promotionScanned": "Code erfolgreich gescannt",
+    "scanError": "Code-Scan fehlgeschlagen",
+    "webNotSupported": "Web nicht unterstützt",
+    "webCameraMessage": "Kamerafunktion wird im Web-Modus nicht unterstützt",
+    "cameraPermissionRequired": "Kamera-Berechtigung erforderlich",
+    "cameraNotAvailable": "Kamera nicht verfügbar",
+    "scanInstruction": "QR-Code scannen",
+    "processing": "Wird verarbeitet..."
   }
 }

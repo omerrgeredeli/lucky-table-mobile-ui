@@ -8,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * In-Memory User Store
- * Format: { email: { id, email, password, name, fullName, phone, countryCode, phoneNumber, notificationsEnabled, createdAt, updatedAt } }
+ * Format: { email: { id, email, password, name, fullName, phone, countryCode, phoneNumber, notificationsEnabled, role, createdAt, updatedAt } }
+ * role: 'customer' (müşteri) veya 'user' (işletme)
  */
 const userStore = new Map();
 
@@ -18,7 +19,7 @@ const STORAGE_KEY = 'mockUserStore';
  * Test kullanıcıları (isteğe bağlı - hızlı test için)
  */
 const initializeTestUsers = () => {
-  // Varsayılan test kullanıcısı
+  // Varsayılan test kullanıcısı (customer)
   userStore.set('test@example.com', {
     id: 1,
     email: 'test@example.com',
@@ -29,9 +30,37 @@ const initializeTestUsers = () => {
     countryCode: 'TR',
     phoneNumber: '5551234567',
     notificationsEnabled: true,
+    role: 'customer', // Varsayılan customer
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
+  
+  // Test business kullanıcısı (user role)
+  // Şifre: Business123! (validation kurallarına uygun: 8+ karakter, büyük harf, küçük harf, rakam, özel karakter)
+  userStore.set('business@example.com', {
+    id: 2,
+    email: 'business@example.com',
+    password: 'Business123!', // Validation'a uygun şifre
+    name: 'Test Business',
+    fullName: 'Test Business',
+    phone: '5557654321',
+    countryCode: 'TR',
+    phoneNumber: '5557654321',
+    notificationsEnabled: true,
+    role: 'user', // Business role
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  
+  // Business account bilgilerini console'a yazdır (test için)
+  console.log('========================================');
+  console.log('📋 MOCK BUSINESS ACCOUNT BİLGİLERİ');
+  console.log('========================================');
+  console.log('Email: business@example.com');
+  console.log('Şifre: Business123!');
+  console.log('Role: user (business)');
+  console.log('Telefon: 5557654321');
+  console.log('========================================');
 };
 
 /**
@@ -44,13 +73,73 @@ const loadStoreFromStorage = async () => {
       const users = JSON.parse(stored);
       userStore.clear();
       users.forEach(user => {
+        // Eski kullanıcılarda role yoksa 'customer' ekle
+        if (!user.role) {
+          user.role = 'customer';
+        }
         userStore.set(user.email.toLowerCase().trim(), user);
       });
-    } else {
-      // İlk yüklemede test kullanıcılarını ekle
-      initializeTestUsers();
-      await saveStoreToStorage();
     }
+    
+    // Test kullanıcılarını her zaman ekle (yoksa)
+    // Bu sayede business account her zaman mevcut olur
+    const testCustomerEmail = 'test@example.com';
+    const testBusinessEmail = 'business@example.com';
+    
+    if (!userStore.has(testCustomerEmail)) {
+      userStore.set(testCustomerEmail, {
+        id: 1,
+        email: testCustomerEmail,
+        password: 'password123',
+        name: 'Test User',
+        fullName: 'Test User',
+        phone: '5551234567',
+        countryCode: 'TR',
+        phoneNumber: '5551234567',
+        notificationsEnabled: true,
+        role: 'customer',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
+    if (!userStore.has(testBusinessEmail)) {
+      userStore.set(testBusinessEmail, {
+        id: 2,
+        email: testBusinessEmail,
+        password: 'Business123!',
+        name: 'Test Business',
+        fullName: 'Test Business',
+        phone: '5557654321',
+        countryCode: 'TR',
+        phoneNumber: '5557654321',
+        notificationsEnabled: true,
+        role: 'user',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
+    // Test kullanıcıları eklendiyse storage'a kaydet
+    if (!stored) {
+      await saveStoreToStorage();
+    } else {
+      // Mevcut storage'da test kullanıcıları yoksa güncelle
+      const hasTestUsers = userStore.has(testCustomerEmail) && userStore.has(testBusinessEmail);
+      if (hasTestUsers) {
+        await saveStoreToStorage();
+      }
+    }
+    
+    // Business account bilgilerini console'a yazdır (test için)
+    console.log('========================================');
+    console.log('📋 MOCK BUSINESS ACCOUNT BİLGİLERİ');
+    console.log('========================================');
+    console.log('Email: business@example.com');
+    console.log('Şifre: Business123!');
+    console.log('Role: user (business)');
+    console.log('Telefon: 5557654321');
+    console.log('========================================');
   } catch (error) {
     console.error('Error loading store from storage:', error);
     // Hata durumunda test kullanıcılarını yükle

@@ -207,10 +207,23 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
   // Get available neighborhoods for selected district
   const availableNeighborhoods = selectedDistrict ? selectedDistrict.neighborhoods : [];
 
-  // Get available sub categories
-  const availableSubCategories = filterState.categoryType
-    ? foodCategories[filterState.categoryType]?.subCategories || []
-    : [];
+  // Get available sub categories - NULL/UNDEFINED kontrolü
+  const availableSubCategories = (() => {
+    if (!filterState.categoryType) {
+      return [];
+    }
+    if (!foodCategories || typeof foodCategories !== 'object') {
+      return [];
+    }
+    const category = foodCategories[filterState.categoryType];
+    if (!category || !category.subCategories) {
+      return [];
+    }
+    if (!Array.isArray(category.subCategories)) {
+      return [];
+    }
+    return category.subCategories;
+  })();
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -517,29 +530,39 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                     <View style={styles.filterGroup}>
                       <Text style={styles.filterLabel}>{t('filter.subCategories')}</Text>
                       <View style={styles.subCategoryContainer}>
-                        {availableSubCategories.map((subCategory) => {
-                          const isSelected = filterState.subCategories.includes(subCategory.id);
-                          return (
-                            <TouchableOpacity
-                              key={subCategory.id}
-                              style={[
-                                styles.subCategoryChip,
-                                isSelected && styles.subCategoryChipActive,
-                              ]}
-                              onPress={() => handleSubCategoryToggle(subCategory.id)}
-                            >
-                              <Text
+                        {availableSubCategories && availableSubCategories.length > 0 ? (
+                          availableSubCategories.map((subCategory) => {
+                            // Güvenli kontrol
+                            if (!subCategory || !subCategory.id) {
+                              return null;
+                            }
+                            const isSelected = filterState.subCategories.includes(subCategory.id);
+                            return (
+                              <TouchableOpacity
+                                key={subCategory.id}
                                 style={[
-                                  styles.subCategoryChipText,
-                                  isSelected && styles.subCategoryChipTextActive,
+                                  styles.subCategoryChip,
+                                  isSelected && styles.subCategoryChipActive,
                                 ]}
+                                onPress={() => handleSubCategoryToggle(subCategory.id)}
                               >
-                                {isSelected ? '✓ ' : ''}
-                                {t(`filter.subCategories.${subCategory.id}`, { defaultValue: subCategory.name })}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
+                                <Text
+                                  style={[
+                                    styles.subCategoryChipText,
+                                    isSelected && styles.subCategoryChipTextActive,
+                                  ]}
+                                >
+                                  {isSelected ? '✓ ' : ''}
+                                  {t(`filter.subCategories.${subCategory.id}`, { defaultValue: subCategory.name || subCategory.id })}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })
+                        ) : (
+                          <Text style={styles.noSubCategoriesText}>
+                            {t('filter.noSubCategories') || 'Alt kategori bulunamadı'}
+                          </Text>
+                        )}
                       </View>
                     </View>
                   )}
@@ -805,6 +828,13 @@ const styles = StyleSheet.create({
   subCategoryChipTextActive: {
     color: colors.white,
     fontWeight: typography.fontWeight.semibold,
+  },
+  noSubCategoriesText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: spacing.md,
+    fontStyle: 'italic',
   },
   footer: {
     flexDirection: 'row',

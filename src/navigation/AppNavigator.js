@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { colors } from '../theme';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
+import BusinessAppStack from './BusinessAppStack';
 import LanguageSelectionScreen from '../screens/onboarding/LanguageSelectionScreen';
 
 const Stack = createNativeStackNavigator();
@@ -14,9 +15,10 @@ const Stack = createNativeStackNavigator();
 /**
  * Ana Navigation Container
  * Önce dil seçimi kontrolü, sonra Auth durumuna göre AuthStack veya AppStack gösterir
+ * Role bazlı routing: customer → AppStack, user → BusinessAppStack
  */
 const AppNavigator = () => {
-  const { isAuthenticated, isLoading } = useContext(AuthContext);
+  const { isAuthenticated, isLoading, userRole } = useContext(AuthContext);
   const { isLanguageSelected, isCheckingLanguage } = useLanguage();
 
   // Loading durumunda spinner göster
@@ -38,8 +40,14 @@ const AppNavigator = () => {
             component={LanguageSelectionScreen}
           />
         ) : isAuthenticated ? (
-          // Dil seçilmiş ve giriş yapılmışsa AppStack
-          <Stack.Screen name="App" component={AppStack} />
+          // Dil seçilmiş ve giriş yapılmışsa role'e göre routing
+          userRole === 'user' ? (
+            // Business (user role) → BusinessAppStack
+            <Stack.Screen name="BusinessApp" component={BusinessAppStack} />
+          ) : (
+            // Customer (customer role veya varsayılan) → AppStack
+            <Stack.Screen name="App" component={AppStack} />
+          )
         ) : (
           // Dil seçilmiş ama giriş yapılmamışsa AuthStack
           <Stack.Screen name="Auth" component={AuthStack} />
