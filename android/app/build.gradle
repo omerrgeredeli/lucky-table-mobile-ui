@@ -120,9 +120,9 @@ android {
         // Tüm Android cihazlar için uyumluluk
         multiDexEnabled true
         
-        // Tüm CPU mimarileri için destek (tablet uyumluluğu için)
+        // Tüm Android mimarileri için destek (arm64-v8a, armeabi-v7a, x86_64)
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
         }
     }
     signingConfigs {

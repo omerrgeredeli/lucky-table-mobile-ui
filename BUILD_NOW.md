@@ -87,3 +87,4 @@ Build başladıktan sonra terminal'de build URL'i görünecek ve [expo.dev](http
 
 
 
+

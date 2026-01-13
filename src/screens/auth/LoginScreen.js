@@ -30,6 +30,8 @@ if (Platform.OS !== 'web') {
 import { AuthContext } from '../../context/AuthContext';
 import { login, sendActivationCode } from '../../services/authService';
 import { GOOGLE_CLIENT_IDS, GOOGLE_CLIENT_SECRET } from '../../config/googleAuth';
+import { USE_MOCK_API } from '../../config/api';
+import { getAllUsers, addUser } from '../../services/mock/mockUserStore';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -166,11 +168,8 @@ const LoginScreen = () => {
     setLoading(true);
     try {
       // Önce kullanıcıyı ve şifreyi kontrol et (mock servis ile)
-      const { USE_MOCK_API } = await import('../../config/api');
-      
       if (USE_MOCK_API) {
         // Mock modunda: Önce kullanıcıyı bul ve şifreyi kontrol et
-        const { getAllUsers } = await import('../../services/mock/mockUserStore');
         const allUsers = getAllUsers();
         
         let foundUser = null;
@@ -427,9 +426,7 @@ const LoginScreen = () => {
   const processGoogleUserInfo = async (userInfo, idToken) => {
     try {
       // Mock user oluştur veya mevcut kullanıcıyı bul
-      const { USE_MOCK_API } = await import('../../config/api');
       if (USE_MOCK_API) {
-        const { getAllUsers, addUser } = await import('../../services/mock/mockUserStore');
         const allUsers = getAllUsers();
         
         // Google email ile kullanıcı var mı kontrol et
@@ -529,13 +526,20 @@ const LoginScreen = () => {
         throw new Error('Google Sign-In native library yüklenemedi');
       }
 
-      // Google Sign-In'i yapılandır
-      await GoogleSignin.configure({
-        webClientId: GOOGLE_CLIENT_IDS.web, // iOS için gerekli
-        iosClientId: Platform.OS === 'ios' ? GOOGLE_CLIENT_IDS.ios : undefined,
-        offlineAccess: false,
-        forceCodeForRefreshToken: false,
-      });
+      // Google Sign-In'i yapılandır - PLATFORM BAZLI CONFIG
+      if (Platform.OS === 'android') {
+        // ANDROID: Sadece androidClientId yeterli (webClientId backend doğrulama için, mock'ta gerekli değil)
+        await GoogleSignin.configure({
+          androidClientId: GOOGLE_CLIENT_IDS.android, // Android client ID
+          offlineAccess: false,
+          forceCodeForRefreshToken: false,
+        });
+      } else if (Platform.OS === 'ios') {
+        // IOS: iosClientId ZORUNLU
+        await GoogleSignin.configure({
+          iosClientId: GOOGLE_CLIENT_IDS.ios,
+        });
+      }
 
       // Google Sign-In başlat
       await GoogleSignin.hasPlayServices();
@@ -579,7 +583,6 @@ const LoginScreen = () => {
       
       // Telefon numarası ile login - telefon numarasından email bul
       if (isPhone(emailOrPhone)) {
-        const { getAllUsers } = await import('../../services/mock/mockUserStore');
         const allUsers = getAllUsers();
         const cleanedPhone = emailOrPhone.replace(/\s/g, '').replace(/[()-]/g, '');
         const foundUser = allUsers.find(u => {

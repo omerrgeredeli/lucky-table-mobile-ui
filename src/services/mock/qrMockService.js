@@ -30,16 +30,45 @@ export const processQrCode = async (qrCodeData, userId = null, deviceId = null) 
       };
     }
 
-    // QR kod içeriğini parse et
+    // QR kod içeriği MUTLAKA JWT token formatında olmalı
+    // JWT format kontrolü: 3 parça olmalı (header.payload.signature)
+    if (!qrCodeData || typeof qrCodeData !== 'string') {
+      return {
+        success: false,
+        message: 'INVALID_QR',
+        error: 'Geçersiz QR kod formatı',
+        totalOrderCount: 0,
+        remainingForPromotion: 0,
+      };
+    }
+
+    // JWT token format kontrolü: en az 2 nokta içermeli
+    const parts = qrCodeData.split('.');
+    if (parts.length !== 3) {
+      return {
+        success: false,
+        message: 'INVALID_QR',
+        error: 'QR kod JWT token formatında değil. Beklenen format: header.payload.signature',
+        totalOrderCount: 0,
+        remainingForPromotion: 0,
+      };
+    }
+
+    // JWT token'ı parse et ve doğrula
     let payload;
     try {
-      // Önce JWT token formatında mı kontrol et
       const { verifyQRToken } = await import('../qrTokenService');
       payload = await verifyQRToken(qrCodeData);
       
       if (!payload) {
-        // Token değilse, direkt JSON olabilir
-        payload = JSON.parse(qrCodeData);
+        // JWT token doğrulama başarısız
+        return {
+          success: false,
+          message: 'INVALID_QR',
+          error: 'Geçersiz veya süresi dolmuş QR kodu',
+          totalOrderCount: 0,
+          remainingForPromotion: 0,
+        };
       }
     } catch (error) {
       console.error('QR payload parse error:', error);

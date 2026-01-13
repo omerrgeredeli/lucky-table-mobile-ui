@@ -39,6 +39,8 @@
         "backgroundColor": "#2ECC71"
       },
       "package": "com.luckytable.app",
+      "versionCode": 1,
+      "version": "1.0.0",
       "supportsTablet": true,
       "permissions": [
         "ACCESS_FINE_LOCATION",

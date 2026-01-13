@@ -11,7 +11,9 @@
     "build:android:production": "powershell -ExecutionPolicy Bypass -Command \"$env:EAS_NO_VCS=1; npx eas-cli build --platform android --profile production\"",
     "build:android:local": "powershell -ExecutionPolicy Bypass -Command \"$env:EAS_NO_VCS=1; npx eas-cli build --platform android --local --profile preview\"",
     "build:ios": "powershell -ExecutionPolicy Bypass -Command \"$env:EAS_NO_VCS=1; npx eas-cli build --platform ios --profile preview\"",
-    "build:ios:production": "powershell -ExecutionPolicy Bypass -Command \"$env:EAS_NO_VCS=1; npx eas-cli build --platform ios --profile production\""
+    "build:ios:production": "powershell -ExecutionPolicy Bypass -Command \"$env:EAS_NO_VCS=1; npx eas-cli build --platform ios --profile production\"",
+    "clean:android": "cd android && gradlew clean && cd ..",
+    "clean:build": "powershell -ExecutionPolicy Bypass -Command \"if (Test-Path android/app/build) { Remove-Item -Recurse -Force android/app/build }; if (Test-Path android/build) { Remove-Item -Recurse -Force android/build }; if (Test-Path android/.gradle) { Remove-Item -Recurse -Force android/.gradle }\""
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",

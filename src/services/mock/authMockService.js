@@ -4,6 +4,7 @@
  * In-memory user store ile gerçekçi test ortamı sağlar
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getUserByEmail,
   addUser,
@@ -112,7 +113,6 @@ export const login = async (emailOrPhone, password) => {
   
   // Token'ı AsyncStorage'a kaydet (email bilgisi ile)
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     await AsyncStorage.setItem('userToken', token);
     await AsyncStorage.setItem('userEmail', normalizedEmail); // Email'i ayrı kaydet
   } catch (error) {
@@ -210,7 +210,6 @@ export const signup = async (email, password, phoneData = {}) => {
   
   // Token'ı AsyncStorage'a kaydet (email bilgisi ile)
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     await AsyncStorage.setItem('userToken', token);
     await AsyncStorage.setItem('userEmail', normalizedEmail); // Email'i ayrı kaydet
   } catch (error) {

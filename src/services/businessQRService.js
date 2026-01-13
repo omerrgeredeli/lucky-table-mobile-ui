@@ -2,6 +2,7 @@
  * Business QR Service
  * İşletme kullanıcıları için QR kod üretme ve okuma servisleri
  * Mock ve real API uyumlu
+ * TÜM QR KODLAR JWT TOKEN FORMATINDA ÜRETİLİR
  */
 
 import { USE_MOCK_API } from '../config/api';
@@ -17,35 +18,24 @@ const generateNonce = () => {
 
 /**
  * Business QR kod üretir (sipariş için)
+ * JWT TOKEN FORMATINDA üretilir (güvenli ve standart)
  * ORTAK PAYLOAD YAPISI kullanır
  * PAYLOAD VALIDATION ile güvenli
+ * TÜM BİLGİLER MOCK OLARAK ÜRETİLİR (SADECE orderTypes KULLANICI TARAFINDAN SEÇİLİR)
  * 
- * @param {Object} data - { orderTypes, businessName, userId, businessId (optional) }
- * @returns {Promise<string>} QR kod string (JSON stringify edilmiş)
+ * @param {Array<string>} orderTypes - Seçilen yiyecek/içecek tipleri (SADECE BU PARAMETRE)
+ * @returns {Promise<string>} QR kod JWT token (header.payload.signature)
  */
-export const generateBusinessQRCode = async (data) => {
+export const generateBusinessQRCode = async (orderTypes) => {
   // PAYLOAD VALIDATION - Gerekli alanları kontrol et
-  if (!data || typeof data !== 'object') {
-    throw new Error('QR kod verisi geçersiz');
-  }
-
-  const { orderTypes, businessName, userId, businessId } = data;
-  
-  // Required fields kontrolü
   if (!orderTypes || !Array.isArray(orderTypes) || orderTypes.length === 0) {
     throw new Error('Sipariş tipi seçilmedi');
   }
-  
-  if (!businessName || typeof businessName !== 'string' || businessName.trim() === '') {
-    throw new Error('İşletme adı bulunamadı');
-  }
 
-  if (!userId || (typeof userId !== 'number' && typeof userId !== 'string')) {
-    throw new Error('Kullanıcı ID geçersiz');
-  }
-
-  // Business ID - parametre olarak al veya businessName'den türet
-  const finalBusinessId = businessId || String(businessName || 'unknown');
+  // MOCK DATA - Tüm bilgiler otomatik üretilir
+  const mockBusinessName = 'Mock Business Cafe'; // Mock işletme adı
+  const mockUserId = Math.floor(Math.random() * 1000000) + 1; // Mock kullanıcı ID
+  const mockBusinessId = `BUSINESS_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
   // Nonce üret
   const nonce = generateNonce();
@@ -64,33 +54,36 @@ export const generateBusinessQRCode = async (data) => {
     qrPayload = {
       qrType: 'ORDER', // ZORUNLU
       promoId: null, // ORDER için null
-      orderId: orderId, // ORDER için orderId
-      customerId: String(userId), // userId -> customerId
-      businessId: String(finalBusinessId),
-      businessName: String(businessName),
+      orderId: orderId, // ORDER için orderId (MOCK)
+      customerId: String(mockUserId), // Mock userId -> customerId
+      businessId: String(mockBusinessId), // Mock businessId
+      businessName: String(mockBusinessName), // Mock businessName
       promoType: null, // ORDER için null
-      orderTypes: orderTypes.map(ot => String(ot)), // Seçilen yiyecek/içecek tipleri
-      createdAt: createdAt,
-      expiresAt: expiresAt,
+      orderTypes: orderTypes.map(ot => String(ot)), // Kullanıcının seçtiği yiyecek/içecek tipleri
+      createdAt: createdAt, // MOCK
+      expiresAt: expiresAt, // MOCK
       used: false, // QR kod oluşturulurken her zaman false
-      nonce: nonce,
+      nonce: nonce, // MOCK
     };
   } catch (error) {
     throw new Error(`Payload oluşturulamadı: ${error.message}`);
   }
 
-  // JSON.stringify validation - try/catch ile güvenli
-  let qrString;
+  // JWT Token üret - generateQRToken kullan
   try {
-    qrString = JSON.stringify(qrPayload);
-    if (!qrString || qrString === '{}') {
-      throw new Error('Payload stringify başarısız');
+    const { generateQRToken } = await import('./qrTokenService');
+    // Token geçerlilik süresi: 24 saat (expiresAt'e kadar)
+    const expiresIn = 24 * 60 * 60; // 24 saat (saniye cinsinden)
+    const qrToken = await generateQRToken(qrPayload, expiresIn);
+    
+    if (!qrToken || typeof qrToken !== 'string' || !qrToken.includes('.')) {
+      throw new Error('JWT token üretilemedi');
     }
+    
+    return qrToken;
   } catch (error) {
-    throw new Error(`Payload stringify hatası: ${error.message}`);
+    throw new Error(`QR token oluşturulamadı: ${error.message || 'Bilinmeyen hata'}`);
   }
-  
-  return qrString;
 };
 
 /**
@@ -117,54 +110,38 @@ export const scanPromotionQRCode = async (qrData, userToken) => {
 
 /**
  * Mock: Promosyon QR kodunu okur
+ * SADECE JWT TOKEN FORMATI kabul edilir
  * ORTAK PAYLOAD YAPISI kullanır
  */
 const scanPromotionQRCodeMock = async (qrData, userToken) => {
-  // QR kod içeriği JWT token formatında olabilir
-  // Önce token'ı parse et
+  // QR kod içeriği MUTLAKA JWT token formatında olmalı
+  // JWT format kontrolü: 3 parça olmalı (header.payload.signature)
+  if (!qrData || typeof qrData !== 'string') {
+    return {
+      success: false,
+      error: 'Geçersiz QR kodu formatı',
+    };
+  }
+
+  // JWT token format kontrolü: en az 2 nokta içermeli
+  const parts = qrData.split('.');
+  if (parts.length !== 3) {
+    return {
+      success: false,
+      error: 'QR kod JWT token formatında değil. Beklenen format: header.payload.signature',
+    };
+  }
+
+  // Token'ı parse et ve doğrula
   const { verifyQRToken } = await import('./qrTokenService');
-  let payload = await verifyQRToken(qrData);
+  const payload = await verifyQRToken(qrData);
   
   if (!payload) {
-    // Token formatında değilse, direkt JSON olabilir (Business QR için)
-    try {
-      const parsed = JSON.parse(qrData);
-      // TEK VE ZORUNLU QR PAYLOAD ŞEMASI kontrolü
-      if (parsed.qrType === 'PROMOTION' && parsed.promoId && (parsed.customerId || parsed.userId)) {
-        // Yeni format - customerId kullan
-        payload = {
-          ...parsed,
-          customerId: parsed.customerId || parsed.userId, // Eski format uyumluluğu
-        };
-      } else if (parsed.promoId && (parsed.customerId || parsed.userId)) {
-        // Eski format uyumluluğu
-        payload = {
-          qrType: 'PROMOTION',
-          promoId: parsed.promoId || parsed.promotionId,
-          orderId: parsed.orderId || null,
-          customerId: parsed.customerId || parsed.userId,
-          businessId: parsed.businessId || null,
-          businessName: parsed.businessName || null,
-          promoType: parsed.promoType || null,
-          orderTypes: parsed.orderTypes || null,
-          createdAt: parsed.createdAt || new Date().toISOString(),
-          expiresAt: parsed.expiresAt || parsed.promotionExpireDate,
-          used: parsed.used || parsed.isUsed || false,
-          nonce: parsed.nonce || parsed.uniqueCode || null,
-        };
-      } else {
-        return {
-          success: false,
-          error: 'Geçersiz QR kodu',
-        };
-      }
-    } catch (e) {
-      // JSON parse hatası
-      return {
-        success: false,
-        error: 'Geçersiz QR kodu formatı',
-      };
-    }
+    // JWT token doğrulama başarısız
+    return {
+      success: false,
+      error: 'Geçersiz veya süresi dolmuş QR kodu',
+    };
   }
   
   // TEK VE ZORUNLU QR PAYLOAD ŞEMASI - qrType kontrolü

@@ -93,14 +93,22 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
   // QR Token oluştuktan sonra bitmap image üret
   useEffect(() => {
     if (qrToken && Platform.OS !== 'web') {
-      generateQRImage();
+      // Async fonksiyonu await ile çağır
+      generateQRImage().catch(error => {
+        console.error('QR Image generation error:', error);
+        if (!errorShownRef.current) {
+          setError('QR kod görüntüsü oluşturulamadı');
+          errorShownRef.current = true;
+        }
+        setLoading(false);
+      });
     }
   }, [qrToken]);
 
   const generateQRToken = async () => {
     if (!qrData) {
       if (!errorShownRef.current) {
-        setError('Promosyon bilgisi bulunamadı');
+        setError('QR kod verisi bulunamadı');
         errorShownRef.current = true;
       }
       return;
@@ -109,63 +117,101 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
     setLoading(true);
     setError(null);
 
+    // Timeout koruması: 10 saniye içinde tamamlanmazsa hata göster
+    const timeoutId = setTimeout(() => {
+      if (!errorShownRef.current) {
+        setError('QR kod oluşturma zaman aşımına uğradı. Lütfen tekrar deneyin.');
+        errorShownRef.current = true;
+        setLoading(false);
+      }
+    }, 10000); // 10 saniye
+
     try {
-      // PAYLOAD VALIDATION - TÜM ZORUNLU ALANLARI KONTROL ET
-      const requiredFields = {
-        promotionId: qrData.promotionId,
-        venueName: qrData.venueName || qrData.businessName,
-        promotionType: qrData.promotionType,
-        promotionExpireDate: qrData.promotionExpireDate,
-      };
-      
-      const missingFields = [];
-      for (const [field, value] of Object.entries(requiredFields)) {
-        if (value === undefined || value === null || value === '') {
-          missingFields.push(field);
-        }
-      }
-      
-      if (missingFields.length > 0) {
-        const errorMsg = `Eksik alanlar: ${missingFields.join(', ')}`;
-        if (!errorShownRef.current) {
-          setError(errorMsg);
-          errorShownRef.current = true;
-        }
-        return; // QR üretilmeden çık
-      }
-
-      // Kullanıcı profilini al (userId için)
-      const userProfile = await getUserProfile();
-      const userId = userProfile?.id || userProfile?.userId;
-
-      if (!userId) {
-        const errorMsg = 'Kullanıcı bilgisi alınamadı';
-        if (!errorShownRef.current) {
-          setError(errorMsg);
-          errorShownRef.current = true;
-        }
-        return; // QR üretilmeden çık
-      }
-
-      // QR Token oluştur - try/catch ile sarılmış
+      // QR Data: String (JWT token) veya Object (JWT üretilecek)
+      // TÜM QR KODLAR JWT TOKEN FORMATINDA ÜRETİLİR/SAKLANIR
       let token;
-      try {
-        token = await generatePromotionQRToken(qrData, userId);
-        if (!token || typeof token !== 'string') {
-          throw new Error('QR token geçersiz format');
+      let userId;
+
+      // Eğer string gelirse ve JWT formatındaysa direkt kullan
+      if (typeof qrData === 'string' && qrData.trim().length > 0) {
+        // JWT format kontrolü: 3 parça olmalı (header.payload.signature)
+        const parts = qrData.split('.');
+        if (parts.length === 3) {
+          // Geçerli JWT token formatı, direkt kullan
+          token = qrData;
+        } else {
+          throw new Error('QR kod geçersiz JWT formatı. Beklenen: header.payload.signature');
         }
-      } catch (tokenError) {
-        console.error('QR Token generation error:', tokenError);
-        const errorMsg = `QR token oluşturulamadı: ${tokenError.message || 'Bilinmeyen hata'}`;
-        if (!errorShownRef.current) {
-          setError(errorMsg);
-          errorShownRef.current = true;
+      } else if (typeof qrData === 'object' && qrData !== null) {
+        // Object formatında, JWT token üret
+        
+        // Kullanıcı profilini al (userId için - optional, mock üretilebilir)
+        const userProfile = await getUserProfile();
+        userId = userProfile?.id || userProfile?.userId || null; // Optional, mock üretilebilir
+
+        // QR Type kontrolü: ORDER (Business) veya PROMOTION (Customer)
+        if (qrData.qrType === 'ORDER' || (qrData.orderTypes && Array.isArray(qrData.orderTypes))) {
+          // Business QR (ORDER) - generateBusinessQRCode kullan
+          const { generateBusinessQRCode } = await import('../services/businessQRService');
+          try {
+            // SADECE orderTypes gönder
+            token = await generateBusinessQRCode(qrData.orderTypes || []);
+            if (!token || typeof token !== 'string' || !token.includes('.')) {
+              throw new Error('JWT token geçersiz format');
+            }
+          } catch (tokenError) {
+            console.error('Business QR Token generation error:', tokenError);
+            const errorMsg = `QR token oluşturulamadı: ${tokenError.message || 'Bilinmeyen hata'}`;
+            if (!errorShownRef.current) {
+              setError(errorMsg);
+              errorShownRef.current = true;
+            }
+            clearTimeout(timeoutId);
+            return;
+          }
+        } else {
+          // Promotion QR - generatePromotionQRToken kullan
+          // SADECE promotionId gönder, diğer her şey mock olarak üretilecek
+          const promotionId = qrData.promotionId;
+          
+          if (!promotionId) {
+            const errorMsg = 'Promosyon ID bulunamadı';
+            if (!errorShownRef.current) {
+              setError(errorMsg);
+              errorShownRef.current = true;
+            }
+            clearTimeout(timeoutId);
+            return;
+          }
+
+          // QR Token oluştur - try/catch ile sarılmış
+          try {
+            // SADECE promotionId ve optional userId gönder
+            token = await generatePromotionQRToken(promotionId, userId);
+            if (!token || typeof token !== 'string' || !token.includes('.')) {
+              throw new Error('JWT token geçersiz format');
+            }
+          } catch (tokenError) {
+            console.error('QR Token generation error:', tokenError);
+            const errorMsg = `QR token oluşturulamadı: ${tokenError.message || 'Bilinmeyen hata'}`;
+            if (!errorShownRef.current) {
+              setError(errorMsg);
+              errorShownRef.current = true;
+            }
+            clearTimeout(timeoutId);
+            return;
+          }
         }
-        return; // QR üretilmeden çık
+      } else {
+        // Geçersiz format
+        throw new Error('QR kod verisi string (JWT token) veya object formatında olmalı');
       }
 
+      // Token başarıyla oluşturuldu
       setQrToken(token);
+      clearTimeout(timeoutId); // Başarılı olursa timeout'u temizle
     } catch (err) {
+      clearTimeout(timeoutId); // Hata olursa timeout'u temizle
       console.error('QR Token generation error:', err);
       const errorMsg = err.message || 'QR kod oluşturulamadı';
       if (!errorShownRef.current) {
@@ -179,18 +225,28 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
 
   // QR Code bitmap image üret (SVG YOK)
   const generateQRImage = async () => {
-    if (!qrToken) return;
+    if (!qrToken) {
+      return;
+    }
+
+    setLoading(true); // QR image üretilirken loading göster
+    setError(null);
 
     try {
       const imageData = await generateQRCodeImage(qrToken, 260);
       if (imageData) {
         setQrCodeImage(imageData);
       } else {
-        console.warn('QR Code image generation failed');
+        throw new Error('QR kod görüntüsü oluşturulamadı');
       }
     } catch (error) {
       console.error('QR Image generation error:', error);
-      // Hata durumunda sadece log, kullanıcıya gösterme
+      if (!errorShownRef.current) {
+        setError('QR kod görüntüsü oluşturulamadı: ' + (error.message || 'Bilinmeyen hata'));
+        errorShownRef.current = true;
+      }
+    } finally {
+      setLoading(false); // Loading'i kapat
     }
   };
 
@@ -236,7 +292,7 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
                         <Text style={styles.retryButtonText}>Tekrar Dene</Text>
                       </TouchableOpacity>
                     </View>
-                  ) : qrToken ? (
+                  ) : qrToken && !loading && qrToken.length > 0 ? (
                     <View style={styles.qrCodeWrapper}>
                       {Platform.OS === 'web' ? (
                         // Web için fallback - QR kod verisini göster
@@ -249,7 +305,7 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
                             Web modunda QR kod görüntülenemez. Token verisi yukarıda gösterilmektedir.
                           </Text>
                         </View>
-                      ) : qrCodeImage ? (
+                      ) : qrCodeImage && qrCodeImage.length > 0 ? (
                         // Bitmap QR Code - SVG YOK, LinearGradient YOK
                         <Image
                           source={{ uri: qrCodeImage }}
@@ -259,13 +315,13 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
                       ) : (
                         <View style={styles.qrCodePlaceholder}>
                           <ActivityIndicator size="small" color={colors.primary} />
-                          <Text style={styles.qrCodeText}>QR kod oluşturuluyor...</Text>
+                          <Text style={styles.qrCodeText}>QR kod görüntüsü oluşturuluyor...</Text>
                         </View>
                       )}
                     </View>
                   ) : (
                     <View style={styles.qrCodePlaceholder}>
-                      <Text style={styles.qrCodeText}>QR kod hazırlanıyor...</Text>
+                      <Text style={styles.errorText}>QR kod üretilemedi</Text>
                     </View>
                   )}
                 </View>

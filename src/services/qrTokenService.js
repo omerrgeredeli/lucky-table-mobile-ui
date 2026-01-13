@@ -258,77 +258,50 @@ export const verifyQRToken = async (token) => {
  * Promosyon QR kodu için token üretir
  * ORTAK PAYLOAD YAPISI kullanır
  * PAYLOAD VALIDATION ile güvenli
+ * TÜM BİLGİLER MOCK OLARAK ÜRETİLİR (SADECE promotionId KULLANICI TARAFINDAN SEÇİLİR)
  * 
- * @param {Object} promotionData - Promosyon bilgileri
- * @param {string|number} userId - Kullanıcı ID
- * @param {string} businessId - İşletme ID (optional, venueName'den türetilebilir)
+ * @param {string|number} promotionId - Promosyon ID (SADECE BU PARAMETRE)
+ * @param {string|number} userId - Kullanıcı ID (optional, mock üretilebilir)
  * @returns {Promise<string>} QR token (JWT formatında)
  */
-export const generatePromotionQRToken = async (promotionData, userId, businessId = null) => {
-  // PAYLOAD VALIDATION - Gerekli alanları kontrol et
-  if (!promotionData || typeof promotionData !== 'object') {
-    throw new Error('Promosyon bilgisi geçersiz');
+export const generatePromotionQRToken = async (promotionId, userId = null) => {
+  // PAYLOAD VALIDATION - PromotionId kontrolü
+  if (!promotionId || (typeof promotionId !== 'number' && typeof promotionId !== 'string')) {
+    throw new Error('Promosyon ID geçersiz');
   }
 
-  // Required fields kontrolü
-  const requiredFields = {
-    promotionId: promotionData.promotionId,
-    venueName: promotionData.venueName || promotionData.businessName,
-    promotionExpireDate: promotionData.promotionExpireDate,
-  };
-
-  const missingFields = [];
-  for (const [field, value] of Object.entries(requiredFields)) {
-    if (value === undefined || value === null || value === '') {
-      missingFields.push(field);
-    }
-  }
-
-  if (missingFields.length > 0) {
-    throw new Error(`Eksik alanlar: ${missingFields.join(', ')}`);
-  }
-
-  // userId kontrolü
-  if (!userId || (typeof userId !== 'number' && typeof userId !== 'string')) {
-    throw new Error('Kullanıcı ID geçersiz');
-  }
-
-  // Business ID - venueName'den türet veya parametre olarak al
-  const finalBusinessId = businessId || String(promotionData.venueName || promotionData.businessName || 'unknown');
-  const businessName = String(promotionData.venueName || promotionData.businessName || '');
+  // MOCK DATA - Tüm bilgiler otomatik üretilir
+  const mockUserId = userId || Math.floor(Math.random() * 1000000) + 1; // Mock kullanıcı ID
+  const mockVenueName = 'Mock Venue Cafe'; // Mock işletme adı
+  const mockBusinessId = `BUSINESS_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const mockPromotionType = 'FREE_COFFEE'; // Mock promosyon tipi
+  
+  // Mock tarih: 30 gün sonra expire
+  const mockExpireDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   // Nonce üret (unique identifier)
   const nonce = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
   // Tarih hesaplamaları
   const createdAt = new Date().toISOString();
-  let expiresAt;
-  try {
-    const expireDate = new Date(promotionData.promotionExpireDate);
-    if (isNaN(expireDate.getTime())) {
-      throw new Error('Geçersiz tarih formatı');
-    }
-    expiresAt = expireDate.toISOString();
-  } catch (error) {
-    throw new Error(`Geçersiz tarih formatı: ${error.message}`);
-  }
+  const expiresAt = mockExpireDate.toISOString();
 
   // TEK VE ZORUNLU QR PAYLOAD ŞEMASI - Customer için PROMOTION
   let payload;
   try {
     payload = {
       qrType: 'PROMOTION', // ZORUNLU
-      promoId: String(promotionData.promotionId),
+      promoId: String(promotionId), // Kullanıcının seçtiği promosyon ID
       orderId: null, // PROMOTION için null
-      customerId: String(userId), // userId -> customerId
-      businessId: String(finalBusinessId),
-      businessName: businessName,
-      promoType: String(promotionData.promotionType || 'FREE_COFFEE'),
+      customerId: String(mockUserId), // Mock userId -> customerId
+      businessId: String(mockBusinessId), // Mock businessId
+      businessName: mockVenueName, // Mock businessName
+      promoType: mockPromotionType, // Mock promoType
       orderTypes: null, // PROMOTION için null
-      createdAt: createdAt,
-      expiresAt: expiresAt,
+      createdAt: createdAt, // MOCK
+      expiresAt: expiresAt, // MOCK
       used: false, // QR kod oluşturulurken her zaman false
-      nonce: nonce, // nonce kullan
+      nonce: nonce, // MOCK
     };
   } catch (error) {
     throw new Error(`Payload oluşturulamadı: ${error.message}`);
@@ -358,7 +331,13 @@ export const generatePromotionQRToken = async (promotionData, userId, businessId
 
   // QR Token oluştur - try/catch ile sarılmış
   try {
-    return await generateQRToken(payload, expiresIn);
+    const qrToken = await generateQRToken(payload, expiresIn);
+    
+    if (!qrToken || typeof qrToken !== 'string' || !qrToken.includes('.')) {
+      throw new Error('JWT token geçersiz format');
+    }
+    
+    return qrToken;
   } catch (error) {
     throw new Error(`QR token oluşturulamadı: ${error.message || 'Bilinmeyen hata'}`);
   }

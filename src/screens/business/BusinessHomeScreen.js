@@ -197,39 +197,22 @@ const BusinessHomeScreen = () => {
       return;
     }
     
-    // PAYLOAD VALIDATION - Modal açılmadan önce kontrol et
-    if (!userProfile || !userProfile.id) {
-      Alert.alert(
-        t('business.error'),
-        t('business.userInfoError') || 'Kullanıcı bilgisi alınamadı'
-      );
-      return;
-    }
-
-    // İşletme adı: Mock'ta userProfile'dan, gerçekte backend/token'dan
-    const businessName = USE_MOCK_API 
-      ? (userProfile?.fullName || userProfile?.name || 'Test Business')
-      : (userProfile?.fullName || userProfile?.name || userProfile?.businessName || t('business.businessName'));
-
-    if (!businessName || typeof businessName !== 'string' || businessName.trim() === '') {
-      Alert.alert(
-        t('business.error'),
-        t('business.businessNameError') || 'İşletme adı bulunamadı'
-      );
-      return;
-    }
-    
     setQrCodeLoading(true);
     try {
-      const qrData = await generateBusinessQRCode({
-        orderTypes: selectedOrderTypes.map(ot => typeof ot === 'string' ? ot : ot.id || ot.name),
-        businessName,
-        userId: userProfile.id,
-      });
+      // SADECE orderTypes gönder, diğer her şey mock olarak üretilecek
+      const qrData = await generateBusinessQRCode(
+        selectedOrderTypes.map(ot => typeof ot === 'string' ? ot : ot.id || ot.name)
+      );
       
-      // QR data validation - string olmalı
-      if (!qrData || typeof qrData !== 'string') {
-        throw new Error('QR kod verisi geçersiz format');
+      // QR data validation - JWT token formatında olmalı (header.payload.signature)
+      if (!qrData || typeof qrData !== 'string' || !qrData.includes('.')) {
+        throw new Error('QR kod JWT token formatında değil');
+      }
+      
+      // JWT format kontrolü: 3 parça olmalı
+      const parts = qrData.split('.');
+      if (parts.length !== 3) {
+        throw new Error('QR kod geçersiz JWT formatı. Beklenen: header.payload.signature');
       }
 
       setQrCodeData(qrData);

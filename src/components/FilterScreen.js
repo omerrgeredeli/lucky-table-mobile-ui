@@ -621,7 +621,7 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                   {/* Alt Kategoriler - Sadece ana kategori seçilmişse göster */}
                   {filterState.categoryType && (
                     <View style={styles.filterGroup}>
-                      <Text style={styles.filterLabel}>{t('filter.subCategories')}</Text>
+                      {/* Başlık kaldırıldı - debug string hatası önlemek için */}
                       <View style={styles.subCategoryContainer}>
                         {Array.isArray(availableSubCategories) && availableSubCategories.length > 0 ? (
                           availableSubCategories.map((subCategory) => {
@@ -672,10 +672,22 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                                       ? subCategory.name 
                                       : (typeof subCategory.id === 'string' ? subCategory.id : String(subCategory.id || ''));
                                     
-                                    const translated = t(translationKey, { defaultValue });
+                                    let translated;
+                                    try {
+                                      translated = t(translationKey, { defaultValue });
+                                    } catch (error) {
+                                      // Translation hatası durumunda defaultValue kullan
+                                      return defaultValue;
+                                    }
                                     
-                                    // Eğer translation bir object/array döndürürse, defaultValue kullan
-                                    if (typeof translated !== 'string') {
+                                    // Eğer translation bir object/array döndürürse, debug string içeriyorsa veya hata mesajı ise, defaultValue kullan
+                                    if (
+                                      typeof translated !== 'string' || 
+                                      translated === translationKey || 
+                                      translated.includes('filter.subCategories') ||
+                                      translated.includes('returned an object') ||
+                                      translated.includes('(tr)')
+                                    ) {
                                       return defaultValue;
                                     }
                                     
