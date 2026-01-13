@@ -44,20 +44,38 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
     category: false,
   });
 
-  // Initialize with provided filters or reset
+  // Initialize with provided filters or reset - CRASH FIX: güvenli state initialization
   useEffect(() => {
     if (visible) {
-      if (initialFilters) {
-        setFilterState(initialFilters);
-      } else {
+      try {
+        if (initialFilters) {
+          // Güvenli filter state - subCategories her zaman array olmalı
+          const safeInitialFilters = {
+            ...initialFilterState,
+            ...initialFilters,
+            subCategories: Array.isArray(initialFilters.subCategories) 
+              ? initialFilters.subCategories 
+              : [],
+          };
+          setFilterState(safeInitialFilters);
+        } else {
+          setFilterState(initialFilterState);
+        }
+        // Modal açıldığında tüm section'ları KAPALI yap (accordion mantığı - kullanıcı açacak)
+        setExpandedSections({
+          location: false,
+          date: false,
+          category: false,
+        });
+      } catch (error) {
+        console.error('FilterScreen initialization crash prevented:', error);
         setFilterState(initialFilterState);
+        setExpandedSections({
+          location: false,
+          date: false,
+          category: false,
+        });
       }
-      // Modal açıldığında tüm section'ları KAPALI yap (accordion mantığı - kullanıcı açacak)
-      setExpandedSections({
-        location: false,
-        date: false,
-        category: false,
-      });
     }
   }, [visible, initialFilters]);
 
@@ -133,31 +151,81 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
     }));
   };
 
-  // Category handlers
+  // Category handlers - CRASH FIX: null kontrolü ve try/catch
   const handleCategoryTypeSelect = (type) => {
-    setFilterState((prev) => ({
-      ...prev,
-      categoryType: type === prev.categoryType ? null : type,
-      subCategories: [], // Alt kategoriler sıfırlanır
-    }));
-    if (type && type !== prev.categoryType) {
-      setExpandedSections((prev) => ({
-        ...prev,
-        category: true,
-      }));
+    try {
+      // Null/undefined kontrolü
+      if (type === null || type === undefined) {
+        console.warn('handleCategoryTypeSelect: type is null/undefined');
+        return;
+      }
+
+      setFilterState((prev) => {
+        // Güvenli state update - prev null kontrolü
+        if (!prev) {
+          console.warn('handleCategoryTypeSelect: prev state is null');
+          return initialFilterState;
+        }
+
+        const newCategoryType = type === prev.categoryType ? null : type;
+        
+        // Expanded section update - yeni kategori seçildiyse aç
+        if (type && type !== prev.categoryType) {
+          setExpandedSections((prevExpanded) => {
+            if (!prevExpanded) {
+              return { location: false, date: false, category: true };
+            }
+            return {
+              ...prevExpanded,
+              category: true,
+            };
+          });
+        }
+
+        return {
+          ...prev,
+          categoryType: newCategoryType,
+          subCategories: [], // Alt kategoriler sıfırlanır - her zaman array
+        };
+      });
+    } catch (error) {
+      console.error('Food filter crash prevented in handleCategoryTypeSelect:', error);
     }
   };
 
+  // SubCategory toggle - CRASH FIX: null kontrolü, array kontrolü ve try/catch
   const handleSubCategoryToggle = (subCategoryId) => {
-    setFilterState((prev) => {
-      const isSelected = prev.subCategories.includes(subCategoryId);
-      return {
-        ...prev,
-        subCategories: isSelected
-          ? prev.subCategories.filter((id) => id !== subCategoryId)
-          : [...prev.subCategories, subCategoryId],
-      };
-    });
+    try {
+      // Null/undefined kontrolü
+      if (subCategoryId === null || subCategoryId === undefined) {
+        console.warn('handleSubCategoryToggle: subCategoryId is null/undefined');
+        return;
+      }
+
+      setFilterState((prev) => {
+        // Güvenli state update - prev null kontrolü
+        if (!prev) {
+          console.warn('handleSubCategoryToggle: prev state is null');
+          return initialFilterState;
+        }
+
+        // subCategories her zaman array olmalı
+        const currentSubCategories = Array.isArray(prev.subCategories) 
+          ? prev.subCategories 
+          : [];
+
+        const isSelected = currentSubCategories.includes(subCategoryId);
+        
+        return {
+          ...prev,
+          subCategories: isSelected
+            ? currentSubCategories.filter((id) => id !== subCategoryId)
+            : [...currentSubCategories, subCategoryId],
+        };
+      });
+    } catch (error) {
+      console.error('Food filter crash prevented in handleSubCategoryToggle:', error);
+    }
   };
 
   // Clear all filters
@@ -170,25 +238,36 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
     });
   };
 
-  // Apply filters
+  // Apply filters - CRASH FIX: güvenli payload oluşturma
   const handleApply = () => {
-    const filterPayload = {
-      cityId: filterState.cityId,
-      districtId: filterState.districtId,
-      neighborhoodId: filterState.neighborhoodId,
-      startDate: filterState.startDate,
-      endDate: filterState.endDate,
-      categoryType: filterState.categoryType,
-      subCategories: filterState.subCategories,
-    };
+    try {
+      // subCategories her zaman array olmalı
+      const safeSubCategories = Array.isArray(filterState.subCategories) 
+        ? filterState.subCategories 
+        : [];
 
-    // Backend'e gönderilecek payload
-    console.log('Filter Payload:', filterPayload);
+      const filterPayload = {
+        cityId: filterState.cityId,
+        districtId: filterState.districtId,
+        neighborhoodId: filterState.neighborhoodId,
+        startDate: filterState.startDate,
+        endDate: filterState.endDate,
+        categoryType: filterState.categoryType,
+        subCategories: safeSubCategories, // Güvenli array
+      };
 
-    if (onApply) {
-      onApply(filterPayload);
+      // Backend'e gönderilecek payload
+      console.log('Filter Payload:', filterPayload);
+
+      if (onApply && typeof onApply === 'function') {
+        onApply(filterPayload);
+      }
+      if (onClose && typeof onClose === 'function') {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Filter apply crash prevented:', error);
     }
-    onClose();
   };
 
   // Get selected city
@@ -503,25 +582,39 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                   <View style={styles.filterGroup}>
                     <Text style={styles.filterLabel}>{t('filter.category')}</Text>
                     <View style={styles.categoryRow}>
-                      {['FOOD', 'DRINK', 'BOTH'].map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[
-                            styles.categoryButton,
-                            filterState.categoryType === type && styles.categoryButtonActive,
-                          ]}
-                          onPress={() => handleCategoryTypeSelect(type)}
-                        >
-                          <Text
+                      {Array.isArray(['FOOD', 'DRINK', 'BOTH']) && ['FOOD', 'DRINK', 'BOTH'].map((type) => {
+                        // Null/undefined type kontrolü
+                        if (!type) {
+                          return null;
+                        }
+                        return (
+                          <TouchableOpacity
+                            key={String(type)} // String key zorunlu
                             style={[
-                              styles.categoryButtonText,
-                              filterState.categoryType === type && styles.categoryButtonTextActive,
+                              styles.categoryButton,
+                              filterState.categoryType === type && styles.categoryButtonActive,
                             ]}
+                            onPress={() => {
+                              try {
+                                if (!type) return;
+                                handleCategoryTypeSelect(type);
+                              } catch (error) {
+                                console.error('Food filter button crash prevented:', error);
+                              }
+                            }}
+                            activeOpacity={0.7}
                           >
-                            {t(`filter.categories.${type}`)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                            <Text
+                              style={[
+                                styles.categoryButtonText,
+                                filterState.categoryType === type && styles.categoryButtonTextActive,
+                              ]}
+                            >
+                              {t(`filter.categories.${type}`)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -530,21 +623,39 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                     <View style={styles.filterGroup}>
                       <Text style={styles.filterLabel}>{t('filter.subCategories')}</Text>
                       <View style={styles.subCategoryContainer}>
-                        {availableSubCategories && availableSubCategories.length > 0 ? (
+                        {Array.isArray(availableSubCategories) && availableSubCategories.length > 0 ? (
                           availableSubCategories.map((subCategory) => {
-                            // Güvenli kontrol
+                            // Güvenli kontrol - CRASH FIX
                             if (!subCategory || !subCategory.id) {
                               return null;
                             }
-                            const isSelected = filterState.subCategories.includes(subCategory.id);
+
+                            // subCategories her zaman array olmalı
+                            const currentSubCategories = Array.isArray(filterState.subCategories) 
+                              ? filterState.subCategories 
+                              : [];
+                            
+                            const isSelected = currentSubCategories.includes(subCategory.id);
+                            
+                            // Key zorunlu - string olmalı
+                            const uniqueKey = String(subCategory.id || `subcat-${Math.random()}`);
+
                             return (
                               <TouchableOpacity
-                                key={subCategory.id}
+                                key={uniqueKey}
                                 style={[
                                   styles.subCategoryChip,
                                   isSelected && styles.subCategoryChipActive,
                                 ]}
-                                onPress={() => handleSubCategoryToggle(subCategory.id)}
+                                onPress={() => {
+                                  try {
+                                    if (!subCategory || !subCategory.id) return;
+                                    handleSubCategoryToggle(subCategory.id);
+                                  } catch (error) {
+                                    console.error('SubCategory filter button crash prevented:', error);
+                                  }
+                                }}
+                                activeOpacity={0.7}
                               >
                                 <Text
                                   style={[
@@ -553,7 +664,23 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                                   ]}
                                 >
                                   {isSelected ? '✓ ' : ''}
-                                  {t(`filter.subCategories.${subCategory.id}`, { defaultValue: subCategory.name || subCategory.id })}
+                                  {(() => {
+                                    // i18n FIX: t() fonksiyonuna object/array verilmesini engelle
+                                    // Sadece string değerler kullanılacak
+                                    const translationKey = `filter.subCategories.${subCategory.id}`;
+                                    const defaultValue = typeof subCategory.name === 'string' 
+                                      ? subCategory.name 
+                                      : (typeof subCategory.id === 'string' ? subCategory.id : String(subCategory.id || ''));
+                                    
+                                    const translated = t(translationKey, { defaultValue });
+                                    
+                                    // Eğer translation bir object/array döndürürse, defaultValue kullan
+                                    if (typeof translated !== 'string') {
+                                      return defaultValue;
+                                    }
+                                    
+                                    return translated;
+                                  })()}
                                 </Text>
                               </TouchableOpacity>
                             );

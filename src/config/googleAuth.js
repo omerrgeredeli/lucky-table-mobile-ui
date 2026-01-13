@@ -8,14 +8,19 @@
 
 // Development Google OAuth Client IDs
 // These should be set via environment variables in production
+// ⚠️ ÖNEMLİ: Web için MUTLAKA web-specific client ID kullanılmalı
+// iOS client ID web'de çalışmaz (farklı client type)
 const DEV_GOOGLE_CLIENT_IDS = {
-  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID_DEV || '',
-  ios: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS_DEV || '',
-  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB_DEV || '',
+  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID_DEV || '974864364834-fkjcf8o8a0algg9r4it6inhos2huq888.apps.googleusercontent.com',
+  ios: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS_DEV || '974864364834-j7cjkpj7qe5v6nno6dh9r0hniiiihqlf.apps.googleusercontent.com',
+  // Web için: Web application tipinde client ID (environment variable ile override edilebilir)
+  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB_DEV || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || '974864364834-124ddsnnikhogat55vdaes5ed0cn6qfr.apps.googleusercontent.com',
 };
 
 const DEV_GOOGLE_CLIENT_SECRET = {
-  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET_WEB_DEV || '',
+  // Web için: Client secret (environment variable ile override edilebilir)
+  // NOT: Client secret'ı kullanıcıdan alınmalı ve güvenli bir şekilde saklanmalı
+  web: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET_WEB_DEV || process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET_WEB || '',
 };
 
 // Production Google OAuth Client IDs

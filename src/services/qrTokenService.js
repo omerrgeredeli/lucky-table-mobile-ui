@@ -256,13 +256,15 @@ export const verifyQRToken = async (token) => {
 
 /**
  * Promosyon QR kodu için token üretir
+ * ORTAK PAYLOAD YAPISI kullanır
  * PAYLOAD VALIDATION ile güvenli
  * 
  * @param {Object} promotionData - Promosyon bilgileri
- * @param {number} userId - Kullanıcı ID
- * @returns {Promise<string>} QR token
+ * @param {string|number} userId - Kullanıcı ID
+ * @param {string} businessId - İşletme ID (optional, venueName'den türetilebilir)
+ * @returns {Promise<string>} QR token (JWT formatında)
  */
-export const generatePromotionQRToken = async (promotionData, userId) => {
+export const generatePromotionQRToken = async (promotionData, userId, businessId = null) => {
   // PAYLOAD VALIDATION - Gerekli alanları kontrol et
   if (!promotionData || typeof promotionData !== 'object') {
     throw new Error('Promosyon bilgisi geçersiz');
@@ -271,7 +273,7 @@ export const generatePromotionQRToken = async (promotionData, userId) => {
   // Required fields kontrolü
   const requiredFields = {
     promotionId: promotionData.promotionId,
-    venueName: promotionData.venueName,
+    venueName: promotionData.venueName || promotionData.businessName,
     promotionExpireDate: promotionData.promotionExpireDate,
   };
 
@@ -291,32 +293,64 @@ export const generatePromotionQRToken = async (promotionData, userId) => {
     throw new Error('Kullanıcı ID geçersiz');
   }
 
-  // Payload oluştur - try/catch ile stringify güvenliği
+  // Business ID - venueName'den türet veya parametre olarak al
+  const finalBusinessId = businessId || String(promotionData.venueName || promotionData.businessName || 'unknown');
+  const businessName = String(promotionData.venueName || promotionData.businessName || '');
+
+  // Nonce üret (unique identifier)
+  const nonce = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+  // Tarih hesaplamaları
+  const createdAt = new Date().toISOString();
+  let expiresAt;
+  try {
+    const expireDate = new Date(promotionData.promotionExpireDate);
+    if (isNaN(expireDate.getTime())) {
+      throw new Error('Geçersiz tarih formatı');
+    }
+    expiresAt = expireDate.toISOString();
+  } catch (error) {
+    throw new Error(`Geçersiz tarih formatı: ${error.message}`);
+  }
+
+  // TEK VE ZORUNLU QR PAYLOAD ŞEMASI - Customer için PROMOTION
   let payload;
   try {
     payload = {
-      promotionId: promotionData.promotionId,
-      userId: userId,
-      venueName: String(promotionData.venueName), // String'e çevir
-      promotionType: promotionData.promotionType || 'FREE_COFFEE',
-      promotionExpireDate: String(promotionData.promotionExpireDate), // String'e çevir
-      isUsed: false, // QR kod oluşturulurken her zaman false
+      qrType: 'PROMOTION', // ZORUNLU
+      promoId: String(promotionData.promotionId),
+      orderId: null, // PROMOTION için null
+      customerId: String(userId), // userId -> customerId
+      businessId: String(finalBusinessId),
+      businessName: businessName,
+      promoType: String(promotionData.promotionType || 'FREE_COFFEE'),
+      orderTypes: null, // PROMOTION için null
+      createdAt: createdAt,
+      expiresAt: expiresAt,
+      used: false, // QR kod oluşturulurken her zaman false
+      nonce: nonce, // nonce kullan
     };
   } catch (error) {
     throw new Error(`Payload oluşturulamadı: ${error.message}`);
   }
 
+  // JSON.stringify validation - try/catch ile güvenli
+  let payloadString;
+  try {
+    payloadString = JSON.stringify(payload);
+    if (!payloadString || payloadString === '{}') {
+      throw new Error('Payload stringify başarısız');
+    }
+  } catch (error) {
+    throw new Error(`Payload stringify hatası: ${error.message}`);
+  }
+
   // Token geçerlilik süresi: promosyon bitiş tarihine kadar
   let expiresIn = 3600; // Default 1 saat
   try {
-    const expireDate = new Date(promotionData.promotionExpireDate);
+    const expireDate = new Date(expiresAt);
     const now = new Date();
-    
-    if (isNaN(expireDate.getTime())) {
-      throw new Error('Geçersiz tarih formatı');
-    }
-    
-    expiresIn = Math.max(3600, Math.floor((expireDate - now) / 1000)); // En az 1 saat
+    expiresIn = Math.max(3600, Math.floor((expireDate.getTime() - now.getTime()) / 1000)); // En az 1 saat
   } catch (error) {
     console.warn('Tarih hesaplama hatası, varsayılan süre kullanılıyor:', error);
     expiresIn = 3600;

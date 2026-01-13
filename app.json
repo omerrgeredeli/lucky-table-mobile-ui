@@ -1,14 +1,15 @@
 {
   "expo": {
     "name": "Lucky Table",
-    "slug": "lucky-table",
+    "slug": "comluckytableapp",
     "version": "1.0.0",
+    "scheme": "luckytable",
     "extra": {
       "eas": {
-        "projectId": "49b29379-2be2-4bd7-816b-9ed9050ec286"
+        "projectId": "414cd080-e0a5-4bed-8601-1c68e46556eb"
       }
     },
-    "owner": "cointurks-organization",
+    "owner": "omermyreeders-organization",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -38,6 +39,7 @@
         "backgroundColor": "#2ECC71"
       },
       "package": "com.luckytable.app",
+      "supportsTablet": true,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

@@ -142,27 +142,49 @@ const LoyaltyDetailsScreen = () => {
         });
       }
 
-      // Kategori filtreleme - orderHistory'deki orderType'lara göre
-      if (filterPayload.categoryType && filterPayload.subCategories.length > 0) {
+      // Kategori filtreleme - orderHistory'deki orderType'lara göre - CRASH FIX: güvenli array kontrolü
+      if (filterPayload.categoryType && Array.isArray(filterPayload.subCategories) && filterPayload.subCategories.length > 0) {
         filtered = filtered.filter((item) => {
-          if (!item.orderHistory || item.orderHistory.length === 0) return false;
+          if (!item.orderHistory || !Array.isArray(item.orderHistory) || item.orderHistory.length === 0) return false;
           
-          // Alt kategori ID'lerini isimlere çevir (foodCategories'den)
-          const { foodCategories } = require('../../data/foodCategories');
-          const selectedSubCategoryNames = filterPayload.subCategories.map((subCatId) => {
-            const subCat = foodCategories[filterPayload.categoryType]?.subCategories.find(
-              (sc) => sc.id === subCatId
-            );
-            return subCat?.name || '';
-          }).filter(Boolean);
-          
-          // orderHistory'de bu kategorilerden biri var mı kontrol et
-          return item.orderHistory.some((order) => {
-            return selectedSubCategoryNames.some((categoryName) => {
-              // Case-insensitive karşılaştırma
-              return (order.orderType || '').toLowerCase() === categoryName.toLowerCase();
+          try {
+            // Alt kategori ID'lerini isimlere çevir (foodCategories'den)
+            const { foodCategories } = require('../../data/foodCategories');
+            
+            // Güvenli array map
+            const selectedSubCategoryNames = filterPayload.subCategories
+              .filter((subCatId) => subCatId !== null && subCatId !== undefined)
+              .map((subCatId) => {
+                try {
+                  const category = foodCategories?.[filterPayload.categoryType];
+                  if (!category || !Array.isArray(category.subCategories)) {
+                    return '';
+                  }
+                  const subCat = category.subCategories.find(
+                    (sc) => sc && sc.id === subCatId
+                  );
+                  return subCat?.name || '';
+                } catch (error) {
+                  console.warn('SubCategory name mapping error:', error);
+                  return '';
+                }
+              })
+              .filter(Boolean);
+            
+            if (selectedSubCategoryNames.length === 0) return false;
+            
+            // orderHistory'de bu kategorilerden biri var mı kontrol et
+            return item.orderHistory.some((order) => {
+              if (!order || !order.orderType) return false;
+              return selectedSubCategoryNames.some((categoryName) => {
+                // Case-insensitive karşılaştırma
+                return String(order.orderType || '').toLowerCase() === String(categoryName || '').toLowerCase();
+              });
             });
-          });
+          } catch (error) {
+            console.error('Category filter crash prevented:', error);
+            return false;
+          }
         });
       }
     } else {
@@ -350,13 +372,25 @@ const LoyaltyDetailsScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* FilterScreen Modal */}
+      {/* FilterScreen Modal - CRASH FIX: güvenli payload */}
       <FilterScreen
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
         onApply={(payload) => {
-          setFilterPayload(payload);
-          setShowFilterModal(false);
+          try {
+            // Güvenli payload - subCategories her zaman array olmalı
+            const safePayload = payload ? {
+              ...payload,
+              subCategories: Array.isArray(payload.subCategories) 
+                ? payload.subCategories 
+                : [],
+            } : null;
+            setFilterPayload(safePayload);
+            setShowFilterModal(false);
+          } catch (error) {
+            console.error('Filter apply crash prevented in LoyaltyDetailsScreen:', error);
+            setShowFilterModal(false);
+          }
         }}
         initialFilters={filterPayload}
       />
@@ -424,11 +458,15 @@ const LoyaltyDetailsScreen = () => {
         </View>
       </Modal>
 
-      {/* Liste */}
+      {/* Liste - CRASH FIX: extraData ekle */}
       <FlatList
         data={paginatedData}
         renderItem={renderCafeItem}
-        keyExtractor={(item, index) => `cafe-${index}`}
+        keyExtractor={(item, index) => {
+          // Güvenli key - item.id varsa kullan, yoksa index
+          return item?.id ? `cafe-${item.id}` : `cafe-${index}`;
+        }}
+        extraData={filterPayload} // Filter state değişince re-render
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <Text style={styles.emptyText}>{t('loyalty.noOrderHistory')}</Text>

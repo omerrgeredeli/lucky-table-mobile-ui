@@ -71,6 +71,36 @@ const PromotionsScreen = () => {
   };
 
   const handleUsePromotion = (promotion) => {
+    // PAYLOAD VALIDATION - Modal açılmadan önce kontrol et
+    if (!promotion) {
+      Alert.alert(t('common.error'), t('promotions.invalidPromotion') || 'Geçersiz promosyon bilgisi');
+      return;
+    }
+
+    // Zorunlu alanları kontrol et
+    const requiredFields = {
+      promotionId: promotion.promotionId,
+      venueName: promotion.venueName || promotion.businessName,
+      promotionType: promotion.promotionType,
+      promotionExpireDate: promotion.promotionExpireDate,
+    };
+
+    const missingFields = [];
+    for (const [field, value] of Object.entries(requiredFields)) {
+      if (value === undefined || value === null || value === '') {
+        missingFields.push(field);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        t('common.error'),
+        t('promotions.missingFields') || `Eksik alanlar: ${missingFields.join(', ')}`
+      );
+      return; // Modal açılmadan çık
+    }
+
+    // Validation başarılı - modal aç
     setSelectedPromotion(promotion);
     setShowQRModal(true);
   };

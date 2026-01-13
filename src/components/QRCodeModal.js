@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,23 +8,54 @@ import {
   TouchableWithoutFeedback,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { generatePromotionQRToken } from '../services/qrTokenService';
 import { getUserProfile } from '../services/userService';
 import { colors, spacing, typography, shadows } from '../theme';
 
-// QR Code import - Lazy loading (web'de hiç yüklenmez)
-// NOT: require() çağrısı fonksiyon içinde olmalı, dosya seviyesinde DEĞİL
-const loadQRCode = () => {
-  if (Platform.OS === 'web') {
-    return null;
-  }
+// QR Code Generator - Bitmap/Canvas tabanlı (SVG YOK)
+// qrcode paketi kullanılacak (Node.js tabanlı, React Native'de çalışır)
+let QRCode;
+if (Platform.OS !== 'web') {
   try {
-    // require() sadece native platformlarda çalışır
-    return require('react-native-qrcode-svg').default;
+    QRCode = require('qrcode');
   } catch (error) {
     console.warn('QR Code library not available:', error);
+  }
+}
+
+/**
+ * QR Code bitmap image üretir (SVG YOK)
+ * @param {string} value - QR kod içeriği
+ * @param {number} size - QR kod boyutu
+ * @returns {Promise<string|null>} Base64 image data URI veya null
+ */
+const generateQRCodeImage = async (value, size = 260) => {
+  if (Platform.OS === 'web' || !QRCode) {
+    return null;
+  }
+
+  try {
+    // qrcode paketi ile bitmap QR code üret (PNG base64)
+    const qrCodeData = await QRCode.toDataURL(value, {
+      width: size,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+    });
+
+    // Base64 data URI formatında döner
+    if (qrCodeData && typeof qrCodeData === 'string') {
+      return qrCodeData;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('QR Code generation error:', error);
     return null;
   }
 };
@@ -37,23 +68,41 @@ const loadQRCode = () => {
 const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
   const { t } = useTranslation();
   const [qrToken, setQrToken] = useState(null);
+  const [qrCodeImage, setQrCodeImage] = useState(null); // Bitmap image (base64)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // QR Token oluştur
+  // Hata mesajı tekrarını engellemek için ref
+  const errorShownRef = useRef(false);
+
+  // QR Token ve Image oluştur
   useEffect(() => {
     if (visible && qrData) {
+      // Hata ref'ini sıfırla
+      errorShownRef.current = false;
       generateQRToken();
     } else {
       // Modal kapandığında state'i temizle
       setQrToken(null);
+      setQrCodeImage(null);
       setError(null);
+      errorShownRef.current = false;
     }
   }, [visible, qrData]);
 
+  // QR Token oluştuktan sonra bitmap image üret
+  useEffect(() => {
+    if (qrToken && Platform.OS !== 'web') {
+      generateQRImage();
+    }
+  }, [qrToken]);
+
   const generateQRToken = async () => {
     if (!qrData) {
-      setError('Promosyon bilgisi bulunamadı');
+      if (!errorShownRef.current) {
+        setError('Promosyon bilgisi bulunamadı');
+        errorShownRef.current = true;
+      }
       return;
     }
 
@@ -61,18 +110,28 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
     setError(null);
 
     try {
-      // PAYLOAD VALIDATION - Gerekli alanları kontrol et
-      const requiredFields = ['promotionId', 'venueName', 'promotionType', 'promotionExpireDate'];
-      const missingFields = [];
+      // PAYLOAD VALIDATION - TÜM ZORUNLU ALANLARI KONTROL ET
+      const requiredFields = {
+        promotionId: qrData.promotionId,
+        venueName: qrData.venueName || qrData.businessName,
+        promotionType: qrData.promotionType,
+        promotionExpireDate: qrData.promotionExpireDate,
+      };
       
-      for (const field of requiredFields) {
-        if (!qrData[field] && qrData[field] !== 0) {
+      const missingFields = [];
+      for (const [field, value] of Object.entries(requiredFields)) {
+        if (value === undefined || value === null || value === '') {
           missingFields.push(field);
         }
       }
       
       if (missingFields.length > 0) {
-        throw new Error(`Eksik alanlar: ${missingFields.join(', ')}`);
+        const errorMsg = `Eksik alanlar: ${missingFields.join(', ')}`;
+        if (!errorShownRef.current) {
+          setError(errorMsg);
+          errorShownRef.current = true;
+        }
+        return; // QR üretilmeden çık
       }
 
       // Kullanıcı profilini al (userId için)
@@ -80,7 +139,12 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
       const userId = userProfile?.id || userProfile?.userId;
 
       if (!userId) {
-        throw new Error('Kullanıcı bilgisi alınamadı');
+        const errorMsg = 'Kullanıcı bilgisi alınamadı';
+        if (!errorShownRef.current) {
+          setError(errorMsg);
+          errorShownRef.current = true;
+        }
+        return; // QR üretilmeden çık
       }
 
       // QR Token oluştur - try/catch ile sarılmış
@@ -92,15 +156,41 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
         }
       } catch (tokenError) {
         console.error('QR Token generation error:', tokenError);
-        throw new Error(`QR token oluşturulamadı: ${tokenError.message || 'Bilinmeyen hata'}`);
+        const errorMsg = `QR token oluşturulamadı: ${tokenError.message || 'Bilinmeyen hata'}`;
+        if (!errorShownRef.current) {
+          setError(errorMsg);
+          errorShownRef.current = true;
+        }
+        return; // QR üretilmeden çık
       }
 
       setQrToken(token);
     } catch (err) {
       console.error('QR Token generation error:', err);
-      setError(err.message || 'QR kod oluşturulamadı');
+      const errorMsg = err.message || 'QR kod oluşturulamadı';
+      if (!errorShownRef.current) {
+        setError(errorMsg);
+        errorShownRef.current = true;
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // QR Code bitmap image üret (SVG YOK)
+  const generateQRImage = async () => {
+    if (!qrToken) return;
+
+    try {
+      const imageData = await generateQRCodeImage(qrToken, 260);
+      if (imageData) {
+        setQrCodeImage(imageData);
+      } else {
+        console.warn('QR Code image generation failed');
+      }
+    } catch (error) {
+      console.error('QR Image generation error:', error);
+      // Hata durumunda sadece log, kullanıcıya gösterme
     }
   };
 
@@ -159,22 +249,19 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
                             Web modunda QR kod görüntülenemez. Token verisi yukarıda gösterilmektedir.
                           </Text>
                         </View>
-                      ) : (() => {
-                        const QRCodeComponent = loadQRCode();
-                        return QRCodeComponent ? (
-                          // Sade QR Code - gradient, logo, fancy props YOK
-                          <QRCodeComponent
-                            value={qrToken}
-                            size={260}
-                            backgroundColor="white"
-                            color="black"
-                          />
-                        ) : (
-                          <View style={styles.qrCodePlaceholder}>
-                            <Text style={styles.qrCodeText}>QR kod yükleniyor...</Text>
-                          </View>
-                        );
-                      })()}
+                      ) : qrCodeImage ? (
+                        // Bitmap QR Code - SVG YOK, LinearGradient YOK
+                        <Image
+                          source={{ uri: qrCodeImage }}
+                          style={styles.qrCodeImage}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View style={styles.qrCodePlaceholder}>
+                          <ActivityIndicator size="small" color={colors.primary} />
+                          <Text style={styles.qrCodeText}>QR kod oluşturuluyor...</Text>
+                        </View>
+                      )}
                     </View>
                   ) : (
                     <View style={styles.qrCodePlaceholder}>
@@ -260,14 +347,19 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   qrCodeWrapper: {
-    width: 200,
-    height: 200,
+    width: 260,
+    height: 260,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: spacing.sm,
     padding: spacing.sm,
     ...shadows.small,
+  },
+  qrCodeImage: {
+    width: 260,
+    height: 260,
+    borderRadius: spacing.xs,
   },
   qrCodeText: {
     fontSize: typography.fontSize.lg,

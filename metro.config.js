@@ -93,6 +93,30 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
   }
   
+  // React Native için Node.js polyfill'leri (qrcode paketi için)
+  if (platform !== 'web') {
+    if (moduleName === 'buffer') {
+      try {
+        return {
+          filePath: require.resolve('buffer'),
+          type: 'sourceFile',
+        };
+      } catch (e) {
+        // buffer paketi yoksa devam et
+      }
+    }
+    if (moduleName === 'stream') {
+      try {
+        return {
+          filePath: require.resolve('readable-stream'),
+          type: 'sourceFile',
+        };
+      } catch (e) {
+        // readable-stream paketi yoksa devam et
+      }
+    }
+  }
+  
   // Varsayılan resolver'ı kullan
   return context.resolveRequest(context, moduleName, platform);
 };
