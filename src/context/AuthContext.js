@@ -2,6 +2,15 @@ import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserRoleFromToken } from '../utils/tokenUtils';
 
+// Debug log - safe import
+let addLog;
+try {
+  const debugModule = require('../components/DebugOverlay');
+  addLog = debugModule.addLog;
+} catch (error) {
+  addLog = () => {}; // No-op if module fails
+}
+
 // Auth Context oluşturuluyor
 export const AuthContext = createContext();
 
@@ -19,9 +28,24 @@ export const AuthProvider = ({ children }) => {
 
   // AsyncStorage'dan token kontrolü
   const checkAuthState = async () => {
+    if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+      try {
+        addLog('Auth state kontrol ediliyor...', 'info');
+      } catch (e) {
+        // Ignore
+      }
+    }
+    
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
+        if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+          try {
+            addLog('Token bulundu, doğrulanıyor...', 'info');
+          } catch (e) {
+            // Ignore
+          }
+        }
         // Token geçerliliğini kontrol et (mock modunda her zaman geçerli)
         try {
           const { USE_MOCK_API } = await import('../config/api');
@@ -39,6 +63,14 @@ export const AuthProvider = ({ children }) => {
             // Role'ü token'dan çıkar
             const role = await getUserRoleFromToken(token);
             setUserRole(role);
+            
+            if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+              try {
+                addLog(`Kullanıcı giriş yapmış (Role: ${role})`, 'success');
+              } catch (e) {
+                // Ignore
+              }
+            }
           } else {
             // Real API modunda token'ı validate et (şimdilik sadece varlığını kontrol et)
             setUserToken(token);
@@ -65,14 +97,39 @@ export const AuthProvider = ({ children }) => {
             setUserRole(null);
           }
         }
+      } else {
+        if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+          try {
+            addLog('Token bulunamadı, giriş yapılmamış', 'info');
+          } catch (e) {
+            // Ignore
+          }
+        }
       }
     } catch (error) {
       console.error('Token kontrolü hatası:', error);
+      
+      if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+        try {
+          addLog(`Token kontrolü hatası: ${error.message}`, 'error');
+        } catch (e) {
+          // Ignore
+        }
+      }
+      
       // Hata durumunda authenticated değil ama token'ı silme (crash sonrası recovery için)
       // setUserToken(null);
       // setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      
+      if ((__DEV__ || process.env.NODE_ENV !== 'production') && addLog) {
+        try {
+          addLog('Auth state kontrolü tamamlandı', 'info');
+        } catch (e) {
+          // Ignore
+        }
+      }
     }
   };
 

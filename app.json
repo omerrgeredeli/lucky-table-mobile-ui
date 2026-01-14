@@ -1,15 +1,15 @@
 {
   "expo": {
     "name": "Lucky Table",
-    "slug": "comluckytableapp",
+    "slug": "lucky-table",
     "version": "1.0.0",
     "scheme": "luckytable",
     "extra": {
       "eas": {
-        "projectId": "414cd080-e0a5-4bed-8601-1c68e46556eb"
+        "projectId": "eb5de26e-ff83-49cc-ae0d-69832d2b88b2"
       }
     },
-    "owner": "omermyreeders-organization",
+    "owner": "mevlutluckytables-organization",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -42,6 +42,7 @@
       "versionCode": 1,
       "version": "1.0.0",
       "supportsTablet": true,
+      "jsEngine": "hermes",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

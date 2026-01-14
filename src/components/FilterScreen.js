@@ -665,33 +665,26 @@ const FilterScreen = ({ visible, onClose, onApply, initialFilters = null }) => {
                                 >
                                   {isSelected ? '✓ ' : ''}
                                   {(() => {
-                                    // i18n FIX: t() fonksiyonuna object/array verilmesini engelle
-                                    // Sadece string değerler kullanılacak
-                                    const translationKey = `filter.subCategories.${subCategory.id}`;
+                                    // UI TEMIZLEME: Debug string'leri kaldır, sadece temiz label göster
                                     const defaultValue = typeof subCategory.name === 'string' 
                                       ? subCategory.name 
                                       : (typeof subCategory.id === 'string' ? subCategory.id : String(subCategory.id || ''));
                                     
-                                    let translated;
+                                    // Translation denemesi - hata olursa defaultValue kullan
                                     try {
-                                      translated = t(translationKey, { defaultValue });
+                                      const translationKey = `filter.subCategories.${subCategory.id}`;
+                                      const translated = t(translationKey, { defaultValue });
+                                      
+                                      // Sadece string ve geçerli translation ise kullan
+                                      if (typeof translated === 'string' && translated !== translationKey) {
+                                        return translated;
+                                      }
                                     } catch (error) {
-                                      // Translation hatası durumunda defaultValue kullan
-                                      return defaultValue;
+                                      // Translation hatası - defaultValue kullan
                                     }
                                     
-                                    // Eğer translation bir object/array döndürürse, debug string içeriyorsa veya hata mesajı ise, defaultValue kullan
-                                    if (
-                                      typeof translated !== 'string' || 
-                                      translated === translationKey || 
-                                      translated.includes('filter.subCategories') ||
-                                      translated.includes('returned an object') ||
-                                      translated.includes('(tr)')
-                                    ) {
-                                      return defaultValue;
-                                    }
-                                    
-                                    return translated;
+                                    // Default olarak subCategory.name veya id kullan
+                                    return defaultValue;
                                   })()}
                                 </Text>
                               </TouchableOpacity>

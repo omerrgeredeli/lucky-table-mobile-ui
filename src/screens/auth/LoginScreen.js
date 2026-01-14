@@ -19,14 +19,23 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 
 // Google Sign-In - Native library (Android/iOS için)
+// Lazy loading - sadece kullanıldığında yükle
 let GoogleSignin;
-if (Platform.OS !== 'web') {
+const loadGoogleSignin = () => {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+  if (GoogleSignin) {
+    return GoogleSignin;
+  }
   try {
     GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    return GoogleSignin;
   } catch (error) {
     console.warn('Google Sign-In native library not available:', error);
+    return null;
   }
-}
+};
 import { AuthContext } from '../../context/AuthContext';
 import { login, sendActivationCode } from '../../services/authService';
 import { GOOGLE_CLIENT_IDS, GOOGLE_CLIENT_SECRET } from '../../config/googleAuth';
@@ -522,28 +531,44 @@ const LoginScreen = () => {
       }
 
       // ANDROID & IOS: @react-native-google-signin/google-signin kullan
-      if (!GoogleSignin) {
+      const GoogleSigninModule = loadGoogleSignin();
+      if (!GoogleSigninModule) {
         throw new Error('Google Sign-In native library yüklenemedi');
       }
 
       // Google Sign-In'i yapılandır - PLATFORM BAZLI CONFIG
-      if (Platform.OS === 'android') {
-        // ANDROID: Sadece androidClientId yeterli (webClientId backend doğrulama için, mock'ta gerekli değil)
-        await GoogleSignin.configure({
-          androidClientId: GOOGLE_CLIENT_IDS.android, // Android client ID
-          offlineAccess: false,
-          forceCodeForRefreshToken: false,
-        });
-      } else if (Platform.OS === 'ios') {
-        // IOS: iosClientId ZORUNLU
-        await GoogleSignin.configure({
-          iosClientId: GOOGLE_CLIENT_IDS.ios,
-        });
+      // SHA-1 kontrolü: Android APK'nin SHA-1'i Google Cloud Console'da kayıtlı olmalı
+      // Beklenen SHA-1: AA:03:92:A8:93:D5:E7:9E:D0:B5:F1:36:E8:CD:42:02:1C:82:7E:60
+      try {
+        if (Platform.OS === 'android') {
+          // ANDROID: androidClientId + webClientId (backend doğrulama için)
+          await GoogleSigninModule.configure({
+            androidClientId: GOOGLE_CLIENT_IDS.android, // Android client ID
+            webClientId: GOOGLE_CLIENT_IDS.web, // Web client ID (backend token doğrulama için)
+            offlineAccess: false,
+            forceCodeForRefreshToken: false,
+          });
+        } else if (Platform.OS === 'ios') {
+          // IOS: iosClientId + webClientId (backend doğrulama için)
+          await GoogleSigninModule.configure({
+            iosClientId: GOOGLE_CLIENT_IDS.ios,
+            webClientId: GOOGLE_CLIENT_IDS.web, // Web client ID (backend token doğrulama için)
+          });
+        }
+      } catch (configError) {
+        console.error('Google Sign-In configure hatası:', configError);
+        throw new Error(`Google Sign-In yapılandırma hatası: ${configError.message}`);
       }
 
       // Google Sign-In başlat
-      await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
+      try {
+        await GoogleSigninModule.hasPlayServices();
+      } catch (playServicesError) {
+        console.error('Google Play Services hatası:', playServicesError);
+        throw new Error('Google Play Services gerekli. Lütfen Google Play Services\'i yükleyin.');
+      }
+      
+      const userInfo = await GoogleSigninModule.signIn();
 
       if (!userInfo || !userInfo.data || !userInfo.data.user) {
         throw new Error('Google girişi başarısız - kullanıcı bilgisi alınamadı');

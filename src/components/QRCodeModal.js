@@ -75,25 +75,32 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
   // Hata mesajı tekrarını engellemek için ref
   const errorShownRef = useRef(false);
 
-  // QR Token ve Image oluştur
+  // QR Token ve Image oluştur - KRITIK AKIS KURALI
   useEffect(() => {
     if (visible && qrData) {
       // Hata ref'ini sıfırla
       errorShownRef.current = false;
+      // State'i sıfırla
+      setQrToken(null);
+      setQrCodeImage(null);
+      setError(null);
+      setLoading(true);
+      // Token üret
       generateQRToken();
     } else {
       // Modal kapandığında state'i temizle
       setQrToken(null);
       setQrCodeImage(null);
       setError(null);
+      setLoading(false);
       errorShownRef.current = false;
     }
   }, [visible, qrData]);
 
-  // QR Token oluştuktan sonra bitmap image üret
+  // QR Token oluştuktan sonra bitmap image üret - KRITIK AKIS KURALI
   useEffect(() => {
-    if (qrToken && Platform.OS !== 'web') {
-      // Async fonksiyonu await ile çağır
+    if (qrToken && typeof qrToken === 'string' && qrToken.length > 20 && Platform.OS !== 'web') {
+      // Token hazır, image üret
       generateQRImage().catch(error => {
         console.error('QR Image generation error:', error);
         if (!errorShownRef.current) {
@@ -207,8 +214,12 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
         throw new Error('QR kod verisi string (JWT token) veya object formatında olmalı');
       }
 
-      // Token başarıyla oluşturuldu
+      // Token başarıyla oluşturuldu - KRITIK AKIS KURALI
+      // 1) setLoading(true) - zaten yukarıda
+      // 2) token üret - tamamlandı
+      // 3) setQrToken(token) - şimdi
       setQrToken(token);
+      // 4) setLoading(false) - image üretildikten sonra (generateQRImage'de)
       clearTimeout(timeoutId); // Başarılı olursa timeout'u temizle
     } catch (err) {
       clearTimeout(timeoutId); // Hata olursa timeout'u temizle
@@ -223,9 +234,10 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
     }
   };
 
-  // QR Code bitmap image üret (SVG YOK)
+  // QR Code bitmap image üret (SVG YOK) - KRITIK AKIS KURALI
   const generateQRImage = async () => {
-    if (!qrToken) {
+    if (!qrToken || typeof qrToken !== 'string' || qrToken.length <= 20) {
+      setLoading(false);
       return;
     }
 
@@ -234,7 +246,8 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
 
     try {
       const imageData = await generateQRCodeImage(qrToken, 260);
-      if (imageData) {
+      if (imageData && typeof imageData === 'string' && imageData.length > 0) {
+        // 5) modal ACIK - zaten açık
         setQrCodeImage(imageData);
       } else {
         throw new Error('QR kod görüntüsü oluşturulamadı');
@@ -246,7 +259,8 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
         errorShownRef.current = true;
       }
     } finally {
-      setLoading(false); // Loading'i kapat
+      // 4) setLoading(false) - KRITIK AKIS KURALI
+      setLoading(false);
     }
   };
 
@@ -292,7 +306,7 @@ const QRCodeModal = ({ visible, onClose, qrData, venueName }) => {
                         <Text style={styles.retryButtonText}>Tekrar Dene</Text>
                       </TouchableOpacity>
                     </View>
-                  ) : qrToken && !loading && qrToken.length > 0 ? (
+                  ) : qrToken && typeof qrToken === 'string' && qrToken.length > 20 && !loading ? (
                     <View style={styles.qrCodeWrapper}>
                       {Platform.OS === 'web' ? (
                         // Web için fallback - QR kod verisini göster
