@@ -79,12 +79,19 @@ const PaymentScreen = () => {
     setProcessing(true);
 
     try {
-      console.log('QR Code scanned:', data);
-      console.log('QR Code type:', type);
+      // QR scanner'dan okunan string'i logla - platform bağımsız, aynen gönderilecek
+      console.log('=== QR CODE SCANNED (CUSTOMER) ===');
+      console.log('QR Type:', type);
+      console.log('QR Data (raw string):', data);
+      console.log('QR Data Type:', typeof data);
+      console.log('QR Data Length:', data?.length || 0);
+      console.log('QR Data Preview:', data?.substring(0, 50) || 'N/A');
+      console.log('===================================');
 
       // QR kod işleme servisi (mock/real ayrımı otomatik)
+      // QR data'yı aynen backend'e gönder - hiçbir encode/decode, stringify, prefix ekleme yapma
       const result = await processQrCode(
-        data,
+        data, // Raw string - aynen gönder
         userToken || null,
         null
       );

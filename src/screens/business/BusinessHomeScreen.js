@@ -23,50 +23,16 @@ import { USE_MOCK_API } from '../../config/api';
 import Logo from '../../components/Logo';
 import Button from '../../components/Button';
 
-// QR Code Generator - Bitmap/Canvas tabanlı (SVG YOK)
-// qrcode paketi kullanılacak (Node.js tabanlı, React Native'de çalışır)
-let QRCode;
+// QR Code Generator - Platform bağımsız (react-native-qrcode-svg)
+// Tüm platformlarda aynı SVG tabanlı QR kod kullanılır
+let QRCodeSVG;
 if (Platform.OS !== 'web') {
   try {
-    QRCode = require('qrcode');
+    QRCodeSVG = require('react-native-qrcode-svg').default;
   } catch (error) {
-    console.warn('QR Code library not available:', error);
+    console.warn('QR Code SVG library not available:', error);
   }
 }
-
-/**
- * QR Code bitmap image üretir (SVG YOK)
- * @param {string} value - QR kod içeriği
- * @param {number} size - QR kod boyutu
- * @returns {Promise<string|null>} Base64 image data URI veya null
- */
-const generateQRCodeImage = async (value, size = 260) => {
-  if (Platform.OS === 'web' || !QRCode) {
-    return null;
-  }
-
-  try {
-    // qrcode paketi ile bitmap QR code üret (PNG base64)
-    const qrCodeData = await QRCode.toDataURL(value, {
-      width: size,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-    });
-
-    // Base64 data URI formatında döner
-    if (qrCodeData && typeof qrCodeData === 'string') {
-      return qrCodeData;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('QR Code generation error:', error);
-    return null;
-  }
-};
 
 // Camera import - Lazy loading (web'de hiç yüklenmez)
 // NOT: require() çağrısı fonksiyon içinde olmalı, dosya seviyesinde DEĞİL
@@ -102,8 +68,7 @@ const BusinessHomeScreen = () => {
   // QR Kod Üretme State
   const [selectedOrderTypes, setSelectedOrderTypes] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState(null);
-  const [qrCodeImage, setQrCodeImage] = useState(null); // Bitmap image (base64)
+  const [qrCodeData, setQrCodeData] = useState(null); // QR token string - platform bağımsız
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
   
   // Promosyon Alma State
@@ -251,7 +216,17 @@ const BusinessHomeScreen = () => {
     setScanned(true);
     setScanProcessing(true);
     
+    // QR scanner'dan okunan string'i logla - platform bağımsız, aynen gönderilecek
+    console.log('=== QR CODE SCANNED ===');
+    console.log('QR Type:', type);
+    console.log('QR Data (raw string):', data);
+    console.log('QR Data Type:', typeof data);
+    console.log('QR Data Length:', data?.length || 0);
+    console.log('QR Data Preview:', data?.substring(0, 50) || 'N/A');
+    console.log('========================');
+    
     try {
+      // QR data'yı aynen backend'e gönder - hiçbir encode/decode, stringify, prefix ekleme yapma
       const result = await scanPromotionQRCode(data, userToken);
       
       if (result.success) {
@@ -438,12 +413,14 @@ const BusinessHomeScreen = () => {
                         {qrCodeData.substring(0, 100)}...
                       </Text>
                     </View>
-                  ) : qrCodeImage ? (
-                    // Bitmap QR Code - SVG YOK, LinearGradient YOK
-                    <Image
-                      source={{ uri: qrCodeImage }}
-                      style={styles.qrCodeImage}
-                      resizeMode="contain"
+                  ) : QRCodeSVG && qrCodeData ? (
+                    // SVG QR Code - Platform bağımsız, her zaman aynı token string'i kullanılır
+                    <QRCodeSVG
+                      value={qrCodeData}
+                      size={260}
+                      color="#000000"
+                      backgroundColor="#FFFFFF"
+                      logo={null}
                     />
                   ) : (
                     <View style={styles.qrCodePlaceholder}>
@@ -766,11 +743,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     fontFamily: 'monospace',
-  },
-  qrCodeImage: {
-    width: 260,
-    height: 260,
-    borderRadius: spacing.xs,
   },
   closeModalButton: {
     width: '100%',

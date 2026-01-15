@@ -80,6 +80,16 @@ export const generateBusinessQRCode = async (orderTypes) => {
       throw new Error('JWT token üretilemedi');
     }
     
+    // Token üretimini logla (debug için)
+    if (__DEV__ || process.env.NODE_ENV !== 'production') {
+      console.log('=== BUSINESS QR TOKEN GENERATED ===');
+      console.log('Token Length:', qrToken.length);
+      console.log('Token Preview:', qrToken.substring(0, 50) + '...');
+      console.log('Payload qrType:', qrPayload.qrType);
+      console.log('Payload orderTypes:', qrPayload.orderTypes);
+      console.log('===================================');
+    }
+    
     return qrToken;
   } catch (error) {
     throw new Error(`QR token oluşturulamadı: ${error.message || 'Bilinmeyen hata'}`);
@@ -114,6 +124,14 @@ export const scanPromotionQRCode = async (qrData, userToken) => {
  * ORTAK PAYLOAD YAPISI kullanır
  */
 const scanPromotionQRCodeMock = async (qrData, userToken) => {
+  // QR scanner'dan okunan string'i logla - platform bağımsız, aynen alınan veri
+  console.log('=== QR CODE SCANNED (BUSINESS) ===');
+  console.log('QR Data (raw string):', qrData);
+  console.log('QR Data Type:', typeof qrData);
+  console.log('QR Data Length:', qrData?.length || 0);
+  console.log('QR Data Preview:', qrData?.substring(0, 50) || 'N/A');
+  console.log('===================================');
+
   // QR kod içeriği MUTLAKA JWT token formatında olmalı
   // JWT format kontrolü: 3 parça olmalı (header.payload.signature)
   if (!qrData || typeof qrData !== 'string') {

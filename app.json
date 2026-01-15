@@ -6,10 +6,10 @@
     "scheme": "luckytable",
     "extra": {
       "eas": {
-        "projectId": "eb5de26e-ff83-49cc-ae0d-69832d2b88b2"
+        "projectId": "608d7cd3-e806-49f1-bb58-d26ff89d1332"
       }
     },
-    "owner": "mevlutluckytables-organization",
+    "owner": "omerluckytables-organization",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -54,6 +54,21 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "luckytable"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ],
       "config": {
         "googleMaps": {

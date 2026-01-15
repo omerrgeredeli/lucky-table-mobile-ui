@@ -1,2 +1,0 @@
-import 'expo/AppEntry';
-

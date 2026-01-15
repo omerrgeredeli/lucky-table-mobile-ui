@@ -15,27 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
-// AuthSession sadece web için kullanılacak, mobile için kaldırıldı
 import * as AuthSession from 'expo-auth-session';
-
-// Google Sign-In - Native library (Android/iOS için)
-// Lazy loading - sadece kullanıldığında yükle
-let GoogleSignin;
-const loadGoogleSignin = () => {
-  if (Platform.OS === 'web') {
-    return null;
-  }
-  if (GoogleSignin) {
-    return GoogleSignin;
-  }
-  try {
-    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-    return GoogleSignin;
-  } catch (error) {
-    console.warn('Google Sign-In native library not available:', error);
-    return null;
-  }
-};
+import * as Google from 'expo-auth-session/providers/google';
 import { AuthContext } from '../../context/AuthContext';
 import { login, sendActivationCode } from '../../services/authService';
 import { GOOGLE_CLIENT_IDS, GOOGLE_CLIENT_SECRET } from '../../config/googleAuth';
@@ -67,6 +48,40 @@ const LoginScreen = () => {
   const [activationCode, setActivationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Google OAuth - expo-auth-session ile platform bağımsız
+  // Android için useProxy: false ile native flow kullanılır (SHA-1 + package name)
+  // Android'de expo-auth-session package name'i scheme olarak kullanır (com.luckytable.app://)
+  // Custom scheme (luckytable://) kullanmak için redirectUri manuel olarak belirtilir
+  // app.json'da android.intentFilters ile luckytable:// scheme'i zorla kullanılır
+  const androidRedirectUri = Platform.OS === 'android'
+    ? AuthSession.makeRedirectUri({
+        scheme: 'luckytable', // app.json'daki scheme - custom scheme zorla kullanılır
+        useProxy: false, // Native flow için
+      })
+    : undefined;
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    // Android: androidClientId kullan (Android OAuth Client ID)
+    // Android OAuth Client ID için Google Cloud Console'da:
+    // - Package name: com.luckytable.app
+    // - SHA-1 fingerprint (EAS build için release SHA-1)
+    // - Authorized redirect URIs: luckytable://oauthredirect (custom scheme)
+    androidClientId: GOOGLE_CLIENT_IDS.android,
+    // iOS: iosClientId kullan
+    iosClientId: GOOGLE_CLIENT_IDS.ios,
+    // Web: webClientId kullan (Web OAuth Client ID)
+    // Web OAuth Client ID için Google Cloud Console'da:
+    // - Authorized redirect URIs: luckytable://oauthredirect
+    webClientId: GOOGLE_CLIENT_IDS.web,
+    scopes: ['openid', 'profile', 'email'],
+    // Android için native flow - useProxy: false ile SHA-1 + package name kullanılır
+    // iOS ve Web için useProxy: true (default) kullanılır
+    useProxy: Platform.OS !== 'android', // Android'de false (native flow), diğer platformlarda true
+    // Android için redirectUri: luckytable://oauthredirect (custom scheme zorla kullanılır)
+    // app.json'da android.intentFilters ile luckytable:// scheme'i AndroidManifest.xml'e eklenir
+    ...(Platform.OS === 'android' && androidRedirectUri ? { redirectUri: androidRedirectUri } : {}),
+  });
 
   // Üyelik iptali sonrası Signup'a yönlendirme kontrolü
   useEffect(() => {
@@ -278,162 +293,19 @@ const LoginScreen = () => {
     }
   };
 
-  // Web için Google Sign-In JavaScript SDK handler (Yeni Identity Services API)
-  const handleGoogleSignInWeb = async (clientId) => {
-    return new Promise((resolve, reject) => {
-      if (typeof window === 'undefined') {
-        setLoading(false);
-        reject(new Error('Window object bulunamadı'));
-        return;
-      }
-
-      // Google Identity Services SDK'yı yükle
-      const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-      if (existingScript) {
-        // Script zaten yüklü, direkt kullan
-        waitForGoogleIdentity(clientId, resolve, reject);
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        waitForGoogleIdentity(clientId, resolve, reject);
-      };
-      script.onerror = () => {
-        setLoading(false);
-        reject(new Error('Google Sign-In script yüklenemedi'));
-      };
-      document.head.appendChild(script);
-    });
-  };
-
-  // Google Identity Services'ın hazır olmasını bekle
-  const waitForGoogleIdentity = (clientId, resolve, reject) => {
-    let attempts = 0;
-    const maxAttempts = 100; // 10 saniye (100ms * 100)
-    
-    const checkGoogle = () => {
-      console.log('Checking Google Identity Services...', attempts, {
-        hasGoogle: !!window.google,
-        hasAccounts: !!(window.google && window.google.accounts),
-        hasOAuth2: !!(window.google && window.google.accounts && window.google.accounts.oauth2),
-      });
-
-      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        console.log('Google Identity Services ready!');
-        initializeGoogleSignInNew(clientId, resolve, reject);
-      } else if (attempts < maxAttempts) {
-        attempts++;
-        setTimeout(checkGoogle, 100);
-      } else {
-        console.error('Google Identity Services timeout', {
-          hasGoogle: !!window.google,
-          hasAccounts: !!(window.google && window.google.accounts),
-          hasOAuth2: !!(window.google && window.google.accounts && window.google.accounts.oauth2),
-        });
-        setLoading(false);
-        reject(new Error('Google Identity Services SDK yüklenemedi. Lütfen sayfayı yenileyin ve tekrar deneyin.'));
-      }
-    };
-    
-    // İlk kontrolü hemen yap
-    checkGoogle();
-  };
-
-  // Yeni Google Identity Services API ile Sign-In
-  const initializeGoogleSignInNew = (clientId, resolve, reject) => {
-    try {
-      if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-        setLoading(false);
-        reject(new Error('Google Identity Services SDK hazır değil'));
-        return;
-      }
-
-      // Token callback
-      const handleCredentialResponse = async (response) => {
-        try {
-          // ID token'ı decode et ve user info al
-          const idToken = response.credential;
-          
-          // JWT token'ı decode et (basit base64 decode)
-          const base64Url = idToken.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split('')
-              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          
-          const tokenData = JSON.parse(jsonPayload);
-          
-          // Google user info
-          const userInfo = {
-            id: tokenData.sub || tokenData.user_id,
-            email: tokenData.email,
-            name: tokenData.name,
-            imageUrl: tokenData.picture,
-          };
-
-          // Mock user oluştur veya mevcut kullanıcıyı bul
-          await processGoogleUserInfo(userInfo, idToken);
-          resolve();
-        } catch (error) {
-          console.error('Token decode error:', error);
-          setLoading(false);
-          reject(new Error('Token işlenemedi: ' + (error.message || error)));
-        }
-      };
-
-      // Google Sign-In butonunu render et (görünmez)
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-      });
-
-      // OAuth2 Token Client ile access token al
-      const tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: clientId,
-        scope: 'openid profile email',
-        callback: async (response) => {
-          if (response.error) {
-            setLoading(false);
-            reject(new Error(response.error || 'Google girişi başarısız'));
-            return;
-          }
-
-          // Access token ile user info al
-          try {
-            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-              headers: { Authorization: `Bearer ${response.access_token}` },
-            });
-            const userInfo = await userInfoResponse.json();
-
-            await processGoogleUserInfo(userInfo, response.access_token);
-            resolve();
-          } catch (error) {
-            console.error('User info fetch error:', error);
-            setLoading(false);
-            reject(new Error('Kullanıcı bilgileri alınamadı'));
-          }
-        },
-      });
-
-      // Token iste
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } catch (error) {
-      console.error('Google Sign-In initialization error:', error);
-      setLoading(false);
-      reject(error);
-    }
-  };
+  // Web için handleGoogleSignInWeb, waitForGoogleIdentity ve initializeGoogleSignInNew kaldırıldı
+  // Artık expo-auth-session tüm platformlarda (Web, Android, iOS) çalışıyor
 
   // Google user info'yu işle
   const processGoogleUserInfo = async (userInfo, idToken) => {
     try {
+      console.log('=== PROCESSING GOOGLE USER INFO ===');
+      console.log('User ID:', userInfo.id);
+      console.log('Email:', userInfo.email);
+      console.log('Name:', userInfo.name);
+      console.log('ID Token:', idToken ? 'Mevcut' : 'Yok');
+      console.log('===================================');
+
       // Mock user oluştur veya mevcut kullanıcıyı bul
       if (USE_MOCK_API) {
         const allUsers = getAllUsers();
@@ -463,6 +335,10 @@ const LoginScreen = () => {
         // Token oluştur
         const token = `mock_jwt_token_${Date.now()}_${foundUser.id}_${foundUser.email.replace('@', '_at_')}`;
         
+        console.log('=== TOKEN CREATED ===');
+        console.log('Token:', token.substring(0, 50) + '...');
+        console.log('=====================');
+        
         // Token'ı kaydet
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('userEmail', foundUser.email);
@@ -473,6 +349,11 @@ const LoginScreen = () => {
       } else {
         // Real API modunda - backend'e Google token gönder
         const token = `mock_jwt_token_${Date.now()}_google_${userInfo.email.replace('@', '_at_')}`;
+        
+        console.log('=== TOKEN CREATED (REAL API) ===');
+        console.log('Token:', token.substring(0, 50) + '...');
+        console.log('================================');
+        
         await AsyncStorage.setItem('userToken', token);
         await AsyncStorage.setItem('userEmail', userInfo.email);
         await authLogin(token);
@@ -485,112 +366,123 @@ const LoginScreen = () => {
     }
   };
 
-  // Google Sign-In handler
-  const handleGoogleSignIn = async () => {
-    console.log('Google Sign-In butonu tıklandı');
-    setLoading(true);
+  // Google OAuth response handler - expo-auth-session ile
+  useEffect(() => {
+    if (response?.type === 'success') {
+      handleGoogleAuthResponse(response);
+    } else if (response?.type === 'error') {
+      console.error('Google OAuth error:', response.error);
+      Alert.alert(
+        'Hata',
+        response.error?.message || 'Google girişi başarısız. Lütfen tekrar deneyin.'
+      );
+      setLoading(false);
+    }
+  }, [response]);
+
+  // Google OAuth response işleme
+  const handleGoogleAuthResponse = async (authResponse) => {
     try {
-      // Config'den platforma göre client ID ve secret al
-      const clientId = Platform.OS === 'web' 
-        ? GOOGLE_CLIENT_IDS.web
-        : Platform.OS === 'ios' 
-          ? GOOGLE_CLIENT_IDS.ios
-          : GOOGLE_CLIENT_IDS.android;
-      const clientSecret = Platform.OS === 'web' ? GOOGLE_CLIENT_SECRET.web : null;
-
-      console.log('Platform:', Platform.OS);
-      console.log('Client ID mevcut:', !!clientId);
-      console.log('Client ID uzunluk:', clientId ? clientId.length : 0);
-
-      // Web için client ID kontrolü - eğer hala boşsa uyar
-      if (Platform.OS === 'web' && (!clientId || clientId.trim() === '')) {
-        console.warn('Web için Google Client ID bulunamadı');
-        const errorMessage = 'Web modunda Google Sign-In için web-specific client ID gereklidir.\n\n' +
-          'Google Cloud Console\'da:\n' +
-          '1. "Web application" tipinde yeni bir OAuth client ID oluşturun\n' +
-          '2. EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB_DEV environment variable\'ına ekleyin\n\n' +
-          'NOT: iOS client ID web\'de kullanılamaz!';
-        
-        if (typeof window !== 'undefined') {
-          window.alert(errorMessage);
-        } else {
-          Alert.alert(
-            t('auth.googleSignInError') || 'Google Sign-In Hatası',
-            errorMessage
-          );
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Platform bazlı ayrım - ZORUNLU
-      if (Platform.OS === 'web') {
-        // WEB: Google Identity Services SDK kullan
-        await handleGoogleSignInWeb(clientId);
-        return;
-      }
-
-      // ANDROID & IOS: @react-native-google-signin/google-signin kullan
-      const GoogleSigninModule = loadGoogleSignin();
-      if (!GoogleSigninModule) {
-        throw new Error('Google Sign-In native library yüklenemedi');
-      }
-
-      // Google Sign-In'i yapılandır - PLATFORM BAZLI CONFIG
-      // SHA-1 kontrolü: Android APK'nin SHA-1'i Google Cloud Console'da kayıtlı olmalı
-      // Beklenen SHA-1: AA:03:92:A8:93:D5:E7:9E:D0:B5:F1:36:E8:CD:42:02:1C:82:7E:60
-      try {
-        if (Platform.OS === 'android') {
-          // ANDROID: androidClientId + webClientId (backend doğrulama için)
-          await GoogleSigninModule.configure({
-            androidClientId: GOOGLE_CLIENT_IDS.android, // Android client ID
-            webClientId: GOOGLE_CLIENT_IDS.web, // Web client ID (backend token doğrulama için)
-            offlineAccess: false,
-            forceCodeForRefreshToken: false,
-          });
-        } else if (Platform.OS === 'ios') {
-          // IOS: iosClientId + webClientId (backend doğrulama için)
-          await GoogleSigninModule.configure({
-            iosClientId: GOOGLE_CLIENT_IDS.ios,
-            webClientId: GOOGLE_CLIENT_IDS.web, // Web client ID (backend token doğrulama için)
-          });
-        }
-      } catch (configError) {
-        console.error('Google Sign-In configure hatası:', configError);
-        throw new Error(`Google Sign-In yapılandırma hatası: ${configError.message}`);
-      }
-
-      // Google Sign-In başlat
-      try {
-        await GoogleSigninModule.hasPlayServices();
-      } catch (playServicesError) {
-        console.error('Google Play Services hatası:', playServicesError);
-        throw new Error('Google Play Services gerekli. Lütfen Google Play Services\'i yükleyin.');
-      }
+      setLoading(true);
       
-      const userInfo = await GoogleSigninModule.signIn();
+      console.log('=== GOOGLE OAUTH RESPONSE ===');
+      console.log('Response Type:', authResponse.type);
+      console.log('Access Token:', authResponse.authentication?.accessToken ? 'Mevcut' : 'Yok');
+      console.log('ID Token:', authResponse.authentication?.idToken ? 'Mevcut' : 'Yok');
+      console.log('============================');
 
-      if (!userInfo || !userInfo.data || !userInfo.data.user) {
-        throw new Error('Google girişi başarısız - kullanıcı bilgisi alınamadı');
+      if (!authResponse.authentication) {
+        throw new Error('Google authentication bilgisi alınamadı');
       }
+
+      const { accessToken, idToken } = authResponse.authentication;
+
+      // Access token ile user info al
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!userInfoResponse.ok) {
+        throw new Error('Kullanıcı bilgileri alınamadı');
+      }
+
+      const userInfo = await userInfoResponse.json();
+
+      console.log('=== GOOGLE USER INFO ===');
+      console.log('User ID:', userInfo.id);
+      console.log('Email:', userInfo.email);
+      console.log('Name:', userInfo.name);
+      console.log('=======================');
 
       // Google user info'yu işle
       const googleUser = {
-        id: userInfo.data.user.id,
-        email: userInfo.data.user.email,
-        name: userInfo.data.user.name,
-        imageUrl: userInfo.data.user.photo || null,
+        id: userInfo.id,
+        email: userInfo.email,
+        name: userInfo.name,
+        imageUrl: userInfo.picture || null,
       };
 
       // Mock user oluştur veya mevcut kullanıcıyı bul
-      await processGoogleUserInfo(googleUser, userInfo.data.idToken || '');
+      await processGoogleUserInfo(googleUser, idToken || accessToken);
     } catch (error) {
-      if (Platform.OS === 'web') {
-        window.alert('Hata: ' + (error.message || 'Google girişi başarısız. Lütfen tekrar deneyin.'));
-      } else {
-        Alert.alert('Hata', error.message || 'Google girişi başarısız. Lütfen tekrar deneyin.');
-      }
-    } finally {
+      console.error('Google auth response error:', error);
+      Alert.alert('Hata', error.message || 'Google girişi başarısız. Lütfen tekrar deneyin.');
+      setLoading(false);
+    }
+  };
+
+  // Google Sign-In handler - expo-auth-session ile platform bağımsız
+  const handleGoogleSignIn = async () => {
+    console.log('=== GOOGLE SIGN-IN BUTTON CLICKED ===');
+    console.log('Platform:', Platform.OS);
+    console.log('Request:', request ? 'Ready' : 'Not ready');
+    console.log('Use Proxy:', Platform.OS !== 'android' ? 'Yes' : 'No (Native Flow)');
+    console.log('Android Client ID:', GOOGLE_CLIENT_IDS.android ? 'Mevcut' : 'Yok');
+    console.log('iOS Client ID:', GOOGLE_CLIENT_IDS.ios ? 'Mevcut' : 'Yok');
+    console.log('Web Client ID:', GOOGLE_CLIENT_IDS.web ? 'Mevcut' : 'Yok');
+    
+    // redirectUri'yi request objesinden al veya manuel oluşturulan değeri kullan
+    const redirectUri = request?.redirectUri || androidRedirectUri || AuthSession.makeRedirectUri({
+      scheme: 'luckytable', // app.json'daki scheme
+      useProxy: Platform.OS !== 'android',
+    });
+    
+    console.log('Redirect URI (kullanılan):', redirectUri);
+    console.log('Beklenen Redirect URI: luckytable://oauthredirect');
+    console.log('Redirect URI eşleşiyor mu?', redirectUri === 'luckytable://oauthredirect' || redirectUri.includes('luckytable://'));
+    
+    if (Platform.OS === 'android') {
+      console.log('Android Native Flow: SHA-1 + Package Name kullanılacak');
+      console.log('Package Name: com.luckytable.app');
+      console.log('Custom Scheme: luckytable:// (app.json android.intentFilters ile zorla kullanılır)');
+      console.log('NOT: Android OAuth Client ID için Google Cloud Console\'da:');
+      console.log('  - Package name: com.luckytable.app');
+      console.log('  - SHA-1 fingerprint (EAS build için release SHA-1)');
+      console.log('  - Authorized redirect URIs: luckytable://oauthredirect (custom scheme)');
+    }
+    
+    if (Platform.OS === 'web' || Platform.OS !== 'android') {
+      console.log('NOT: Web OAuth Client ID için Google Cloud Console\'da:');
+      console.log('  - Authorized redirect URIs: luckytable://oauthredirect');
+    }
+    
+    console.log('=====================================');
+
+    if (!request) {
+      Alert.alert('Hata', 'Google Sign-In henüz hazır değil. Lütfen tekrar deneyin.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // expo-auth-session ile Google OAuth başlat
+      // Android'de native flow kullanılır (SHA-1 + package name)
+      // iOS ve Web'de proxy kullanılır
+      // redirectUri otomatik olarak luckytable://oauthredirect olarak oluşturulur
+      await promptAsync();
+    } catch (error) {
+      console.error('Google Sign-In prompt error:', error);
+      Alert.alert('Hata', error.message || 'Google girişi başlatılamadı. Lütfen tekrar deneyin.');
       setLoading(false);
     }
   };

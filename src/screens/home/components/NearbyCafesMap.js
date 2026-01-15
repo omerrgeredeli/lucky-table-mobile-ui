@@ -44,6 +44,7 @@ const NearbyCafesMap = () => {
   const [nearbyCafes, setNearbyCafes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState(null);
+  const [locationServicesEnabled, setLocationServicesEnabled] = useState(null); // Location servisleri (GPS) açık mı?
   const [userLocation, setUserLocation] = useState(null);
   const [mapRegion, setMapRegion] = useState(null);
   const [error, setError] = useState(null);
@@ -93,10 +94,42 @@ const NearbyCafesMap = () => {
     };
   }, [locationPermission]);
 
+  // Location servislerinin açık olup olmadığını kontrol et (GPS)
+  const checkLocationServices = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setLocationServicesEnabled(true); // Web'de her zaman true
+        return true;
+      }
+      
+      const enabled = await Location.hasServicesEnabledAsync();
+      setLocationServicesEnabled(enabled);
+      
+      if (!enabled) {
+        setError('Konum servisleri kapalı. Haritayı görmek için ayarlardan konum servislerini açın.');
+      }
+      
+      return enabled;
+    } catch (error) {
+      console.error('Location services check error:', error);
+      setLocationServicesEnabled(false);
+      setError('Konum servisleri kontrol edilemedi.');
+      return false;
+    }
+  };
+
   // Konum izni iste - AppState ile yeniden kontrol
   const requestLocationPermission = async () => {
     try {
       setLoading(true);
+      
+      // Önce location servislerinin açık olup olmadığını kontrol et
+      const servicesEnabled = await checkLocationServices();
+      if (!servicesEnabled) {
+        setLoading(false);
+        return;
+      }
+      
       // Önce mevcut izin durumunu kontrol et
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
       
@@ -249,6 +282,7 @@ const NearbyCafesMap = () => {
   
   // MapView render edilmeden önce tüm kontrolleri yap (Android crash önleme)
   // canRenderMap değişkenini component içinde tanımla
+  // Location servisleri açık olmalı, permission verilmiş olmalı
   const canRenderMap = MapView && 
                        mapsReady && 
                        typeof MapView !== 'undefined' && 
@@ -257,7 +291,9 @@ const NearbyCafesMap = () => {
                        mapRegion.latitude && 
                        mapRegion.longitude &&
                        !isNaN(mapRegion.latitude) &&
-                       !isNaN(mapRegion.longitude);
+                       !isNaN(mapRegion.longitude) &&
+                       locationPermission === true &&
+                       locationServicesEnabled === true; // Location servisleri açık olmalı
 
   // Web için fallback render
   if (Platform.OS === 'web') {
@@ -336,7 +372,26 @@ const NearbyCafesMap = () => {
         </TouchableOpacity>
       </View>
 
-      {!locationPermission ? (
+      {locationServicesEnabled === false ? (
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>
+            Konum servisleri kapalı. Haritayı görmek için ayarlardan konum servislerini açın.
+          </Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={async () => {
+              await checkLocationServices();
+              if (locationServicesEnabled) {
+                requestLocationPermission();
+              } else {
+                openSettings();
+              }
+            }}
+          >
+            <Text style={styles.permissionButtonText}>Ayarlara Git</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !locationPermission ? (
         <View style={styles.permissionContainer}>
           <Text style={styles.permissionText}>
             Yakındaki kafeleri görmek için konum izni gereklidir.

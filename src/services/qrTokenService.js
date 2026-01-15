@@ -57,18 +57,18 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
       exp: now + expiresIn, // Expiration
     };
 
-    // Base64 encode (URL-safe)
+    // Base64 encode (URL-safe) - Platform bağımsız, her zaman aynı encoding
     const base64UrlEncode = (str) => {
-      // Web'de btoa kullan, native'de de btoa polyfill genellikle mevcuttur
+      // JSON.stringify - her platformda aynı sonuç
       const jsonStr = JSON.stringify(str);
+      
+      // Base64 encoding - platform bağımsız, her zaman aynı algoritma
+      // React Native ve Web'de btoa polyfill mevcuttur, aynı sonucu verir
       let base64;
-      if (Platform.OS === 'web' && typeof btoa !== 'undefined') {
-        base64 = btoa(jsonStr);
-      } else if (typeof btoa !== 'undefined') {
-        // React Native'de btoa polyfill genellikle mevcuttur
+      if (typeof btoa !== 'undefined') {
         base64 = btoa(jsonStr);
       } else {
-        // Fallback: manual base64 encoding (basit versiyon)
+        // Fallback: manual base64 encoding (her platformda aynı sonuç)
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
         let result = '';
         let i = 0;
@@ -84,6 +84,8 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
         }
         base64 = result;
       }
+      
+      // URL-safe base64 (her platformda aynı)
       return base64
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
@@ -104,11 +106,9 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
       hashString
     );
     
-    // HEX'i base64'e çevir
-    // React Native'de HEX'i base64'e çevirmek için:
-    // 1. HEX string'i byte array'e çevir
-    // 2. Byte array'i base64'e çevir
+    // HEX'i base64'e çevir - Platform bağımsız, her zaman aynı algoritma
     const hexToBase64 = (hex) => {
+      // HEX string'i byte array'e çevir (her platformda aynı)
       const bytes = [];
       for (let i = 0; i < hex.length; i += 2) {
         bytes.push(parseInt(hex.substr(i, 2), 16));
@@ -118,7 +118,7 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
       if (typeof btoa !== 'undefined') {
         return btoa(binary);
       } else {
-        // Fallback: manual base64 (yukarıdaki gibi)
+        // Fallback: manual base64 (her platformda aynı sonuç)
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
         let result = '';
         let i = 0;
@@ -144,8 +144,17 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
       .replace(/\//g, '_')
       .replace(/=/g, '');
 
-    // Token'ı birleştir
+    // Token'ı birleştir - Platform bağımsız, her zaman aynı format
     const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+    // Token üretimini logla (debug için)
+    if (__DEV__ || process.env.NODE_ENV !== 'production') {
+      console.log('=== QR TOKEN GENERATED ===');
+      console.log('Token Length:', token.length);
+      console.log('Token Preview:', token.substring(0, 50) + '...');
+      console.log('Token Format:', token.split('.').length === 3 ? 'JWT (Valid)' : 'Invalid');
+      console.log('==========================');
+    }
 
     return token;
   } catch (error) {
@@ -305,17 +314,6 @@ export const generatePromotionQRToken = async (promotionId, userId = null) => {
     };
   } catch (error) {
     throw new Error(`Payload oluşturulamadı: ${error.message}`);
-  }
-
-  // JSON.stringify validation - try/catch ile güvenli
-  let payloadString;
-  try {
-    payloadString = JSON.stringify(payload);
-    if (!payloadString || payloadString === '{}') {
-      throw new Error('Payload stringify başarısız');
-    }
-  } catch (error) {
-    throw new Error(`Payload stringify hatası: ${error.message}`);
   }
 
   // Token geçerlilik süresi: promosyon bitiş tarihine kadar

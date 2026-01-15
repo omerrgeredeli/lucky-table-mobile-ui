@@ -37,6 +37,7 @@ if (Platform.OS !== 'web') {
  */
 const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation = null }) => {
   const [locationPermission, setLocationPermission] = useState(null);
+  const [locationServicesEnabled, setLocationServicesEnabled] = useState(null); // Location servisleri (GPS) açık mı?
   const [userLocation, setUserLocation] = useState(propUserLocation);
   const [mapRegion, setMapRegion] = useState(null);
   const [cafes, setCafes] = useState(propCafes);
@@ -96,10 +97,39 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
     };
   }, [appState]);
 
+  // Location servislerinin açık olup olmadığını kontrol et (GPS)
+  const checkLocationServices = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setLocationServicesEnabled(true); // Web'de her zaman true
+        return true;
+      }
+      
+      const enabled = await Location.hasServicesEnabledAsync();
+      setLocationServicesEnabled(enabled);
+      return enabled;
+    } catch (error) {
+      console.error('Location services check error:', error);
+      setLocationServicesEnabled(false);
+      return false;
+    }
+  };
+
   // Konum izni kontrolü
   const checkLocationPermission = async () => {
     try {
       if (Platform.OS === 'web') {
+        setLocationPermission(false);
+        setLocationServicesEnabled(true);
+        setMapRegion(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        setLoading(false);
+        return;
+      }
+
+      // Önce location servislerinin açık olup olmadığını kontrol et
+      const servicesEnabled = await checkLocationServices();
+      if (!servicesEnabled) {
         setLocationPermission(false);
         setMapRegion(DEFAULT_LOCATION);
         await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
@@ -241,31 +271,64 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
     );
   }
 
+  // Location servisleri kapalıysa MapView render etme
+  if (locationServicesEnabled === false) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            Konum servisleri kapalı. Haritayı görmek için ayarlardan konum servislerini açın.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // MapView render edilmeden önce tüm kontrolleri yap (Android crash önleme)
+  const canRenderMap = MapView && 
+                       mapsLoaded && 
+                       typeof MapView !== 'undefined' && 
+                       PROVIDER_GOOGLE && 
+                       mapRegion && 
+                       mapRegion.latitude && 
+                       mapRegion.longitude &&
+                       !isNaN(mapRegion.latitude) &&
+                       !isNaN(mapRegion.longitude) &&
+                       locationServicesEnabled !== false; // Location servisleri açık olmalı
+
   // Harita render
   return (
     <View style={styles.container}>
-      <MapView
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={mapRegion}
-        region={mapRegion}
-        showsUserLocation={locationPermission === true}
-        showsMyLocationButton={locationPermission === true}
-        mapType="standard"
-        onRegionChangeComplete={(newRegion) => {
-          if (newRegion && newRegion.latitude && newRegion.longitude) {
-            setMapRegion(newRegion);
-          }
-        }}
-        onError={(error) => {
-          console.error('MapView error:', error);
-        }}
-        onMapReady={() => {
-          console.log('Google Maps is ready');
-        }}
-        loadingEnabled={true}
-        loadingIndicatorColor={colors.primary}
-      >
+      {canRenderMap ? (
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={mapRegion}
+          region={mapRegion}
+          showsUserLocation={locationPermission === true && locationServicesEnabled === true}
+          showsMyLocationButton={locationPermission === true && locationServicesEnabled === true}
+          mapType="standard"
+          onRegionChangeComplete={(newRegion) => {
+            if (newRegion && newRegion.latitude && newRegion.longitude) {
+              setMapRegion(newRegion);
+            }
+          }}
+          onError={(error) => {
+            console.error('MapView error:', error);
+          }}
+          onMapReady={() => {
+            console.log('Google Maps is ready');
+          }}
+          loadingEnabled={true}
+          loadingIndicatorColor={colors.primary}
+          // Android crash önleme: minZoomLevel ve maxZoomLevel ekle
+          minZoomLevel={10}
+          maxZoomLevel={20}
+          // Android için ek güvenlik
+          moveOnMarkerPress={false}
+          pitchEnabled={false}
+          rotateEnabled={false}
+        >
         {/* Kafe Marker'ları - Filtrelenmiş kafeler */}
         {cafes && cafes.length > 0 ? (
           cafes.map((cafe, index) => {
@@ -294,7 +357,13 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
             );
           })
         ) : null}
-      </MapView>
+        </MapView>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Harita yükleniyor...</Text>
+        </View>
+      )}
 
       {loading && (
         <View style={styles.loadingOverlay}>
