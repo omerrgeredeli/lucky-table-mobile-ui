@@ -320,6 +320,26 @@ const PaymentScreen = () => {
               {qrResult && (
                 <>
                   <Text style={styles.resultMessage}>{qrResult.message}</Text>
+                  {qrResult.businessName && (
+                    <View style={styles.resultStatItem}>
+                      <Text style={styles.resultStatLabel}>
+                        {t('payment.businessName') || 'İşletme'}
+                      </Text>
+                      <Text style={styles.resultStatValue}>
+                        {qrResult.businessName}
+                      </Text>
+                    </View>
+                  )}
+                  {qrResult.orderId && (
+                    <View style={styles.resultStatItem}>
+                      <Text style={styles.resultStatLabel}>
+                        {t('payment.orderId') || 'Sipariş No'}
+                      </Text>
+                      <Text style={styles.resultStatValue}>
+                        {qrResult.orderId}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.resultStats}>
                     <View style={styles.resultStatItem}>
                       <Text style={styles.resultStatLabel}>

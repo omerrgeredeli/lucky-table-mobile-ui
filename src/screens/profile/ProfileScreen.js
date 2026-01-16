@@ -57,7 +57,10 @@ const ProfileScreen = () => {
   
   // Dil değiştirme state
   const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage);
-  const [hasLanguageChange, setHasLanguageChange] = useState(false);
+  
+  useEffect(() => {
+    setSelectedLanguage(currentLanguage);
+  }, [currentLanguage]);
 
   // Edit states
   const [newPassword, setNewPassword] = useState('');
@@ -160,6 +163,25 @@ const ProfileScreen = () => {
   const handleLogout = async () => {
     await logout();
     // AppNavigator otomatik olarak AuthStack'e geçecek
+  };
+
+  const handleLanguageChange = async () => {
+    if (selectedLanguage !== currentLanguage) {
+      setLoading(true);
+      try {
+        const success = await changeLanguage(selectedLanguage);
+        if (success) {
+          Alert.alert(t('common.success'), t('language.languageChanged'));
+        } else {
+          Alert.alert(t('common.error'), t('common.error'));
+        }
+      } catch (error) {
+        Alert.alert(t('common.error'), error.message || t('common.error'));
+      } finally {
+        setLoading(false);
+      }
+    }
+    setShowLanguageModal(false);
   };
 
   return (
@@ -407,7 +429,7 @@ const ProfileScreen = () => {
         </View>
       </Modal>
 
-      {/* Dil Seçimi Modal */}
+      {/* Dil Seçimi Modal - BusinessProfileScreen ile birebir aynı */}
       <Modal
         visible={showLanguageModal}
         transparent={true}
@@ -415,80 +437,69 @@ const ProfileScreen = () => {
         onRequestClose={() => {
           setShowLanguageModal(false);
           setSelectedLanguage(currentLanguage);
-          setHasLanguageChange(false);
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('language.selectLanguage')}</Text>
+        <View style={styles.modalOverlayLanguage}>
+          <View style={styles.modalContentLanguage}>
+            <View style={styles.modalHeaderLanguage}>
+              <Text style={styles.modalTitleLanguage}>
+                {t('language.selectLanguage')}
+              </Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowLanguageModal(false);
                   setSelectedLanguage(currentLanguage);
-                  setHasLanguageChange(false);
                 }}
               >
-                <Text style={styles.modalCloseText}>✕</Text>
+                <Text style={styles.modalCloseTextLanguage}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBodyLanguage}>
               {supportedLanguages.map((language) => (
                 <TouchableOpacity
                   key={language.code}
                   style={[
-                    styles.languageOption,
-                    selectedLanguage === language.code && styles.languageOptionSelected,
+                    styles.languageOptionLanguage,
+                    selectedLanguage === language.code && styles.languageOptionSelectedLanguage,
                   ]}
                   onPress={() => {
                     setSelectedLanguage(language.code);
-                    setHasLanguageChange(language.code !== currentLanguage);
                   }}
                 >
-                  <View style={styles.languageOptionContent}>
-                    <Text style={styles.languageOptionFlag}>{language.flag}</Text>
+                  <View style={styles.languageOptionContentLanguage}>
+                    <Text style={styles.languageOptionFlagLanguage}>{language.flag}</Text>
                     <Text
                       style={[
-                        styles.languageOptionName,
-                        selectedLanguage === language.code && styles.languageOptionNameSelected,
+                        styles.languageOptionTextLanguage,
+                        selectedLanguage === language.code && styles.languageOptionTextSelectedLanguage,
                       ]}
                     >
                       {language.name}
                     </Text>
                   </View>
                   {selectedLanguage === language.code && (
-                    <View style={styles.checkmark}>
-                      <Text style={styles.checkmarkText}>✓</Text>
-                    </View>
+                    <Text style={styles.languageOptionCheckLanguage}>✓</Text>
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            {hasLanguageChange && (
-              <View style={styles.modalFooter}>
-                <Button
-                  title={t('common.save')}
-                  onPress={async () => {
-                    setLoading(true);
-                    try {
-                      const success = await changeLanguage(selectedLanguage);
-                      if (success) {
-                        setShowLanguageModal(false);
-                        setHasLanguageChange(false);
-                        Alert.alert(t('common.success'), t('language.languageChanged'));
-                      } else {
-                        Alert.alert(t('common.error'), t('common.error'));
-                      }
-                    } catch (error) {
-                      Alert.alert(t('common.error'), error.message || t('common.error'));
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  loading={loading}
-                />
-              </View>
-            )}
+            <View style={styles.modalFooterLanguage}>
+              <TouchableOpacity
+                style={[styles.modalButtonLanguage, styles.modalButtonCancelLanguage]}
+                onPress={() => {
+                  setShowLanguageModal(false);
+                  setSelectedLanguage(currentLanguage);
+                }}
+              >
+                <Text style={styles.modalButtonTextCancelLanguage}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButtonLanguage, styles.modalButtonConfirmLanguage]}
+                onPress={handleLanguageChange}
+              >
+                <Text style={styles.modalButtonTextConfirmLanguage}>{t('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -601,6 +612,39 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     ...shadows.large,
   },
+  // Dil değiştir modal - BusinessProfileScreen ile birebir aynı
+  modalOverlayLanguage: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContentLanguage: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: spacing.md,
+    borderTopRightRadius: spacing.md,
+    maxHeight: '80%',
+    ...shadows.xlarge,
+  },
+  modalHeaderLanguage: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitleLanguage: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  modalCloseTextLanguage: {
+    fontSize: typography.fontSize.xl,
+    color: colors.textSecondary,
+  },
+  modalBodyLanguage: {
+    padding: spacing.md,
+  },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -619,7 +663,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   modalBody: {
+    flex: 1,
     padding: spacing.lg,
+  },
+  modalBodyContent: {
+    paddingBottom: spacing.md,
   },
   modalDescription: {
     fontSize: typography.fontSize.sm,
@@ -733,6 +781,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
+    position: 'relative',
+    zIndex: 10,
   },
   checkmark: {
     width: 24,
@@ -746,6 +796,77 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.bold,
+  },
+  // Dil değiştir modal stilleri - BusinessProfileScreen ile birebir aynı
+  languageOptionLanguage: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  languageOptionSelectedLanguage: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  languageOptionContentLanguage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  languageOptionFlagLanguage: {
+    fontSize: typography.fontSize.lg,
+    marginRight: spacing.sm,
+  },
+  languageOptionTextLanguage: {
+    fontSize: typography.fontSize.md,
+    color: colors.textPrimary,
+  },
+  languageOptionTextSelectedLanguage: {
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  languageOptionCheckLanguage: {
+    fontSize: typography.fontSize.md,
+    color: colors.white,
+    fontWeight: typography.fontWeight.bold,
+  },
+  modalFooterLanguage: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  modalButtonLanguage: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCancelLanguage: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalButtonConfirmLanguage: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonTextCancelLanguage: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  modalButtonTextConfirmLanguage: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.white,
   },
 });
 

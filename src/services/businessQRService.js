@@ -32,10 +32,10 @@ export const generateBusinessQRCode = async (orderTypes) => {
     throw new Error('Sipariş tipi seçilmedi');
   }
 
-  // MOCK DATA - Tüm bilgiler otomatik üretilir
-  const mockBusinessName = 'Mock Business Cafe'; // Mock işletme adı
+  // MOCK DATA - "Kahve Dünyası - Çankaya" business'ı kullan
+  const mockBusinessName = 'Kahve Dünyası - Çankaya'; // Mock işletme adı
   const mockUserId = Math.floor(Math.random() * 1000000) + 1; // Mock kullanıcı ID
-  const mockBusinessId = `BUSINESS_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const mockBusinessId = 'BUSINESS_KAHVE_DUNYASI_CANKAYA'; // Sabit business ID
 
   // Nonce üret
   const nonce = generateNonce();

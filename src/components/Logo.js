@@ -12,10 +12,18 @@ const Logo = ({ size = 'large' }) => {
   const fontSize = size === 'large' ? 72 : size === 'medium' ? 56 : size === 'small' ? 22 : 42;
   const textSize = size === 'large' ? 24 : size === 'medium' ? 20 : size === 'small' ? 12 : 16;
   const lineHeight = logoSize;
+  
+  // BorderRadius: Yuvarlatılmış köşeli kutu - splash.png ile aynı shape (TAM DAİRE DEĞİL)
+  // Splash.png'deki gibi görünmesi için: logoSize'ın yaklaşık %20-25'i kadar borderRadius
+  // Tam daire olmaması için logoSize/2'den küçük olmalı
+  // Küçük logolar için: 30px * 0.2 = 6px, büyük logolar için: 100px * 0.2 = 20px (ama max 16px)
+  const borderRadiusValue = Math.min(logoSize * 0.2, spacing.md);
+  // Minimum 6px, maksimum spacing.md (16px) - tam daire olmasını engelle
+  const borderRadius = Math.max(Math.min(borderRadiusValue, spacing.md), 6);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.logoContainer, { width: logoSize, height: logoSize }]}>
+      <View style={[styles.logoContainer, { width: logoSize, height: logoSize, borderRadius }]}>
         {/* Büyük L harfi */}
         <Text style={[styles.letterL, { fontSize, lineHeight }]}>L</Text>
       </View>
@@ -35,7 +43,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
     backgroundColor: colors.primary,
-    borderRadius: spacing.md, // Hafif rounded - splash.png ile aynı shape
+    // borderRadius dinamik olarak component içinde hesaplanıyor
     ...shadows.medium,
   },
   letterL: {
