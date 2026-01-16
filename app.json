@@ -26,11 +26,6 @@
       "bundleIdentifier": "com.luckytable.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "config": {
-        "googleSignIn": {
-          "reservedClientId": "974864364834-j7cjkpj7qe5v6nno6dh9r0hniiiihqlf.apps.googleusercontent.com"
-        }
       }
     },
     "android": {
@@ -73,10 +68,6 @@
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyD-WyTFtRLY4ero0tNtOMZNCUjW10FYX2g"
-        },
-        "googleSignIn": {
-          "apiKey": "AIzaSyD-WyTFtRLY4ero0tNtOMZNCUjW10FYX2g",
-          "certificateHash": "974864364834-fkjcf8o8a0algg9r4it6inhos2huq888.apps.googleusercontent.com"
         }
       }
     },

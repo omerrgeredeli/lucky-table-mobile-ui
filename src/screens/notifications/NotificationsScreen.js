@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,33 +6,54 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography } from '../../theme';
 import Logo from '../../components/Logo';
+import { getRecentActivities } from '../../services/activityService';
 
 /**
  * Notifications Screen - Bildirimler
+ * Activity table'dan son 10 order'ı çeker ve gösterir
  * Favori Mekanlar → Tümünü Gör sayfası ile aynı layout yapısında
  */
 const NotificationsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock bildirim verileri
-  const mockNotifications = [
-    { id: 1, date: '12.09.2024', type: 'cafeVisited', cafeName: 'X Kafesi' },
-    { id: 2, date: '08.09.2024', type: 'orderPlaced', cafeName: 'Y Cafe' },
-    { id: 3, date: '05.09.2024', type: 'paymentMade', restaurantName: 'Z Restoran' },
-    { id: 4, date: '03.09.2024', type: 'cafeVisited', cafeName: 'A Kafe' },
-    { id: 5, date: '01.09.2024', type: 'orderPlaced', cafeName: 'B Cafe' },
-    { id: 6, date: '28.08.2024', type: 'paymentMade', restaurantName: 'C Restoran' },
-    { id: 7, date: '25.08.2024', type: 'cafeVisited', cafeName: 'D Kafe' },
-    { id: 8, date: '22.08.2024', type: 'orderPlaced', cafeName: 'E Cafe' },
-    { id: 9, date: '20.08.2024', type: 'paymentMade', restaurantName: 'F Restoran' },
-    { id: 10, date: '18.08.2024', type: 'cafeVisited', cafeName: 'G Kafe' },
-  ];
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const activities = await getRecentActivities();
+      setNotifications(activities || []);
+    } catch (error) {
+      console.error('Notifications fetch error:', error);
+      Alert.alert(t('common.error'), t('notifications.loadError') || 'Bildirimler yüklenemedi');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    } catch (error) {
+      return dateString;
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -57,27 +78,37 @@ const NotificationsScreen = () => {
         {/* Bildirimler Listesi */}
         <View style={styles.notificationsContainer}>
           <Text style={styles.sectionTitle}>{t('notifications.title')}</Text>
-              <FlatList
-                data={mockNotifications}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  let message = '';
-                  if (item.type === 'cafeVisited') {
-                    message = t('notifications.cafeVisited', { cafeName: item.cafeName });
-                  } else if (item.type === 'orderPlaced') {
-                    message = t('notifications.orderPlaced', { cafeName: item.cafeName });
-                  } else if (item.type === 'paymentMade') {
-                    message = t('notifications.paymentMade', { restaurantName: item.restaurantName });
-                  }
-                  return (
-                    <View style={styles.notificationItem}>
-                      <Text style={styles.notificationDate}>{item.date}</Text>
-                      <Text style={styles.notificationMessage}>{message}</Text>
-                    </View>
-                  );
-                }}
-                scrollEnabled={false}
-              />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : notifications.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>{t('notifications.noNotifications')}</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={notifications}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => {
+                let message = '';
+                if (item.type === 'cafeVisited') {
+                  message = t('notifications.cafeVisited', { cafeName: item.cafeName });
+                } else if (item.type === 'orderPlaced') {
+                  message = t('notifications.orderPlaced', { cafeName: item.cafeName });
+                } else if (item.type === 'paymentMade') {
+                  message = t('notifications.paymentMade', { restaurantName: item.restaurantName });
+                }
+                return (
+                  <View style={styles.notificationItem}>
+                    <Text style={styles.notificationDate}>{formatDate(item.date)}</Text>
+                    <Text style={styles.notificationMessage}>{message}</Text>
+                  </View>
+                );
+              }}
+              scrollEnabled={false}
+            />
+          )}
         </View>
       </ScrollView>
     </View>
@@ -131,6 +162,20 @@ const styles = StyleSheet.create({
   notificationMessage: {
     fontSize: typography.fontSize.md,
     color: colors.textPrimary,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
   },
 });
 

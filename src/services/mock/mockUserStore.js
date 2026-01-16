@@ -52,6 +52,23 @@ const initializeTestUsers = () => {
     updatedAt: new Date().toISOString(),
   });
   
+  // Kahve Dünyası - Çankaya business kullanıcısı (user role)
+  // Şifre: KahveDunya123! (validation kurallarına uygun)
+  userStore.set('kahvedunyasi.cankaya@example.com', {
+    id: 3,
+    email: 'kahvedunyasi.cankaya@example.com',
+    password: 'KahveDunya123!', // Validation'a uygun şifre
+    name: 'Kahve Dünyası',
+    fullName: 'Kahve Dünyası - Çankaya',
+    phone: '5559876543',
+    countryCode: 'TR',
+    phoneNumber: '5559876543',
+    notificationsEnabled: true,
+    role: 'user', // Business role
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  
   // Business account bilgilerini console'a yazdır (test için)
   console.log('========================================');
   console.log('📋 MOCK BUSINESS ACCOUNT BİLGİLERİ');
@@ -85,6 +102,7 @@ const loadStoreFromStorage = async () => {
     // Bu sayede business account her zaman mevcut olur
     const testCustomerEmail = 'test@example.com';
     const testBusinessEmail = 'business@example.com';
+    const kahveDunyasiEmail = 'kahvedunyasi.cankaya@example.com';
     
     if (!userStore.has(testCustomerEmail)) {
       userStore.set(testCustomerEmail, {
@@ -120,6 +138,23 @@ const loadStoreFromStorage = async () => {
       });
     }
     
+    if (!userStore.has(kahveDunyasiEmail)) {
+      userStore.set(kahveDunyasiEmail, {
+        id: 3,
+        email: kahveDunyasiEmail,
+        password: 'KahveDunya123!',
+        name: 'Kahve Dünyası',
+        fullName: 'Kahve Dünyası - Çankaya',
+        phone: '5559876543',
+        countryCode: 'TR',
+        phoneNumber: '5559876543',
+        notificationsEnabled: true,
+        role: 'user',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
     // Test kullanıcıları eklendiyse storage'a kaydet
     if (!stored) {
       await saveStoreToStorage();
@@ -135,10 +170,16 @@ const loadStoreFromStorage = async () => {
     console.log('========================================');
     console.log('📋 MOCK BUSINESS ACCOUNT BİLGİLERİ');
     console.log('========================================');
-    console.log('Email: business@example.com');
-    console.log('Şifre: Business123!');
-    console.log('Role: user (business)');
-    console.log('Telefon: 5557654321');
+    console.log('1. Email: business@example.com');
+    console.log('   Şifre: Business123!');
+    console.log('   Role: user (business)');
+    console.log('   Telefon: 5557654321');
+    console.log('');
+    console.log('2. Email: kahvedunyasi.cankaya@example.com');
+    console.log('   Şifre: KahveDunya123!');
+    console.log('   Role: user (business)');
+    console.log('   İşletme: Kahve Dünyası - Çankaya');
+    console.log('   Telefon: 5559876543');
     console.log('========================================');
   } catch (error) {
     console.error('Error loading store from storage:', error);

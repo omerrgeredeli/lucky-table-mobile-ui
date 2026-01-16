@@ -15,7 +15,6 @@ const Button = ({ title, onPress, loading = false, variant = 'primary' }) => {
       style={[
         styles.button,
         variant === 'secondary' && styles.buttonSecondary,
-        variant === 'google' && styles.buttonGoogle,
       ]}
       onPress={onPress}
       disabled={loading}
@@ -26,24 +25,18 @@ const Button = ({ title, onPress, loading = false, variant = 'primary' }) => {
           color={
             variant === 'primary'
               ? colors.white
-              : variant === 'google'
-              ? colors.white
               : colors.primary
           }
         />
       ) : (
-        <View style={styles.buttonContent}>
-          {variant === 'google' && <Text style={styles.googleIcon}>G</Text>}
-          <Text
-            style={[
-              styles.buttonText,
-              variant === 'secondary' && styles.buttonTextSecondary,
-              variant === 'google' && styles.buttonTextGoogle,
-            ]}
-          >
-            {title}
-          </Text>
-        </View>
+        <Text
+          style={[
+            styles.buttonText,
+            variant === 'secondary' && styles.buttonTextSecondary,
+          ]}
+        >
+          {title}
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -71,29 +64,6 @@ const styles = StyleSheet.create({
   },
   buttonTextSecondary: {
     color: colors.primary,
-  },
-  buttonGoogle: {
-    backgroundColor: '#4285F4',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    backgroundColor: colors.white,
-    color: '#4285F4',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginRight: spacing.sm,
-  },
-  buttonTextGoogle: {
-    color: colors.white,
   },
 });
 

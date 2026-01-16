@@ -19,8 +19,6 @@ import {
   getUserProfile,
   updateUserProfile,
   updatePassword,
-  updateEmail,
-  updatePhone,
   getNotificationSettings,
   updateNotificationSettings,
   deleteAccount,
@@ -54,10 +52,7 @@ const ProfileScreen = () => {
   });
 
   // Modal states
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showActivationModal, setShowActivationModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   
   // Dil değiştirme state
@@ -65,11 +60,8 @@ const ProfileScreen = () => {
   const [hasLanguageChange, setHasLanguageChange] = useState(false);
 
   // Edit states
-  const [newEmail, setNewEmail] = useState('');
-  const [newPhone, setNewPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [activationCode, setActivationCode] = useState('');
 
   // Şifre validasyon kuralları - dil değişikliğinde güncellenir
   const passwordRules = useMemo(() => [
@@ -121,53 +113,6 @@ const ProfileScreen = () => {
     }
   };
 
-  // Email düzenleme
-  const handleEmailEdit = () => {
-    setNewEmail(profileData.email);
-    setShowEmailModal(true);
-  };
-
-  const handleEmailUpdate = async () => {
-    if (!newEmail.trim() || !/\S+@\S+\.\S+/.test(newEmail)) {
-      Alert.alert('Hata', 'Geçerli bir email adresi giriniz');
-      return;
-    }
-    
-    // Aktivasyon kodu gönder
-    try {
-      const { sendActivationCode } = await import('../../services/authService');
-      await sendActivationCode(newEmail);
-    setShowEmailModal(false);
-    setShowActivationModal(true);
-    } catch (error) {
-      Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
-    }
-  };
-
-  // Telefon düzenleme
-  const handlePhoneEdit = () => {
-    setNewPhone(profileData.phone);
-    setShowPhoneModal(true);
-  };
-
-  const handlePhoneUpdate = async () => {
-    const phoneRegex = /^(\+90|0)?[5][0-9]{9}$/;
-    const cleanedPhone = newPhone.replace(/\s/g, '').replace(/[()-]/g, '');
-    if (!phoneRegex.test(cleanedPhone)) {
-      Alert.alert('Hata', 'Geçerli bir telefon numarası giriniz');
-      return;
-    }
-    
-    // Aktivasyon kodu gönder
-    try {
-      const { sendActivationCode } = await import('../../services/authService');
-      await sendActivationCode(cleanedPhone);
-    setShowPhoneModal(false);
-    setShowActivationModal(true);
-    } catch (error) {
-      Alert.alert('Hata', error.message || 'Aktivasyon kodu gönderilemedi');
-    }
-  };
 
   // Şifre değişikliği
   const handlePasswordEdit = () => {
@@ -176,37 +121,6 @@ const ProfileScreen = () => {
     setShowPasswordModal(true);
   };
 
-  // Aktivasyon kodu doğrulama
-  const handleActivationSubmit = async () => {
-    if (activationCode.length !== 6) {
-      Alert.alert('Hata', 'Aktivasyon kodu 6 haneli olmalıdır');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      // Email veya telefon güncelleme
-      if (newEmail && newEmail !== profileData.email) {
-        await updateEmail(newEmail, activationCode);
-        setProfileData({ ...profileData, email: newEmail });
-      } else if (newPhone) {
-        await updatePhone(newPhone, activationCode);
-        setProfileData({ ...profileData, phone: newPhone });
-      }
-      
-    setShowActivationModal(false);
-    setActivationCode('');
-      setNewEmail('');
-      setNewPhone('');
-    Alert.alert('Başarılı', 'Bilgileriniz güncellendi');
-    setHasChanges(false);
-    await loadProfile();
-    } catch (error) {
-      Alert.alert('Hata', error.message || 'Güncelleme başarısız');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Üyelik iptali modal state
   const [showCancelMembershipModal, setShowCancelMembershipModal] = useState(false);
@@ -264,9 +178,6 @@ const ProfileScreen = () => {
               <Text style={styles.infoLabel}>{t('profile.email')}</Text>
               <Text style={styles.infoValue}>{profileData.email}</Text>
             </View>
-            <TouchableOpacity onPress={handleEmailEdit} style={styles.editIcon}>
-              <Text style={styles.editIconText}>✏️</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Telefon */}
@@ -275,9 +186,6 @@ const ProfileScreen = () => {
               <Text style={styles.infoLabel}>{t('profile.phone')}</Text>
               <Text style={styles.infoValue}>{profileData.phone}</Text>
             </View>
-            <TouchableOpacity onPress={handlePhoneEdit} style={styles.editIcon}>
-              <Text style={styles.editIconText}>✏️</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Şifre */}
@@ -414,70 +322,6 @@ const ProfileScreen = () => {
         )}
       </ScrollView>
 
-      {/* Email Düzenleme Modal */}
-      <Modal
-        visible={showEmailModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowEmailModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('profile.editEmail')}</Text>
-              <TouchableOpacity onPress={() => setShowEmailModal(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalBody}>
-              <Input
-                label={t('profile.newEmail')}
-                placeholder={t('auth.emailPlaceholder')}
-                value={newEmail}
-                onChangeText={setNewEmail}
-                keyboardType="email-address"
-              />
-              <Button
-                title={t('profile.update')}
-                onPress={handleEmailUpdate}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Telefon Düzenleme Modal */}
-      <Modal
-        visible={showPhoneModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPhoneModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('profile.editPhone')}</Text>
-              <TouchableOpacity onPress={() => setShowPhoneModal(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalBody}>
-              <Input
-                label={t('profile.newPhone')}
-                placeholder={t('auth.phonePlaceholder')}
-                value={newPhone}
-                onChangeText={setNewPhone}
-                keyboardType="phone-pad"
-              />
-              <Button
-                title={t('profile.update')}
-                onPress={handlePhoneUpdate}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Şifre Değişikliği Modal */}
       <Modal
         visible={showPasswordModal}
@@ -563,50 +407,6 @@ const ProfileScreen = () => {
         </View>
       </Modal>
 
-      {/* Aktivasyon Kodu Modal */}
-      <Modal
-        visible={showActivationModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => {
-          setShowActivationModal(false);
-          setActivationCode('');
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('auth.activationCode')}</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowActivationModal(false);
-                  setActivationCode('');
-                }}
-              >
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalBody}>
-              <Text style={styles.modalDescription}>
-                {t('auth.activationCodeDescription')}
-              </Text>
-              <Input
-                label={t('auth.activationCode')}
-                placeholder={t('auth.activationCodePlaceholder')}
-                value={activationCode}
-                onChangeText={setActivationCode}
-                keyboardType="number-pad"
-                maxLength={6}
-              />
-              <Button
-                title={t('auth.verify')}
-                onPress={handleActivationSubmit}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Dil Seçimi Modal */}
       <Modal
         visible={showLanguageModal}
@@ -663,32 +463,32 @@ const ProfileScreen = () => {
                   )}
                 </TouchableOpacity>
               ))}
-              {hasLanguageChange && (
-                <View style={styles.languageSaveContainer}>
-                  <Button
-                    title={t('common.save')}
-                    onPress={async () => {
-                      setLoading(true);
-                      try {
-                        const success = await changeLanguage(selectedLanguage);
-                        if (success) {
-                          setShowLanguageModal(false);
-                          setHasLanguageChange(false);
-                          Alert.alert(t('common.success'), t('language.languageChanged'));
-                        } else {
-                          Alert.alert(t('common.error'), t('common.error'));
-                        }
-                      } catch (error) {
-                        Alert.alert(t('common.error'), error.message || t('common.error'));
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    loading={loading}
-                  />
-                </View>
-              )}
             </ScrollView>
+            {hasLanguageChange && (
+              <View style={styles.modalFooter}>
+                <Button
+                  title={t('common.save')}
+                  onPress={async () => {
+                    setLoading(true);
+                    try {
+                      const success = await changeLanguage(selectedLanguage);
+                      if (success) {
+                        setShowLanguageModal(false);
+                        setHasLanguageChange(false);
+                        Alert.alert(t('common.success'), t('language.languageChanged'));
+                      } else {
+                        Alert.alert(t('common.error'), t('common.error'));
+                      }
+                    } catch (error) {
+                      Alert.alert(t('common.error'), error.message || t('common.error'));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  loading={loading}
+                />
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -927,6 +727,12 @@ const styles = StyleSheet.create({
   },
   languageSaveContainer: {
     marginTop: spacing.md,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
   checkmark: {
     width: 24,

@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
     backgroundColor: colors.primary,
-    borderRadius: spacing.md,
+    borderRadius: spacing.md, // Hafif rounded - splash.png ile aynı shape
     ...shadows.medium,
   },
   letterL: {

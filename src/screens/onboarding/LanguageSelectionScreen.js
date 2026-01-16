@@ -48,8 +48,7 @@ const LanguageSelectionScreen = () => {
     }
   };
 
-  // Geçici olarak seçili dil için çevirileri göster
-  // Gerçek çeviri dil seçildikten sonra aktif olacak
+  // Native dil isimlerini göster
   const getLanguageName = (code) => {
     const names = {
       tr: 'Türkçe',
@@ -58,6 +57,10 @@ const LanguageSelectionScreen = () => {
       de: 'Deutsch',
       it: 'Italiano',
       ru: 'Русский',
+      es: 'Español',
+      ja: '日本語',
+      'zh-CN': '简体中文',
+      az: 'Azərbaycan dili',
     };
     return names[code] || code;
   };

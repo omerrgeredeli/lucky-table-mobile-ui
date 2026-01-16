@@ -34,7 +34,11 @@
     "french": "Fransızca",
     "german": "Almanca",
     "italian": "İtalyanca",
-    "russian": "Rusça"
+    "russian": "Rusça",
+    "spanish": "İspanyolca",
+    "japanese": "Japonca",
+    "chinese": "Çince",
+    "azerbaijani": "Azerbaycan Türkçesi"
   },
   "auth": {
     "welcome": "Hoş Geldiniz",
@@ -152,7 +156,7 @@
     "home": "Ana Sayfa",
     "browse": "Göz At",
     "payment": "Ödeme Yap",
-    "promotions": "Kazanılan Promosyonlar",
+    "promotions": "Promosyonlar",
     "profile": "Profil",
     "loyaltyDetails": "Favori Mekanlar",
     "notifications": "Bildirimler",
@@ -188,7 +192,9 @@
     "next": "Sonraki",
     "page": "Sayfa",
     "show": "Göster",
-    "showOnlyOpen": "Şu anda açık olanlar"
+    "showOnlyOpen": "Şu anda açık olanlar",
+    "opening": "Açılış",
+    "closing": "Kapanış"
   },
   "payment": {
     "title": "Ödeme Yap",
@@ -221,7 +227,7 @@
     "qrProcessingError": "QR kod işleme hatası"
   },
   "promotions": {
-    "title": "Kazanılan Promosyonlar",
+    "title": "Promosyonlar",
     "pastTitle": "Geçmiş Promosyonlar",
     "past": "Geçmiş",
     "freeCoffeeEarned": "{{venueName}} mekanından ücretsiz kahve kazandınız",

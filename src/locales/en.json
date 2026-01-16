@@ -34,7 +34,11 @@
     "french": "French",
     "german": "German",
     "italian": "Italian",
-    "russian": "Russian"
+    "russian": "Russian",
+    "spanish": "Spanish",
+    "japanese": "Japanese",
+    "chinese": "Chinese",
+    "azerbaijani": "Azerbaijani"
   },
   "auth": {
     "welcome": "Welcome",

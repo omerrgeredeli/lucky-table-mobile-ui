@@ -36,7 +36,7 @@ const BrowseScreen = () => {
   const [loading, setLoading] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
   const [hasSearched, setHasSearched] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
@@ -322,9 +322,25 @@ const BrowseScreen = () => {
 
           {/* Sağ taraf - Açılış/Kapanış saatleri */}
           <View style={styles.cafeHoursContainer}>
-            <Text style={[styles.cafeHours, isClosed && !showOnlyOpen && styles.cafeHoursClosed]}>
-              {hoursText}
-            </Text>
+            <View style={styles.hoursRow}>
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.opening')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.open}
+                </Text>
+              </View>
+              <View style={styles.hoursSeparator} />
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.closing')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.close}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
     </View>
@@ -711,6 +727,36 @@ const styles = StyleSheet.create({
   cafeHoursContainer: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  hoursColumn: {
+    alignItems: 'center',
+  },
+  hoursLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs / 2,
+  },
+  hoursLabelClosed: {
+    opacity: 0.7,
+  },
+  hoursTime: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  hoursTimeClosed: {
+    opacity: 0.7,
+  },
+  hoursSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.xs,
+    marginTop: spacing.xs,
   },
   cafeHours: {
     fontSize: typography.fontSize.sm,

@@ -8,6 +8,10 @@ import fr from '../locales/fr.json';
 import de from '../locales/de.json';
 import it from '../locales/it.json';
 import ru from '../locales/ru.json';
+import es from '../locales/es.json';
+import ja from '../locales/ja.json';
+import zhCN from '../locales/zh-CN.json';
+import az from '../locales/az.json';
 
 // Desteklenen diller
 export const SUPPORTED_LANGUAGES = [
@@ -17,6 +21,10 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
   { code: 'it', name: 'Italiano', flag: '🇮🇹' },
   { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'zh-CN', name: '简体中文', flag: '🇨🇳' },
+  { code: 'az', name: 'Azərbaycan dili', flag: '🇦🇿' },
 ];
 
 // Varsayılan dil - cihaz diline göre veya Türkçe
@@ -77,6 +85,10 @@ const initI18n = async () => {
             de: { translation: de },
             it: { translation: it },
             ru: { translation: ru },
+            es: { translation: es },
+            ja: { translation: ja },
+            'zh-CN': { translation: zhCN },
+            az: { translation: az },
           },
           lng: defaultLanguage,
           fallbackLng: 'tr',
