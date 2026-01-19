@@ -44,6 +44,7 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
   const [cafes, setCafes] = useState(propCafes);
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState(AppState.currentState);
+  const [selectedCafe, setSelectedCafe] = useState(null); // Seçili kafe için yol tarifi butonu
 
   // Varsayılan konum (Ankara)
   const DEFAULT_LOCATION = {
@@ -346,25 +347,16 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
                 description={cafe.address || ''}
                 pinColor={colors.primary}
                 onPress={() => {
-                  // Marker seçildiğinde Google Maps uygulamasını aç
-                  if (cafe.latitude && cafe.longitude) {
-                    const url = Platform.select({
-                      ios: `maps://maps.apple.com/?daddr=${cafe.latitude},${cafe.longitude}&dirflg=d`,
-                      android: `google.navigation:q=${cafe.latitude},${cafe.longitude}`,
-                    });
-                    if (url) {
-                      Linking.openURL(url).catch((err) => {
-                        console.error('Yol tarifi açılamadı:', err);
-                        // Fallback: Google Maps web URL
-                        const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${cafe.latitude},${cafe.longitude}`;
-                        Linking.openURL(webUrl).catch((err2) => {
-                          console.error('Web harita açılamadı:', err2);
-                        });
-                      });
-                    }
-                  }
+                  // Marker seçildiğinde sadece state'i güncelle, yol tarifi butonu gösterilecek
+                  setSelectedCafe(cafe);
                 }}
               >
+                {/* Kafe ismini pin üzerinde göster */}
+                <View style={styles.markerLabelContainer}>
+                  <Text style={styles.markerLabel} numberOfLines={1}>
+                    {cafe.name || 'Kafe'}
+                  </Text>
+                </View>
                 <Callout>
                   <View style={styles.calloutContainer}>
                     <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
@@ -389,6 +381,44 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Yükleniyor...</Text>
+        </View>
+      )}
+
+      {/* Google Maps'in kendi yol tarifi butonu - Seçili kafe varsa sağ alt köşede göster */}
+      {selectedCafe && (
+        <View style={[
+          styles.directionsButtonContainer,
+          // showsMyLocationButton varsa (locationPermission ve locationServicesEnabled true ise) yukarı kaydır
+          locationPermission === true && locationServicesEnabled === true && {
+            bottom: 80,
+          }
+        ]}>
+          <TouchableOpacity
+            style={styles.directionsButton}
+            onPress={() => {
+              if (selectedCafe.latitude && selectedCafe.longitude) {
+                const url = Platform.select({
+                  ios: `maps://maps.apple.com/?daddr=${selectedCafe.latitude},${selectedCafe.longitude}&dirflg=d`,
+                  android: `google.navigation:q=${selectedCafe.latitude},${selectedCafe.longitude}`,
+                });
+                if (url) {
+                  Linking.openURL(url).catch((err) => {
+                    console.error('Yol tarifi açılamadı:', err);
+                    // Fallback: Google Maps web URL
+                    const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${selectedCafe.latitude},${selectedCafe.longitude}`;
+                    Linking.openURL(webUrl).catch((err2) => {
+                      console.error('Web harita açılamadı:', err2);
+                    });
+                  });
+                }
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.directionsIconContainer}>
+              <Text style={styles.directionsIcon}>→</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -460,6 +490,72 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: spacing.md,
     fontWeight: typography.fontWeight.semibold,
+  },
+  markerLabelContainer: {
+    position: 'absolute',
+    bottom: 35,
+    left: -50,
+    width: 100,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  markerLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+    textAlign: 'center',
+  },
+  directionsButtonContainer: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    zIndex: 1000,
+  },
+  directionsButton: {
+    backgroundColor: '#FFFFFF',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  directionsIconContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  directionsIcon: {
+    fontSize: 24,
+    color: '#4285F4',
+    fontWeight: 'bold',
   },
 });
 

@@ -115,6 +115,8 @@ const PhoneInput = ({
                 scrollEnabled={true}
                 style={styles.dropdownScrollView}
                 contentContainerStyle={styles.dropdownScrollContent}
+                bounces={false}
+                alwaysBounceVertical={false}
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: spacing.sm,
-    height: 250,
+    maxHeight: 300,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -250,7 +252,7 @@ const styles = StyleSheet.create({
   },
   dropdownScrollView: {
     flex: 1,
-    height: 250,
+    maxHeight: 300,
   },
   dropdownScrollContent: {
     paddingVertical: 0,

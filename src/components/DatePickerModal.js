@@ -407,6 +407,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
     textAlignVertical: 'center',
+    lineHeight: 50,
+    height: 50,
   },
   scrollItemTextSelected: {
     fontSize: typography.fontSize.md,
@@ -415,6 +417,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
     textAlignVertical: 'center',
+    lineHeight: 50,
+    height: 50,
   },
   selectedIndicator: {
     position: 'absolute',
