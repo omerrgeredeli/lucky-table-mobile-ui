@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,14 +22,6 @@ import PhoneInput from '../../components/PhoneInput';
 import PasswordInput from '../../components/PasswordInput';
 import Logo from '../../components/Logo';
 
-// Ülke listesi - Dropdown'u SignupScreen seviyesinde render etmek için
-const COUNTRIES = [
-  { code: 'TR', name: 'Türkiye', dialCode: '+90', phoneLength: 10 },
-  { code: 'DE', name: 'Almanya', dialCode: '+49', phoneLength: 11 },
-  { code: 'US', name: 'ABD', dialCode: '+1', phoneLength: 10 },
-  { code: 'UK', name: 'İngiltere', dialCode: '+44', phoneLength: 10 },
-];
-
 /**
  * Signup Screen - Micro-Screen Architecture
  * Bu ekran tamamen bağımsızdır, kendi state'ini yönetir
@@ -52,8 +44,6 @@ const SignupScreen = () => {
   const [errors, setErrors] = useState({});
   // Dropdown state - PhoneInput dropdown'unu SignupScreen seviyesinde render etmek için
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-  const [phoneInputLayout, setPhoneInputLayout] = useState(null);
-  const [scrollOffset, setScrollOffset] = useState(0);
 
   // Şifre validasyon kuralları - her kuralı ayrı kontrol et
   const passwordRules = useMemo(() => [
@@ -90,13 +80,20 @@ const SignupScreen = () => {
     return errors;
   };
 
-  // Telefon numarası validasyonu - ülkeye göre dinamik
+    // Telefon numarası validasyonu - ülkeye göre dinamik
   const validatePhoneNumber = (phone, countryCode) => {
     const phoneLengths = {
       TR: 10,
-      DE: 11,
       US: 10,
       UK: 10,
+      FR: 9,
+      DE: 11,
+      IT: 10,
+      RU: 10,
+      ES: 9,
+      JP: 10,
+      CN: 11,
+      AZ: 9,
     };
     const requiredLength = phoneLengths[countryCode] || 10;
     const cleaned = phone.replace(/\s/g, '').replace(/[()-]/g, '');
@@ -120,7 +117,7 @@ const SignupScreen = () => {
     if (!phoneNumber.trim()) {
       newErrors.phoneNumber = t('auth.phoneRequired');
     } else if (!validatePhoneNumber(phoneNumber, countryCode)) {
-      const phoneLengths = { TR: 10, DE: 11, US: 10, UK: 10 };
+      const phoneLengths = { TR: 10, US: 10, UK: 10, FR: 9, DE: 11, IT: 10, RU: 10, ES: 9, JP: 10, CN: 11, AZ: 9 };
       const requiredLength = phoneLengths[countryCode] || 10;
       newErrors.phoneNumber = t('auth.phoneLengthError', { length: requiredLength });
     }
@@ -212,17 +209,12 @@ const SignupScreen = () => {
         keyboardShouldPersistTaps="handled"
         // nestedScrollEnabled - iç içe scroll'lar için gerekli
         nestedScrollEnabled={true}
-        // ScrollView scroll edildiğinde dropdown'u kapat ve scroll offset'ini kaydet
+        // ScrollView scroll edildiğinde dropdown'u kapat
         onScrollBeginDrag={() => {
           if (showCountryDropdown) {
             setShowCountryDropdown(false);
           }
         }}
-        onScroll={(event) => {
-          // Scroll offset'ini kaydet - dropdown pozisyonunu doğru hesaplamak için
-          setScrollOffset(event.nativeEvent.contentOffset.y);
-        }}
-        scrollEventThrottle={16}
       >
         <View style={styles.content}>
           <Logo size="large" />
@@ -258,10 +250,6 @@ const SignupScreen = () => {
             onDropdownSelect={(country) => {
               setCountryCode(country.code);
               setShowCountryDropdown(false);
-            }}
-            onComboBoxLayout={(layout) => {
-              // ComboBox'un pozisyonunu al - dropdown'u ComboBox'un tam altına yerleştirmek için
-              setPhoneInputLayout(layout);
             }}
           />
 
@@ -362,52 +350,6 @@ const SignupScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Country Dropdown - SignupScreen seviyesinde render ediliyor, ScrollView'in dışında */}
-      {showCountryDropdown && phoneInputLayout && (
-        <View
-          style={[
-            styles.countryDropdownOverlay,
-            {
-              // ComboBox'un tam altından açılması için pozisyon hesaplaması
-              // ScrollView scroll offset'ini de hesaba kat
-              top: phoneInputLayout.y + phoneInputLayout.height + 4 + scrollOffset, // ComboBox'un hemen altı (4px margin) + scroll offset
-              left: phoneInputLayout.x,
-              width: phoneInputLayout.width, // ComboBox'un genişliği kadar
-            },
-          ]}
-          pointerEvents="box-none"
-        >
-          <View style={styles.countryDropdownList}>
-            {COUNTRIES.map((item) => (
-              <TouchableOpacity
-                key={item.code}
-                style={[
-                  styles.countryDropdownItem,
-                  countryCode === item.code && styles.countryDropdownItemSelected,
-                ]}
-                onPress={() => {
-                  setCountryCode(item.code);
-                  setShowCountryDropdown(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.countryDropdownCode}>{item.code}</Text>
-                <Text style={styles.countryDropdownDialCode}>{item.dialCode}</Text>
-                {countryCode === item.code && (
-                  <Text style={styles.countryDropdownCheckmark}>✓</Text>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Dropdown dışına tıklanınca kapat */}
-      {showCountryDropdown && (
-        <TouchableWithoutFeedback onPress={() => setShowCountryDropdown(false)}>
-          <View style={styles.dropdownBackdrop} />
-        </TouchableWithoutFeedback>
-      )}
 
       {/* KVKK Modal */}
       <Modal
@@ -670,83 +612,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     // Footer'ın ekranın altına taşmaması için minHeight yok, padding ile kontrol
     minHeight: 70,
-  },
-  // Country Dropdown Styles - SignupScreen seviyesinde render ediliyor
-  countryDropdownOverlay: {
-    position: 'absolute',
-    // Tüm inputların üstünde görünmesi için maksimum z-index
-    zIndex: 99999,
-    ...Platform.select({
-      ios: {
-        zIndex: 99999,
-      },
-      android: {
-        elevation: 99999,
-      },
-    }),
-  },
-  countryDropdownList: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.sm,
-    maxHeight: 200,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
-  countryDropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  countryDropdownItemSelected: {
-    backgroundColor: colors.background,
-  },
-  countryDropdownCode: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-    marginRight: spacing.xs,
-    minWidth: 30,
-  },
-  countryDropdownDialCode: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-    marginLeft: 'auto',
-    marginRight: spacing.xs,
-  },
-  countryDropdownCheckmark: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  dropdownBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 99998,
-    ...Platform.select({
-      ios: {
-        zIndex: 99998,
-      },
-      android: {
-        elevation: 99998,
-      },
-    }),
   },
 });
 

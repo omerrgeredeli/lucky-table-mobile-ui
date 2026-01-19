@@ -11,13 +11,20 @@ import {
 import { colors, spacing, typography } from '../theme';
 
 /**
- * Ülke listesi (mock)
+ * Ülke listesi - Tüm dil seçeneklerindeki ülkelerin telefon kodları
  */
 const COUNTRIES = [
   { code: 'TR', name: 'Türkiye', dialCode: '+90', flag: '🇹🇷', phoneLength: 10 },
-  { code: 'DE', name: 'Almanya', dialCode: '+49', flag: '🇩🇪', phoneLength: 11 },
   { code: 'US', name: 'ABD', dialCode: '+1', flag: '🇺🇸', phoneLength: 10 },
   { code: 'UK', name: 'İngiltere', dialCode: '+44', flag: '🇬🇧', phoneLength: 10 },
+  { code: 'FR', name: 'Fransa', dialCode: '+33', flag: '🇫🇷', phoneLength: 9 },
+  { code: 'DE', name: 'Almanya', dialCode: '+49', flag: '🇩🇪', phoneLength: 11 },
+  { code: 'IT', name: 'İtalya', dialCode: '+39', flag: '🇮🇹', phoneLength: 10 },
+  { code: 'RU', name: 'Rusya', dialCode: '+7', flag: '🇷🇺', phoneLength: 10 },
+  { code: 'ES', name: 'İspanya', dialCode: '+34', flag: '🇪🇸', phoneLength: 9 },
+  { code: 'JP', name: 'Japonya', dialCode: '+81', flag: '🇯🇵', phoneLength: 10 },
+  { code: 'CN', name: 'Çin', dialCode: '+86', flag: '🇨🇳', phoneLength: 11 },
+  { code: 'AZ', name: 'Azerbaycan', dialCode: '+994', flag: '🇦🇿', phoneLength: 9 },
 ];
 
 /**
@@ -85,17 +92,8 @@ const PhoneInput = ({
       {label && <Text style={styles.label}>{label}</Text>}
       
       <View style={styles.phoneContainer}>
-        {/* Ülke Kodu Seçimi - Dropdown */}
-        <View 
-          style={styles.countrySelectorWrapper}
-          onLayout={(event) => {
-            // ComboBox'un pozisyonunu parent'a ilet
-            if (onComboBoxLayout) {
-              const { x, y, width, height } = event.nativeEvent.layout;
-              onComboBoxLayout({ x, y, width, height });
-            }
-          }}
-        >
+        {/* Ülke Kodu Seçimi - Dropdown Container */}
+        <View style={styles.countrySelectorWrapper}>
           <TouchableOpacity
             style={[styles.countrySelector, error && styles.countrySelectorError]}
             onPress={handleToggle}
@@ -105,6 +103,37 @@ const PhoneInput = ({
             <Text style={styles.dialCode}>{selectedCountry.dialCode}</Text>
             <Text style={styles.arrow}>{showDropdown ? '▲' : '▼'}</Text>
           </TouchableOpacity>
+          
+          {/* Dropdown List - Container içinde, aşağı doğru expand */}
+          {showDropdown && (
+            <View style={styles.dropdownList}>
+              <FlatList
+                data={COUNTRIES}
+                keyExtractor={(item) => item.code}
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                scrollEnabled={true}
+                style={styles.dropdownScrollView}
+                contentContainerStyle={styles.dropdownScrollContent}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.dropdownItem,
+                      countryCode === item.code && styles.dropdownItemSelected,
+                    ]}
+                    onPress={() => handleCountrySelect(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.dropdownCode}>{item.code}</Text>
+                    <Text style={styles.dropdownDialCode}>{item.dialCode}</Text>
+                    {countryCode === item.code && (
+                      <Text style={styles.dropdownCheckmark}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          )}
         </View>
 
         {/* Telefon Numarası Input */}
@@ -160,7 +189,7 @@ const styles = StyleSheet.create({
   },
   countrySelectorWrapper: {
     position: 'relative',
-    // zIndex ve elevation kaldırıldı - dropdown artık SignupScreen seviyesinde render edilecek
+    zIndex: 1000,
   },
   countrySelector: {
     flexDirection: 'row',
@@ -195,14 +224,43 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginLeft: 'auto',
   },
-  // dropdownList style'ı kaldırıldı - dropdown artık SignupScreen'de render edilecek
+  dropdownList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.sm,
+    height: 250,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  dropdownScrollView: {
+    flex: 1,
+    height: 250,
+  },
+  dropdownScrollContent: {
+    paddingVertical: 0,
+  },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.sm + 2,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    zIndex: 10001,
   },
   dropdownItemSelected: {
     backgroundColor: colors.background,

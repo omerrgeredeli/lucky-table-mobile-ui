@@ -165,9 +165,21 @@ const BusinessHomeScreen = () => {
     setQrCodeLoading(true);
     try {
       // SADECE orderTypes gönder, diğer her şey mock olarak üretilecek
-      const qrData = await generateBusinessQRCode(
-        selectedOrderTypes.map(ot => typeof ot === 'string' ? ot : ot.id || ot.name)
-      );
+      // Boş değerleri filtrele ve sadece geçerli orderType'ları gönder
+      const orderTypesArray = selectedOrderTypes
+        .map(ot => {
+          if (typeof ot === 'string') return ot;
+          if (ot && ot.id) return ot.id;
+          if (ot && ot.name) return ot.name;
+          return null;
+        })
+        .filter(ot => ot !== null && ot !== undefined && ot !== '');
+      
+      if (orderTypesArray.length === 0) {
+        throw new Error('Geçerli sipariş tipi bulunamadı');
+      }
+      
+      const qrData = await generateBusinessQRCode(orderTypesArray);
       
       // QR data validation - JWT token formatında olmalı (header.payload.signature)
       if (!qrData || typeof qrData !== 'string' || !qrData.includes('.')) {

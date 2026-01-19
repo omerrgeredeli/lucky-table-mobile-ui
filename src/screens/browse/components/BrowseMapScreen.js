@@ -7,6 +7,7 @@ import {
   Platform,
   Linking,
   AppState,
+  TouchableOpacity,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { getNearbyCafes } from '../../../services/cafeService';
@@ -344,6 +345,25 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
                 title={cafe.name || 'Kafe'}
                 description={cafe.address || ''}
                 pinColor={colors.primary}
+                onPress={() => {
+                  // Marker seçildiğinde Google Maps uygulamasını aç
+                  if (cafe.latitude && cafe.longitude) {
+                    const url = Platform.select({
+                      ios: `maps://maps.apple.com/?daddr=${cafe.latitude},${cafe.longitude}&dirflg=d`,
+                      android: `google.navigation:q=${cafe.latitude},${cafe.longitude}`,
+                    });
+                    if (url) {
+                      Linking.openURL(url).catch((err) => {
+                        console.error('Yol tarifi açılamadı:', err);
+                        // Fallback: Google Maps web URL
+                        const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${cafe.latitude},${cafe.longitude}`;
+                        Linking.openURL(webUrl).catch((err2) => {
+                          console.error('Web harita açılamadı:', err2);
+                        });
+                      });
+                    }
+                  }
+                }}
               >
                 <Callout>
                   <View style={styles.calloutContainer}>

@@ -203,6 +203,7 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
             
             {items.map((item, index) => {
               const isSelected = item === selectedValue;
+              const displayText = label === 'Ay' ? monthNames[item - 1] : String(item);
               return (
                 <TouchableOpacity
                   key={`${label}-${item}-${index}`}
@@ -219,14 +220,18 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
                     });
                   }}
                 >
-                  <Text
-                    style={[
-                      styles.scrollItemText,
-                      isSelected && styles.scrollItemTextSelected,
-                    ]}
-                  >
-                    {label === 'Ay' ? monthNames[item - 1] : item}
-                  </Text>
+                  <View style={styles.scrollItemContent}>
+                    <Text
+                      style={[
+                        styles.scrollItemText,
+                        isSelected && styles.scrollItemTextSelected,
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit={false}
+                    >
+                      {displayText}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -335,8 +340,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
   },
   modalTitle: {
     fontSize: typography.fontSize.lg,
@@ -357,10 +362,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
+    justifyContent: 'space-around',
   },
   pickerContainer: {
-    flex: 1,
+    width: '33%',
     alignItems: 'center',
+    minWidth: 80,
   },
   pickerLabel: {
     fontSize: typography.fontSize.sm,
@@ -383,18 +390,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     height: 50,
+    width: '100%',
   },
   scrollItemSelected: {
     backgroundColor: colors.primary + '20',
   },
+  scrollItemContent: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+  },
   scrollItemText: {
     fontSize: typography.fontSize.md,
     color: colors.textSecondary,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   scrollItemTextSelected: {
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.bold,
     color: colors.primary,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   selectedIndicator: {
     position: 'absolute',
@@ -403,8 +423,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: 50,
     marginTop: -25,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
     borderColor: colors.primary,
     backgroundColor: 'transparent',
     pointerEvents: 'none',

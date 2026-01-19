@@ -58,35 +58,50 @@ export const generateQRToken = async (payload, expiresIn = 3600) => {
     };
 
     // Base64 encode (URL-safe) - Platform bağımsız, her zaman aynı encoding
-    const base64UrlEncode = (str) => {
+    const base64UrlEncode = (obj) => {
       // JSON.stringify - her platformda aynı sonuç
-      const jsonStr = JSON.stringify(str);
+      const jsonStr = JSON.stringify(obj);
       
-      // Base64 encoding - platform bağımsız, her zaman aynı algoritma
-      // React Native ve Web'de btoa polyfill mevcuttur, aynı sonucu verir
-      let base64;
-      if (typeof btoa !== 'undefined') {
-        base64 = btoa(jsonStr);
-      } else {
-        // Fallback: manual base64 encoding (her platformda aynı sonuç)
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-        let result = '';
-        let i = 0;
-        while (i < jsonStr.length) {
-          const a = jsonStr.charCodeAt(i++);
-          const b = i < jsonStr.length ? jsonStr.charCodeAt(i++) : 0;
-          const c = i < jsonStr.length ? jsonStr.charCodeAt(i++) : 0;
-          const bitmap = (a << 16) | (b << 8) | c;
-          result += chars.charAt((bitmap >> 18) & 63);
-          result += chars.charAt((bitmap >> 12) & 63);
-          result += i - 2 < jsonStr.length ? chars.charAt((bitmap >> 6) & 63) : '=';
-          result += i - 1 < jsonStr.length ? chars.charAt(bitmap & 63) : '=';
+      // UTF-8 byte array'e çevir (Unicode karakterler için güvenli)
+      const utf8Bytes = [];
+      for (let i = 0; i < jsonStr.length; i++) {
+        let charCode = jsonStr.charCodeAt(i);
+        if (charCode < 0x80) {
+          utf8Bytes.push(charCode);
+        } else if (charCode < 0x800) {
+          utf8Bytes.push(0xc0 | (charCode >> 6));
+          utf8Bytes.push(0x80 | (charCode & 0x3f));
+        } else if ((charCode & 0xfc00) === 0xd800 && i + 1 < jsonStr.length && (jsonStr.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+          // Surrogate pair
+          charCode = 0x10000 + ((charCode & 0x03ff) << 10) + (jsonStr.charCodeAt(++i) & 0x03ff);
+          utf8Bytes.push(0xf0 | (charCode >> 18));
+          utf8Bytes.push(0x80 | ((charCode >> 12) & 0x3f));
+          utf8Bytes.push(0x80 | ((charCode >> 6) & 0x3f));
+          utf8Bytes.push(0x80 | (charCode & 0x3f));
+        } else {
+          utf8Bytes.push(0xe0 | (charCode >> 12));
+          utf8Bytes.push(0x80 | ((charCode >> 6) & 0x3f));
+          utf8Bytes.push(0x80 | (charCode & 0x3f));
         }
-        base64 = result;
+      }
+      
+      // Base64 encoding - byte array'den base64'e
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let result = '';
+      let i = 0;
+      while (i < utf8Bytes.length) {
+        const a = utf8Bytes[i++];
+        const b = i < utf8Bytes.length ? utf8Bytes[i++] : 0;
+        const c = i < utf8Bytes.length ? utf8Bytes[i++] : 0;
+        const bitmap = (a << 16) | (b << 8) | c;
+        result += chars.charAt((bitmap >> 18) & 63);
+        result += chars.charAt((bitmap >> 12) & 63);
+        result += i - 2 < utf8Bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+        result += i - 1 < utf8Bytes.length ? chars.charAt(bitmap & 63) : '=';
       }
       
       // URL-safe base64 (her platformda aynı)
-      return base64
+      return result
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
