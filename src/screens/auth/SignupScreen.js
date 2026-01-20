@@ -209,8 +209,12 @@ const SignupScreen = () => {
         keyboardShouldPersistTaps="handled"
         // nestedScrollEnabled - iç içe scroll'lar için gerekli
         nestedScrollEnabled={true}
-        // ScrollView scroll edildiğinde dropdown'u kapat
+        // Dropdown açıkken scroll'u engelle - dropdown içinde scroll yapılabilmesi için
+        scrollEnabled={!showCountryDropdown}
+        // ScrollView scroll edildiğinde dropdown'u kapat (sadece dropdown dışında scroll başladıysa)
         onScrollBeginDrag={() => {
+          // Dropdown açıkken parent scroll başladıysa kapat
+          // Not: Dropdown içindeki FlatList scroll'u bu event'i tetiklemez
           if (showCountryDropdown) {
             setShowCountryDropdown(false);
           }
@@ -434,6 +438,7 @@ const styles = StyleSheet.create({
     ...shadows.medium,
     // overflow: 'visible' - PhoneInput dropdown'unun kesilmemesi için
     overflow: 'visible',
+    zIndex: 1,
   },
   title: {
     fontSize: typography.fontSize.xxl,

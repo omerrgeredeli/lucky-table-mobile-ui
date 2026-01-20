@@ -165,13 +165,18 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
     const itemHeight = 50;
 
     // ScrollView referansı ile başlangıç pozisyonunu ayarla
+    // Seçili item üstten ikinci pozisyonda olacak (index * itemHeight - itemHeight)
     useEffect(() => {
       if (visible && scrollRef.current && items.length > 0) {
         const index = items.indexOf(selectedValue);
         if (index >= 0) {
           setTimeout(() => {
+            // Üstten ikinci pozisyon için: seçili item'ın yukarısında 1 item boşluk bırak
+            // scrollWrapper height: 200, itemHeight: 50, 4 item görünür
+            // Seçili item üstten ikinci olmalı, yani y offset = (index - 1) * itemHeight
+            const targetY = Math.max(0, (index - 1) * itemHeight);
             scrollRef.current?.scrollTo({
-              y: index * itemHeight,
+              y: targetY,
               animated: false,
             });
           }, 100);
@@ -192,7 +197,8 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
             decelerationRate="fast"
             onMomentumScrollEnd={(e) => {
               const offsetY = e.nativeEvent.contentOffset.y;
-              const index = Math.round(offsetY / itemHeight);
+              // Üstten ikinci pozisyon için: offsetY'ye 1 itemHeight ekle
+              const index = Math.round((offsetY + itemHeight) / itemHeight);
               if (index >= 0 && index < items.length) {
                 onSelect(items[index]);
               }
@@ -214,17 +220,21 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
                   ]}
                   onPress={() => {
                     onSelect(item);
+                    // Üstten ikinci pozisyon için: (index - 1) * itemHeight
+                    const targetY = Math.max(0, (index - 1) * itemHeight);
                     scrollRef.current?.scrollTo({
-                      y: index * itemHeight,
+                      y: targetY,
                       animated: true,
                     });
                   }}
+                  activeOpacity={0.7}
                 >
-                  <View style={styles.scrollItemContent}>
+                  <View style={[styles.scrollItemContent, { height: itemHeight }]}>
                     <Text
                       style={[
                         styles.scrollItemText,
                         isSelected && styles.scrollItemTextSelected,
+                        { height: itemHeight, lineHeight: itemHeight },
                       ]}
                       numberOfLines={1}
                       adjustsFontSizeToFit={false}
@@ -363,11 +373,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     justifyContent: 'space-around',
+    alignItems: 'flex-start',
   },
   pickerContainer: {
     width: '33%',
     alignItems: 'center',
     minWidth: 80,
+    flex: 1,
   },
   pickerLabel: {
     fontSize: typography.fontSize.sm,
@@ -391,15 +403,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 50,
     width: '100%',
+    flexDirection: 'row',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   scrollItemSelected: {
     backgroundColor: colors.primary + '20',
+    height: 50,
   },
   scrollItemContent: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     height: 50,
+    flexDirection: 'row',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   scrollItemText: {
     fontSize: typography.fontSize.md,
@@ -409,6 +428,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     lineHeight: 50,
     height: 50,
+    minWidth: 60,
+    maxWidth: 80,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    marginVertical: 0,
   },
   scrollItemTextSelected: {
     fontSize: typography.fontSize.md,
@@ -419,6 +443,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     lineHeight: 50,
     height: 50,
+    minWidth: 60,
+    maxWidth: 80,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    marginVertical: 0,
   },
   selectedIndicator: {
     position: 'absolute',

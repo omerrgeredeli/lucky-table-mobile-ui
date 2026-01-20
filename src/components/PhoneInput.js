@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   Platform,
+  Modal,
 } from 'react-native';
 import { colors, spacing, typography } from '../theme';
 
@@ -106,34 +107,51 @@ const PhoneInput = ({
           
           {/* Dropdown List - Container içinde, aşağı doğru expand */}
           {showDropdown && (
-            <View style={styles.dropdownList}>
-              <FlatList
-                data={COUNTRIES}
-                keyExtractor={(item) => item.code}
-                nestedScrollEnabled={true}
-                showsVerticalScrollIndicator={true}
-                scrollEnabled={true}
-                style={styles.dropdownScrollView}
-                contentContainerStyle={styles.dropdownScrollContent}
-                bounces={false}
-                alwaysBounceVertical={false}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.dropdownItem,
-                      countryCode === item.code && styles.dropdownItemSelected,
-                    ]}
-                    onPress={() => handleCountrySelect(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.dropdownCode}>{item.code}</Text>
-                    <Text style={styles.dropdownDialCode}>{item.dialCode}</Text>
-                    {countryCode === item.code && (
-                      <Text style={styles.dropdownCheckmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              />
+            <View 
+              style={styles.dropdownList}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              pointerEvents="box-none"
+            >
+              <View style={styles.dropdownListInner} pointerEvents="auto">
+                <FlatList
+                  data={COUNTRIES}
+                  keyExtractor={(item) => item.code}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                  scrollEnabled={true}
+                  style={styles.dropdownScrollView}
+                  contentContainerStyle={styles.dropdownScrollContent}
+                  bounces={false}
+                  alwaysBounceVertical={false}
+                  keyboardShouldPersistTaps="handled"
+                  removeClippedSubviews={false}
+                  onScrollBeginDrag={(e) => {
+                    // Parent ScrollView'in scroll'unu engelle
+                    e.stopPropagation();
+                  }}
+                  onTouchStart={(e) => {
+                    // Parent ScrollView'in touch event'ini engelle
+                    e.stopPropagation();
+                  }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.dropdownItem,
+                        countryCode === item.code && styles.dropdownItemSelected,
+                      ]}
+                      onPress={() => handleCountrySelect(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.dropdownCode}>{item.code}</Text>
+                      <Text style={styles.dropdownDialCode}>{item.dialCode}</Text>
+                      {countryCode === item.code && (
+                        <Text style={styles.dropdownCheckmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
             </View>
           )}
         </View>
@@ -191,7 +209,7 @@ const styles = StyleSheet.create({
   },
   countrySelectorWrapper: {
     position: 'relative',
-    zIndex: 1000,
+    zIndex: 10000,
   },
   countrySelector: {
     flexDirection: 'row',
@@ -232,12 +250,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     marginTop: 2,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.sm,
-    maxHeight: 300,
-    overflow: 'hidden',
+    zIndex: 10001,
+    elevation: 10000,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -246,9 +260,17 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
       },
       android: {
-        elevation: 10,
+        elevation: 10000,
       },
     }),
+  },
+  dropdownListInner: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.sm,
+    maxHeight: 300,
+    overflow: 'hidden',
   },
   dropdownScrollView: {
     flex: 1,

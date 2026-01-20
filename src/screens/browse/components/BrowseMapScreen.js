@@ -346,17 +346,13 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
                 title={cafe.name || 'Kafe'}
                 description={cafe.address || ''}
                 pinColor={colors.primary}
+                tracksViewChanges={false}
+                anchor={{ x: 0.5, y: 1 }}
                 onPress={() => {
                   // Marker seçildiğinde sadece state'i güncelle, yol tarifi butonu gösterilecek
                   setSelectedCafe(cafe);
                 }}
               >
-                {/* Kafe ismini pin üzerinde göster */}
-                <View style={styles.markerLabelContainer}>
-                  <Text style={styles.markerLabel} numberOfLines={1}>
-                    {cafe.name || 'Kafe'}
-                  </Text>
-                </View>
                 <Callout>
                   <View style={styles.calloutContainer}>
                     <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
@@ -384,15 +380,20 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
         </View>
       )}
 
-      {/* Google Maps'in kendi yol tarifi butonu - Seçili kafe varsa sağ alt köşede göster */}
-      {selectedCafe && (
-        <View style={[
-          styles.directionsButtonContainer,
-          // showsMyLocationButton varsa (locationPermission ve locationServicesEnabled true ise) yukarı kaydır
-          locationPermission === true && locationServicesEnabled === true && {
-            bottom: 80,
-          }
-        ]}>
+      {/* Google Maps'in kendi yol tarifi butonu - Konumum ikonunun hemen altında */}
+      {selectedCafe && selectedCafe.latitude && selectedCafe.longitude && (
+        <View 
+          style={[
+            styles.directionsButtonContainer,
+            // showsMyLocationButton varsa (locationPermission ve locationServicesEnabled true ise) hemen altında
+            locationPermission === true && locationServicesEnabled === true ? {
+              bottom: 16, // Konumum butonu genellikle 16px yukarıda, bunun hemen altı
+            } : {
+              bottom: spacing.lg, // Konumum butonu yoksa normal pozisyon
+            }
+          ]}
+          pointerEvents="box-none"
+        >
           <TouchableOpacity
             style={styles.directionsButton}
             onPress={() => {
@@ -416,7 +417,11 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
             activeOpacity={0.7}
           >
             <View style={styles.directionsIconContainer}>
-              <Text style={styles.directionsIcon}>→</Text>
+              {/* Google Maps yol tarifi ikonu - mavi daire içinde beyaz ok */}
+              <View style={styles.directionsIconWrapper}>
+                <View style={styles.directionsIconCircle} />
+                <Text style={styles.directionsIcon}>→</Text>
+              </View>
             </View>
           </TouchableOpacity>
         </View>
@@ -491,36 +496,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     fontWeight: typography.fontWeight.semibold,
   },
-  markerLabelContainer: {
-    position: 'absolute',
-    bottom: 35,
-    left: -50,
-    width: 100,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  markerLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-    textAlign: 'center',
-  },
   directionsButtonContainer: {
     position: 'absolute',
     bottom: spacing.lg,
@@ -534,6 +509,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -552,10 +529,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  directionsIconWrapper: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  directionsIconCircle: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4285F4',
+  },
   directionsIcon: {
-    fontSize: 24,
-    color: '#4285F4',
+    fontSize: 16,
+    color: '#FFFFFF',
     fontWeight: 'bold',
+    lineHeight: 16,
+    zIndex: 1,
   },
 });
 
