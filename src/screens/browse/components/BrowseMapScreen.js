@@ -44,7 +44,6 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
   const [cafes, setCafes] = useState(propCafes);
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState(AppState.currentState);
-  const [selectedCafe, setSelectedCafe] = useState(null); // Seçili kafe için yol tarifi butonu
 
   // Varsayılan konum (Ankara)
   const DEFAULT_LOCATION = {
@@ -58,11 +57,61 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
   useEffect(() => {
     if (propCafes && Array.isArray(propCafes)) {
       setCafes(propCafes);
+      // Kafeler yüklendiğinde region'ı güncelle
+      updateMapRegionForCafes(propCafes);
     }
     if (propUserLocation) {
       setUserLocation(propUserLocation);
     }
   }, [propCafes, propUserLocation]);
+
+  // Kafeler değiştiğinde region'ı güncelle
+  useEffect(() => {
+    if (cafes && cafes.length > 0) {
+      updateMapRegionForCafes(cafes);
+    }
+  }, [cafes]);
+
+  // Map region'ı kafeleri kapsayacak şekilde güncelle
+  const updateMapRegionForCafes = (cafeList) => {
+    if (!cafeList || cafeList.length === 0) return;
+
+    const validCafes = cafeList.filter(cafe => {
+      const lat = Number(cafe.latitude);
+      const lng = Number(cafe.longitude);
+      return lat && lng &&
+        !isNaN(lat) && !isNaN(lng) &&
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180;
+    });
+
+    if (validCafes.length === 0) return;
+
+    // Tüm kafelerin koordinatlarını al - Number() ile cast et
+    const latitudes = validCafes.map(c => Number(c.latitude));
+    const longitudes = validCafes.map(c => Number(c.longitude));
+
+    // Min/max koordinatları bul
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+
+    // Merkez noktası
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    // Delta değerleri (padding ekle)
+    const latDelta = Math.max((maxLat - minLat) * 1.5, 0.05);
+    const lngDelta = Math.max((maxLng - minLng) * 1.5, 0.05);
+
+    setMapRegion({
+      latitude: centerLat,
+      longitude: centerLng,
+      latitudeDelta: latDelta,
+      longitudeDelta: lngDelta,
+    });
+  };
 
   // Component mount olduğunda konum izni kontrol et
   useEffect(() => {
@@ -309,6 +358,7 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
           region={mapRegion}
           showsUserLocation={locationPermission === true && locationServicesEnabled === true}
           showsMyLocationButton={locationPermission === true && locationServicesEnabled === true}
+          showsCompass={true}
           mapType="standard"
           onRegionChangeComplete={(newRegion) => {
             if (newRegion && newRegion.latitude && newRegion.longitude) {
@@ -332,39 +382,48 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
           rotateEnabled={false}
         >
         {/* Kafe Marker'ları - Filtrelenmiş kafeler */}
-        {cafes && cafes.length > 0 ? (
-          cafes.map((cafe, index) => {
-            if (!cafe.latitude || !cafe.longitude) return null;
+        {cafes && cafes.length > 0 && cafes.map((cafe, index) => {
+          // Latitude ve longitude Number() ile cast et
+          const lat = Number(cafe.latitude);
+          const lng = Number(cafe.longitude);
+          
+          // Geçersizse marker render etme
+          if (!lat || !lng || 
+              isNaN(lat) || isNaN(lng) ||
+              lat < -90 || lat > 90 ||
+              lng < -180 || lng > 180) {
+            return null;
+          }
 
-            return (
-              <Marker
-                key={`cafe-${cafe.id || index}`}
-                coordinate={{
-                  latitude: cafe.latitude,
-                  longitude: cafe.longitude,
-                }}
-                title={cafe.name || 'Kafe'}
-                description={cafe.address || ''}
-                pinColor={colors.primary}
-                tracksViewChanges={false}
-                anchor={{ x: 0.5, y: 1 }}
-                onPress={() => {
-                  // Marker seçildiğinde sadece state'i güncelle, yol tarifi butonu gösterilecek
-                  setSelectedCafe(cafe);
-                }}
-              >
-                <Callout>
-                  <View style={styles.calloutContainer}>
-                    <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
-                    {cafe.address && (
-                      <Text style={styles.calloutAddress}>{cafe.address}</Text>
-                    )}
-                  </View>
-                </Callout>
-              </Marker>
-            );
-          })
-        ) : null}
+          return (
+            <Marker
+              key={`cafe-${cafe.id || index}`}
+              coordinate={{
+                latitude: lat,
+                longitude: lng,
+              }}
+              title={cafe.name || 'Kafe'}
+              description={cafe.address || ''}
+              pinColor={colors.primary}
+              tracksViewChanges={false}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.markerLabelContainer}>
+                <Text style={styles.markerLabel} numberOfLines={1}>
+                  {cafe.name || 'Kafe'}
+                </Text>
+              </View>
+              <Callout>
+                <View style={styles.calloutContainer}>
+                  <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
+                  {cafe.address && (
+                    <Text style={styles.calloutAddress}>{cafe.address}</Text>
+                  )}
+                </View>
+              </Callout>
+            </Marker>
+          );
+        })}
         </MapView>
       ) : (
         <View style={styles.loadingContainer}>
@@ -380,52 +439,6 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
         </View>
       )}
 
-      {/* Google Maps'in kendi yol tarifi butonu - Konumum ikonunun hemen altında */}
-      {selectedCafe && selectedCafe.latitude && selectedCafe.longitude && (
-        <View 
-          style={[
-            styles.directionsButtonContainer,
-            // showsMyLocationButton varsa (locationPermission ve locationServicesEnabled true ise) hemen altında
-            locationPermission === true && locationServicesEnabled === true ? {
-              bottom: 16, // Konumum butonu genellikle 16px yukarıda, bunun hemen altı
-            } : {
-              bottom: spacing.lg, // Konumum butonu yoksa normal pozisyon
-            }
-          ]}
-          pointerEvents="box-none"
-        >
-          <TouchableOpacity
-            style={styles.directionsButton}
-            onPress={() => {
-              if (selectedCafe.latitude && selectedCafe.longitude) {
-                const url = Platform.select({
-                  ios: `maps://maps.apple.com/?daddr=${selectedCafe.latitude},${selectedCafe.longitude}&dirflg=d`,
-                  android: `google.navigation:q=${selectedCafe.latitude},${selectedCafe.longitude}`,
-                });
-                if (url) {
-                  Linking.openURL(url).catch((err) => {
-                    console.error('Yol tarifi açılamadı:', err);
-                    // Fallback: Google Maps web URL
-                    const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${selectedCafe.latitude},${selectedCafe.longitude}`;
-                    Linking.openURL(webUrl).catch((err2) => {
-                      console.error('Web harita açılamadı:', err2);
-                    });
-                  });
-                }
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.directionsIconContainer}>
-              {/* Google Maps yol tarifi ikonu - mavi daire içinde beyaz ok */}
-              <View style={styles.directionsIconWrapper}>
-                <View style={styles.directionsIconCircle} />
-                <Text style={styles.directionsIcon}>→</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 };
@@ -496,59 +509,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     fontWeight: typography.fontWeight.semibold,
   },
-  directionsButtonContainer: {
+  markerLabelContainer: {
     position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
-    zIndex: 1000,
-  },
-  directionsButton: {
-    backgroundColor: '#FFFFFF',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    bottom: 30,
+    left: -60,
+    width: 120,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  directionsIconContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+    borderColor: colors.border,
+    zIndex: 1000,
     alignItems: 'center',
-  },
-  directionsIconWrapper: {
-    width: 24,
-    height: 24,
     justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
   },
-  directionsIconCircle: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#4285F4',
-  },
-  directionsIcon: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    lineHeight: 16,
-    zIndex: 1,
+  markerLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+    textAlign: 'center',
   },
 });
 

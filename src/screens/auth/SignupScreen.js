@@ -208,17 +208,9 @@ const SignupScreen = () => {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         // nestedScrollEnabled - iç içe scroll'lar için gerekli
-        nestedScrollEnabled={true}
+        nestedScrollEnabled={false}
         // Dropdown açıkken scroll'u engelle - dropdown içinde scroll yapılabilmesi için
         scrollEnabled={!showCountryDropdown}
-        // ScrollView scroll edildiğinde dropdown'u kapat (sadece dropdown dışında scroll başladıysa)
-        onScrollBeginDrag={() => {
-          // Dropdown açıkken parent scroll başladıysa kapat
-          // Not: Dropdown içindeki FlatList scroll'u bu event'i tetiklemez
-          if (showCountryDropdown) {
-            setShowCountryDropdown(false);
-          }
-        }}
       >
         <View style={styles.content}>
           <Logo size="large" />

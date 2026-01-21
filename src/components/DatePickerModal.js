@@ -162,7 +162,7 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
 
   // Scroll item render
   const renderScrollItem = (items, selectedValue, onSelect, label, scrollRef) => {
-    const itemHeight = 50;
+    const itemHeight = 48;
 
     // ScrollView referansı ile başlangıç pozisyonunu ayarla
     // Seçili item üstten ikinci pozisyonda olacak (index * itemHeight - itemHeight)
@@ -238,6 +238,8 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
                       ]}
                       numberOfLines={1}
                       adjustsFontSizeToFit={false}
+                      textAlignVertical="center"
+                      includeFontPadding={false}
                     >
                       {displayText}
                     </Text>
@@ -401,7 +403,7 @@ const styles = StyleSheet.create({
   scrollItem: {
     justifyContent: 'center',
     alignItems: 'center',
-    height: 50,
+    height: 48,
     width: '100%',
     flexDirection: 'row',
     paddingVertical: 0,
@@ -409,13 +411,13 @@ const styles = StyleSheet.create({
   },
   scrollItemSelected: {
     backgroundColor: colors.primary + '20',
-    height: 50,
+    height: 48,
   },
   scrollItemContent: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
+    height: 48,
     flexDirection: 'row',
     paddingVertical: 0,
     paddingHorizontal: 0,
@@ -426,11 +428,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 50,
-    height: 50,
-    minWidth: 60,
-    maxWidth: 80,
-    paddingHorizontal: 4,
+    lineHeight: 48,
+    height: 48,
     paddingVertical: 0,
     marginVertical: 0,
   },
@@ -441,11 +440,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 50,
-    height: 50,
-    minWidth: 60,
-    maxWidth: 80,
-    paddingHorizontal: 4,
+    lineHeight: 48,
+    height: 48,
     paddingVertical: 0,
     marginVertical: 0,
   },
@@ -454,8 +450,8 @@ const styles = StyleSheet.create({
     top: '50%',
     left: 0,
     right: 0,
-    height: 50,
-    marginTop: -25,
+    height: 48,
+    marginTop: -24,
     borderTopWidth: 0,
     borderBottomWidth: 0,
     borderColor: colors.primary,

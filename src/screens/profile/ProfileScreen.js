@@ -715,11 +715,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.md,
     color: colors.textPrimary,
     fontWeight: typography.fontWeight.semibold,
+    opacity: 1,
   },
   modalButtonTextConfirm: {
     fontSize: typography.fontSize.md,
     color: colors.white,
     fontWeight: typography.fontWeight.semibold,
+    opacity: 1,
   },
   languageRow: {
     flexDirection: 'row',
