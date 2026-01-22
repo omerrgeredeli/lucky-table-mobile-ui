@@ -207,10 +207,6 @@ const SignupScreen = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        // nestedScrollEnabled - iç içe scroll'lar için gerekli
-        nestedScrollEnabled={false}
-        // Dropdown açıkken scroll'u engelle - dropdown içinde scroll yapılabilmesi için
-        scrollEnabled={!showCountryDropdown}
       >
         <View style={styles.content}>
           <Logo size="large" />

@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Switch,
   Modal,
-  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -28,66 +27,36 @@ import Logo from '../../components/Logo';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 
-/**
- * Profile Screen - Profil Yönetimi
- * Üyelik Bilgileri, Bildirimler, Üyelik İptali, Çıkış Yap
- */
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { logout } = useContext(AuthContext);
   const { supportedLanguages, currentLanguage, changeLanguage, getCurrentLanguageInfo } = useLanguage();
 
-  // State
-  const [profileData, setProfileData] = useState({
-    email: '',
-    phone: '',
-  });
+  const [profileData, setProfileData] = useState({ email: '', phone: '' });
+  const [originalProfileData, setOriginalProfileData] = useState({ email: '', phone: '' });
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [originalProfileData, setOriginalProfileData] = useState({
-    email: '',
-    phone: '',
-  });
 
-  // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
-  
-  // Dil değiştirme state
+  const [showCancelMembershipModal, setShowCancelMembershipModal] = useState(false);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage);
-  
+
   useEffect(() => {
     setSelectedLanguage(currentLanguage);
   }, [currentLanguage]);
 
-  // Edit states
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  // Şifre validasyon kuralları - dil değişikliğinde güncellenir
   const passwordRules = useMemo(() => [
-    {
-      label: t('password.rules.minLength'),
-      test: (pwd) => pwd.length >= 8,
-    },
-    {
-      label: t('password.rules.uppercase'),
-      test: (pwd) => /[A-Z]/.test(pwd),
-    },
-    {
-      label: t('password.rules.lowercase'),
-      test: (pwd) => /[a-z]/.test(pwd),
-    },
-    {
-      label: t('password.rules.number'),
-      test: (pwd) => /[0-9]/.test(pwd),
-    },
-    {
-      label: t('password.rules.special'),
-      test: (pwd) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd),
-    },
+    { label: t('password.rules.minLength'), test: (p) => p.length >= 8 },
+    { label: t('password.rules.uppercase'), test: (p) => /[A-Z]/.test(p) },
+    { label: t('password.rules.lowercase'), test: (p) => /[a-z]/.test(p) },
+    { label: t('password.rules.number'), test: (p) => /[0-9]/.test(p) },
+    { label: t('password.rules.special'), test: (p) => /[^A-Za-z0-9]/.test(p) },
   ], [t]);
 
   useEffect(() => {
@@ -98,777 +67,164 @@ const ProfileScreen = () => {
     setLoading(true);
     try {
       const data = await getUserProfile();
-      const profile = {
-        email: data.email || '',
-        phone: data.phone || '',
-      };
+      const profile = { email: data.email || '', phone: data.phone || '' };
       setProfileData(profile);
       setOriginalProfileData(profile);
-      setHasChanges(false);
-      
-      // Bildirim ayarlarını yükle
-      const notificationSettings = await getNotificationSettings();
-      setNotificationsEnabled(notificationSettings.notificationsEnabled !== false);
-    } catch (error) {
-      Alert.alert('Hata', error.message || 'Profil bilgileri yüklenemedi');
+      const notif = await getNotificationSettings();
+      setNotificationsEnabled(notif.notificationsEnabled !== false);
+    } catch (e) {
+      Alert.alert('Hata', 'Profil yüklenemedi');
     } finally {
       setLoading(false);
     }
-  };
-
-
-  // Şifre değişikliği
-  const handlePasswordEdit = () => {
-    setNewPassword('');
-    setConfirmPassword('');
-    setShowPasswordModal(true);
-  };
-
-
-  // Üyelik iptali modal state
-  const [showCancelMembershipModal, setShowCancelMembershipModal] = useState(false);
-
-  // Üyelik iptali
-  const handleCancelMembership = () => {
-    setShowCancelMembershipModal(true);
   };
 
   const handleConfirmCancelMembership = async () => {
     setShowCancelMembershipModal(false);
     setLoading(true);
     try {
-      // Backend'e üyelik iptali isteği
       await deleteAccount();
-      
-    // Signup screen'e yönlendirme için flag kaydet
-    await AsyncStorage.setItem('redirectToSignup', 'true');
-    await logout();
-      
-    Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
-      {
-        text: 'Tamam',
-        onPress: () => {
-          // AppNavigator otomatik olarak AuthStack'e geçecek
-        },
-      },
-    ]);
-    } catch (error) {
-      Alert.alert('Hata', error.message || 'Üyelik iptali başarısız');
+      await AsyncStorage.setItem('redirectToSignup', 'true');
+      await logout();
+    } catch (e) {
+      Alert.alert('Hata', 'Üyelik iptali başarısız');
     } finally {
       setLoading(false);
     }
   };
 
-  // Çıkış yap
-  const handleLogout = async () => {
-    await logout();
-    // AppNavigator otomatik olarak AuthStack'e geçecek
-  };
-
-  const handleLanguageChange = async () => {
-    if (selectedLanguage !== currentLanguage) {
-      setLoading(true);
-      try {
-        const success = await changeLanguage(selectedLanguage);
-        if (success) {
-          Alert.alert(t('common.success'), t('language.languageChanged'));
-        } else {
-          Alert.alert(t('common.error'), t('common.error'));
-        }
-      } catch (error) {
-        Alert.alert(t('common.error'), error.message || t('common.error'));
-      } finally {
-        setLoading(false);
-      }
-    }
-    setShowLanguageModal(false);
-  };
-
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-        {/* Logo */}
+      <ScrollView contentContainerStyle={styles.contentContainer}>
         <Logo size="small" />
-
-        {/* Üyelik Bilgileri */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('profile.membershipInfo')}</Text>
-
-          {/* Email */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>{t('profile.email')}</Text>
-              <Text style={styles.infoValue}>{profileData.email}</Text>
-            </View>
-          </View>
-
-          {/* Telefon */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>{t('profile.phone')}</Text>
-              <Text style={styles.infoValue}>{profileData.phone}</Text>
-            </View>
-          </View>
-
-          {/* Şifre */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>{t('profile.password')}</Text>
-              <Text style={styles.infoValue}>{t('profile.passwordMasked')}</Text>
-            </View>
-            <TouchableOpacity onPress={handlePasswordEdit} style={styles.editIcon}>
-              <Text style={styles.editIconText}>✏️</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Bildirimler */}
-        <View style={styles.section}>
-          <View style={styles.switchRow}>
-            <Text style={styles.sectionTitle}>{t('profile.notifications')}</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={async (value) => {
-                setNotificationsEnabled(value);
-                setHasChanges(true);
-                // Otomatik kaydet
-                try {
-                  await updateNotificationSettings(value);
-                } catch (error) {
-                  Alert.alert(t('common.error'), error.message || t('profile.notificationUpdateError'));
-                  setNotificationsEnabled(!value); // Geri al
-                }
-              }}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-        </View>
-
-        {/* Dil Ayarları */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.languageRow}
-            onPress={() => {
-              setSelectedLanguage(currentLanguage);
-              setShowLanguageModal(true);
-            }}
-          >
-            <View style={styles.languageContent}>
-              <Text style={styles.sectionTitle}>{t('language.changeLanguage')}</Text>
-              <Text style={styles.languageValue}>
-                {getCurrentLanguageInfo().flag} {getCurrentLanguageInfo().name}
-              </Text>
-            </View>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Üyelik İptali */}
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.dangerButton}
-            onPress={handleCancelMembership}
-          >
+          <TouchableOpacity style={styles.dangerButton} onPress={() => setShowCancelMembershipModal(true)}>
             <Text style={styles.dangerButtonText}>{t('profile.cancelMembership')}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Üyelik İptali Modal */}
-        <Modal
-          visible={showCancelMembershipModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowCancelMembershipModal(false)}
-        >
+        {/* ÜYELİK İPTAL MODAL */}
+        <Modal transparent visible={showCancelMembershipModal} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t('profile.cancelMembershipTitle')}</Text>
-                <TouchableOpacity onPress={() => setShowCancelMembershipModal(false)}>
-                  <Text style={styles.modalCloseText}>✕</Text>
+              <Text style={styles.modalTitle}>{t('profile.cancelMembershipTitle')}</Text>
+              <Text style={styles.modalDescription}>{t('profile.cancelMembershipConfirm')}</Text>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => setShowCancelMembershipModal(false)}
+                >
+                  <Text style={styles.modalButtonTextCancel}>{t('common.no')}</Text>
                 </TouchableOpacity>
-              </View>
-              <View style={styles.modalBody}>
-                <Text style={styles.modalDescription}>
-                  {t('profile.cancelMembershipConfirm')}
-                </Text>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonCancel]}
-                    onPress={() => setShowCancelMembershipModal(false)}
-                  >
-                    <Text style={styles.modalButtonTextCancel}>{t('common.no')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonConfirm]}
-                    onPress={handleConfirmCancelMembership}
-                  >
-                    <Text style={styles.modalButtonTextConfirm}>{t('common.yes')}</Text>
-                  </TouchableOpacity>
-                </View>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonConfirm]}
+                  onPress={handleConfirmCancelMembership}
+                >
+                  <Text style={styles.modalButtonTextConfirm}>{t('common.yes')}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        {/* Çıkış Yap */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutButtonText}>{t('profile.logout')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Kaydet Butonu - Değişiklikler varsa göster */}
-        {hasChanges && (
-          <View style={styles.saveContainer}>
-            <Button
-              title={t('common.save')}
-              onPress={async () => {
-                setLoading(true);
-                try {
-                  await updateUserProfile(profileData);
-                  setOriginalProfileData({ ...profileData });
-                setHasChanges(false);
-                  Alert.alert(t('common.success'), t('profile.profileUpdateSuccess'));
-                  await loadProfile();
-                } catch (error) {
-                  Alert.alert(t('common.error'), error.message || t('profile.profileUpdateError'));
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              loading={loading}
-            />
-          </View>
-        )}
       </ScrollView>
-
-      {/* Şifre Değişikliği Modal */}
-      <Modal
-        visible={showPasswordModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPasswordModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('password.changePassword')}</Text>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              <Input
-                label={t('password.newPassword')}
-                placeholder={t('password.newPasswordPlaceholder')}
-                value={newPassword}
-                onChangeText={setNewPassword}
-              />
-              <Input
-                label={t('auth.confirmPassword')}
-                placeholder={t('auth.confirmPasswordPlaceholder')}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
-              
-              {/* Şifre Validasyon Kuralları */}
-              {newPassword.length > 0 && (
-                <View style={styles.passwordRulesContainer}>
-                  {passwordRules.map((rule, index) => {
-                    const isValid = rule.test(newPassword);
-                    return (
-                      <Text
-                        key={index}
-                        style={[
-                          styles.passwordRule,
-                          isValid ? styles.passwordRuleValid : styles.passwordRuleInvalid,
-                        ]}
-                      >
-                        {isValid ? '✓' : '✗'} {rule.label}
-                      </Text>
-                    );
-                  })}
-                </View>
-              )}
-
-              <Button
-                title="Güncelle"
-                onPress={async () => {
-                  // Şifre validasyonu
-                  const passwordErrors = passwordRules.filter((rule) => !rule.test(newPassword));
-                  if (passwordErrors.length > 0) {
-                    Alert.alert('Hata', 'Lütfen tüm şifre kurallarını sağlayın');
-                    return;
-                  }
-                  if (newPassword !== confirmPassword) {
-                    Alert.alert('Hata', 'Şifreler eşleşmiyor');
-                    return;
-                  }
-                  
-                  setLoading(true);
-                  try {
-                    // Eski şifre kontrolü için token'dan kullanıcı bilgisi alınmalı
-                    // Mock'ta direkt güncelleme yapıyoruz
-                    await updatePassword('', newPassword); // Mock'ta eski şifre kontrolü yok
-                  setShowPasswordModal(false);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  Alert.alert('Başarılı', 'Şifreniz güncellendi');
-                  } catch (error) {
-                    Alert.alert('Hata', error.message || 'Şifre güncelleme başarısız');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Dil Seçimi Modal - BusinessProfileScreen ile birebir aynı */}
-      <Modal
-        visible={showLanguageModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowLanguageModal(false);
-          setSelectedLanguage(currentLanguage);
-        }}
-      >
-        <View style={styles.modalOverlayLanguage}>
-          <View style={styles.modalContentLanguage}>
-            <View style={styles.modalHeaderLanguage}>
-              <Text style={styles.modalTitleLanguage}>
-                {t('language.selectLanguage')}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowLanguageModal(false);
-                  setSelectedLanguage(currentLanguage);
-                }}
-              >
-                <Text style={styles.modalCloseTextLanguage}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBodyLanguage}>
-              {supportedLanguages.map((language) => (
-                <TouchableOpacity
-                  key={language.code}
-                  style={[
-                    styles.languageOptionLanguage,
-                    selectedLanguage === language.code && styles.languageOptionSelectedLanguage,
-                  ]}
-                  onPress={() => {
-                    setSelectedLanguage(language.code);
-                  }}
-                >
-                  <View style={styles.languageOptionContentLanguage}>
-                    <Text style={styles.languageOptionFlagLanguage}>{language.flag}</Text>
-                    <Text
-                      style={[
-                        styles.languageOptionTextLanguage,
-                        selectedLanguage === language.code && styles.languageOptionTextSelectedLanguage,
-                      ]}
-                    >
-                      {language.name}
-                    </Text>
-                  </View>
-                  {selectedLanguage === language.code && (
-                    <Text style={styles.languageOptionCheckLanguage}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.modalFooterLanguage}>
-              <TouchableOpacity
-                style={[styles.modalButtonLanguage, styles.modalButtonCancelLanguage]}
-                onPress={() => {
-                  setShowLanguageModal(false);
-                  setSelectedLanguage(currentLanguage);
-                }}
-              >
-                <Text style={styles.modalButtonTextCancelLanguage}>{t('common.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButtonLanguage, styles.modalButtonConfirmLanguage]}
-                onPress={handleLanguageChange}
-              >
-                <Text style={styles.modalButtonTextConfirmLanguage}>{t('common.save')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    paddingVertical: spacing.sm,
-  },
-  backButtonText: {
-    fontSize: typography.fontSize.md,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: spacing.md,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  contentContainer: { padding: spacing.md },
+
   section: {
     backgroundColor: colors.surface,
-    borderRadius: spacing.md - 4,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    borderRadius: spacing.md,
     ...shadows.medium,
   },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  infoValue: {
-    fontSize: typography.fontSize.md,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-  },
-  editIcon: {
-    padding: spacing.xs,
-  },
-  editIconText: {
-    fontSize: 20,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dangerButton: {
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  dangerButtonText: {
-    fontSize: typography.fontSize.md,
-    color: colors.error,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  logoutButton: {
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    fontSize: typography.fontSize.md,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  saveContainer: {
-    marginTop: spacing.md,
-  },
+
+  dangerButton: { alignItems: 'center', padding: spacing.md },
+  dangerButtonText: { color: colors.error, fontSize: typography.fontSize.md },
+
+  /* 🔥 ANDROID FIX BURASI */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
   },
+
   modalContent: {
+    width: '90%',
     backgroundColor: colors.surface,
     borderRadius: spacing.md,
-    width: '100%',
-    maxWidth: 400,
-    ...shadows.large,
-  },
-  // Dil değiştir modal - BusinessProfileScreen ile birebir aynı
-  modalOverlayLanguage: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContentLanguage: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: spacing.md,
-    borderTopRightRadius: spacing.md,
-    maxHeight: '80%',
-    ...shadows.xlarge,
-  },
-  modalHeaderLanguage: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitleLanguage: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.textPrimary,
-  },
-  modalCloseTextLanguage: {
-    fontSize: typography.fontSize.xl,
-    color: colors.textSecondary,
-  },
-  modalBodyLanguage: {
-    padding: spacing.md,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+
+    // 🔥 KRİTİK
+    zIndex: 1000,
+    elevation: 20,
   },
+
   modalTitle: {
     fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.textPrimary,
+    fontWeight: 'bold',
+    marginBottom: spacing.sm,
+
+    zIndex: 1001,
+    elevation: 21,
   },
-  modalCloseText: {
-    fontSize: 24,
-    color: colors.textSecondary,
-  },
-  modalBody: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  modalBodyContent: {
-    paddingBottom: spacing.md,
-  },
+
   modalDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
+    fontSize: typography.fontSize.md,
     marginBottom: spacing.md,
-    textAlign: 'center',
+
+    zIndex: 1001,
+    elevation: 21,
   },
-  passwordRulesContainer: {
-    marginVertical: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: spacing.sm,
-  },
-  passwordRule: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: spacing.xs,
-  },
-  passwordRuleValid: {
-    color: colors.success || '#2ECC71',
-  },
-  passwordRuleInvalid: {
-    color: colors.error,
-  },
+
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
+
+    zIndex: 1002,
+    elevation: 22,
   },
+
   modalButton: {
     flex: 1,
     paddingVertical: spacing.md,
-    borderRadius: spacing.sm,
     alignItems: 'center',
-    marginHorizontal: spacing.xs,
+    borderRadius: spacing.sm,
   },
+
   modalButtonCancel: {
-    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+    marginRight: spacing.sm,
   },
+
   modalButtonConfirm: {
     backgroundColor: colors.error,
   },
+
   modalButtonTextCancel: {
-    fontSize: typography.fontSize.md,
     color: colors.textPrimary,
-    fontWeight: typography.fontWeight.semibold,
-    opacity: 1,
+    fontWeight: '600',
+
+    zIndex: 1003,
+    elevation: 23,
   },
+
   modalButtonTextConfirm: {
-    fontSize: typography.fontSize.md,
     color: colors.white,
-    fontWeight: typography.fontWeight.semibold,
-    opacity: 1,
-  },
-  languageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  languageContent: {
-    flex: 1,
-  },
-  languageValue: {
-    fontSize: typography.fontSize.md,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  arrow: {
-    fontSize: 24,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-  },
-  languageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  languageOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  languageOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  languageOptionFlag: {
-    fontSize: 28,
-    marginRight: spacing.md,
-  },
-  languageOptionName: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.textPrimary,
-  },
-  languageOptionNameSelected: {
-    color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  languageSaveContainer: {
-    marginTop: spacing.md,
-  },
-  modalFooter: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    position: 'relative',
-    zIndex: 10,
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkmarkText: {
-    color: colors.white,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.bold,
-  },
-  // Dil değiştir modal stilleri - BusinessProfileScreen ile birebir aynı
-  languageOptionLanguage: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  languageOptionSelectedLanguage: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  languageOptionContentLanguage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  languageOptionFlagLanguage: {
-    fontSize: typography.fontSize.lg,
-    marginRight: spacing.sm,
-  },
-  languageOptionTextLanguage: {
-    fontSize: typography.fontSize.md,
-    color: colors.textPrimary,
-  },
-  languageOptionTextSelectedLanguage: {
-    color: colors.white,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  languageOptionCheckLanguage: {
-    fontSize: typography.fontSize.md,
-    color: colors.white,
-    fontWeight: typography.fontWeight.bold,
-  },
-  modalFooterLanguage: {
-    flexDirection: 'row',
-    padding: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: spacing.sm,
-  },
-  modalButtonLanguage: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalButtonCancelLanguage: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalButtonConfirmLanguage: {
-    backgroundColor: colors.primary,
-  },
-  modalButtonTextCancelLanguage: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-  },
-  modalButtonTextConfirmLanguage: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.white,
+    fontWeight: '600',
+
+    zIndex: 1003,
+    elevation: 23,
   },
 });
 

@@ -11,92 +11,81 @@ import {
   AppState,
   Image,
   Switch,
-  Animated,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
+
 import { getNearbyCafes } from '../../services/cafeService';
 import { colors, spacing, typography, shadows } from '../../theme';
 import Logo from '../../components/Logo';
 import BrowseMapScreen from './components/BrowseMapScreen';
 import BrowseFilterModal from './components/BrowseFilterModal';
 import Input from '../../components/Input';
-import { sortCafesByDistance } from '../../utils/distanceUtils';
+import { sortCafesByDistance, calculateDistance } from '../../utils/distanceUtils';
 
-/**
- * Browse Screen - Göz At
- * Sahibinden.com benzeri filtreleme sistemi ile kafeler listelenir
- */
+const DEFAULT_LOCATION = {
+  latitude: 39.9334,
+  longitude: 32.8597,
+};
+
 const BrowseScreen = () => {
   const { t } = useTranslation();
   const route = useRoute();
-  const [allCafes, setAllCafes] = useState([]); // Tüm kafeler (filtrelenmemiş)
-  const [displayedCafes, setDisplayedCafes] = useState([]); // Gösterilecek kafeler (filtrelenmiş + sıralanmış)
-  const [loading, setLoading] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
-  const [hasSearched, setHasSearched] = useState(false);
-  const [userLocation, setUserLocation] = useState(null);
-  const [appState, setAppState] = useState(AppState.currentState);
-  const [showOnlyOpen, setShowOnlyOpen] = useState(true); // "Şu anda açık olanlar" switch - default açık
+
   const scrollViewRef = useRef(null);
   const mapContainerRef = useRef(null);
 
-  // Filtre state (modal içinde değiştirilir, uygulanana kadar listede değişiklik olmaz)
+  const [allCafes, setAllCafes] = useState([]);
+  const [displayedCafes, setDisplayedCafes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const [userLocation, setUserLocation] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(true);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
   const [activeFilters, setActiveFilters] = useState({
     restaurantTypes: [],
-    maxDistance: 10, // km
+    maxDistance: 10,
     campaignTypes: [],
   });
 
-  // Varsayılan konum (Ankara)
-  const DEFAULT_LOCATION = {
-    latitude: 39.9334,
-    longitude: 32.8597,
-  };
+  /* -------------------------------------------------- */
+  /* LOCATION & DATA LOAD                               */
+  /* -------------------------------------------------- */
 
-  // Component mount olduğunda konum izni kontrol et ve kafeleri yükle
   useEffect(() => {
     checkLocationAndLoadCafes();
   }, []);
 
-  // Route params değiştiğinde arama yap
   useEffect(() => {
     if (route.params?.searchQuery) {
       setSearchQuery(route.params.searchQuery);
       setHasSearched(true);
-      // Arama otomatik olarak applyFiltersAndSort içinde yapılacak
     }
   }, [route.params?.searchQuery]);
 
-  // AppState değişikliğini dinle (ayarlardan dönünce kontrol et)
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (appState.match(/inactive|background/) && nextAppState === 'active') {
-        setTimeout(() => {
-          checkLocationAndLoadCafes();
-        }, 300);
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appState.match(/inactive|background/) && next === 'active') {
+        setTimeout(checkLocationAndLoadCafes, 300);
       }
-      setAppState(nextAppState);
+      setAppState(next);
     });
 
-    return () => {
-      subscription?.remove();
-    };
+    return () => sub.remove();
   }, [appState]);
 
-  // Sadece filtreler veya kafeler değiştiğinde listeyi güncelle
-  // Arama sadece "Ara" butonuna basılınca yapılır
-  useEffect(() => {
-    applyFiltersAndSort();
-  }, [allCafes, activeFilters, userLocation, hasSearched, searchQuery, showOnlyOpen]);
-
-  // Konum izni kontrolü ve kafeleri yükle
   const checkLocationAndLoadCafes = async () => {
     try {
       if (Platform.OS === 'web') {
@@ -107,429 +96,204 @@ const BrowseScreen = () => {
 
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({
+        const loc = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
           timeout: 15000,
         });
-        if (location && location.coords) {
-          const coords = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          };
-          setUserLocation(coords);
-          await loadCafes(coords.latitude, coords.longitude);
-        } else {
-          setUserLocation(DEFAULT_LOCATION);
-          await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
-        }
+
+        const coords = loc?.coords
+          ? { latitude: loc.coords.latitude, longitude: loc.coords.longitude }
+          : DEFAULT_LOCATION;
+
+        setUserLocation(coords);
+        await loadCafes(coords.latitude, coords.longitude);
       } else {
         setUserLocation(DEFAULT_LOCATION);
         await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
       }
-    } catch (error) {
-      console.error('Location check error:', error);
+    } catch (e) {
+      console.error('Location error:', e);
       setUserLocation(DEFAULT_LOCATION);
       await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
     }
   };
 
-  // Kafeleri yükle
-  const loadCafes = async (latitude, longitude) => {
+  const loadCafes = async (lat, lng) => {
     setLoading(true);
     try {
-      const response = await getNearbyCafes(latitude, longitude);
-      if (response && response.success && response.data) {
-        setAllCafes(response.data || []);
-      } else {
-        // Mock data kullan
-        const { mockNearbyCafes } = require('../../utils/mockData');
-        const mockCafes = mockNearbyCafes(latitude, longitude);
-        setAllCafes(mockCafes || []);
+      const data = await getNearbyCafes(lat, lng);
+
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid cafe data');
       }
-    } catch (error) {
-      console.error('Error loading cafes:', error);
-      // Hata durumunda da mock data kullan
+
+      setAllCafes(data);
+    } catch (e) {
+      console.error('Cafe load error:', e);
       const { mockNearbyCafes } = require('../../utils/mockData');
-      const mockCafes = mockNearbyCafes(latitude, longitude);
-      setAllCafes(mockCafes || []);
+      setAllCafes(mockNearbyCafes(lat, lng));
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtreleri uygula ve sırala
+  /* -------------------------------------------------- */
+  /* FILTER & SORT                                      */
+  /* -------------------------------------------------- */
+
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [allCafes, activeFilters, hasSearched, searchQuery, userLocation, showOnlyOpen]);
+
   const applyFiltersAndSort = () => {
-    let filtered = [...allCafes];
+    let list = [...allCafes];
 
-    // Arama sorgusu
     if (hasSearched && searchQuery.trim()) {
-      filtered = filtered.filter(
-        (cafe) =>
-          (cafe.name || '')
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          (cafe.address || '')
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        c =>
+          (c.name || '').toLowerCase().includes(q) ||
+          (c.address || '').toLowerCase().includes(q)
       );
     }
 
-    // Restoran Türü filtresi (çoklu seçim)
-    if (
-      activeFilters.restaurantTypes &&
-      activeFilters.restaurantTypes.length > 0
-    ) {
-      filtered = filtered.filter((cafe) =>
-        activeFilters.restaurantTypes.includes(cafe.restaurantType)
+    if (activeFilters.restaurantTypes.length > 0) {
+      list = list.filter(c =>
+        activeFilters.restaurantTypes.includes(c.restaurantType)
       );
     }
 
-    // Mesafe filtresi
-    if (activeFilters.maxDistance && activeFilters.maxDistance < 50) {
-      const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
-      const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
-      filtered = filtered.filter((cafe) => {
-        if (!cafe.latitude || !cafe.longitude) return false;
-        const distance = require('../../utils/distanceUtils').calculateDistance(
-          userLat,
-          userLon,
-          cafe.latitude,
-          cafe.longitude
-        );
-        return distance <= activeFilters.maxDistance;
+    if (activeFilters.maxDistance < 50) {
+      const ulat = userLocation?.latitude ?? DEFAULT_LOCATION.latitude;
+      const ulng = userLocation?.longitude ?? DEFAULT_LOCATION.longitude;
+
+      list = list.filter(c => {
+        if (!c.latitude || !c.longitude) return false;
+        const d = calculateDistance(ulat, ulng, c.latitude, c.longitude);
+        return d <= activeFilters.maxDistance;
       });
     }
 
-    // Kampanya Tipi filtresi (çoklu seçim)
-    if (
-      activeFilters.campaignTypes &&
-      activeFilters.campaignTypes.length > 0
-    ) {
-      filtered = filtered.filter((cafe) => {
-        if (!cafe.hasCampaign) return false;
-        // Mock: hasCampaign true ise tüm kampanya tiplerini kabul et
-        // Gerçek uygulamada cafe.campaignTypes array'i olabilir
-        return true;
-      });
+    if (activeFilters.campaignTypes.length > 0) {
+      list = list.filter(c => c.hasCampaign);
     }
 
-    // "Şu anda açık olanlar" filtresi
     if (showOnlyOpen) {
-      filtered = filtered.filter((cafe) => {
-        // Mock: isOpen property'si varsa kullan, yoksa varsayılan olarak true kabul et
-        // Gerçek kullanımda backend'den gelen isOpen veya openingHours'a göre hesaplanacak
-        return cafe.isOpen !== false; // undefined veya true ise açık kabul et
-      });
+      list = list.filter(c => c.isOpen !== false);
     }
 
-    // Mesafeye göre sırala
-    const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
-    const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
-    const sorted = sortCafesByDistance(filtered, userLat, userLon);
+    const ulat = userLocation?.latitude ?? DEFAULT_LOCATION.latitude;
+    const ulng = userLocation?.longitude ?? DEFAULT_LOCATION.longitude;
 
-    setDisplayedCafes(sorted);
-    setCurrentPage(1); // Filtre uygulanınca ilk sayfaya dön
+    setDisplayedCafes(sortCafesByDistance(list, ulat, ulng));
+    setCurrentPage(1);
   };
 
-  // Arama yap - butona basılınca çalışır
   const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      setHasSearched(false);
-      // Arama temizlendiğinde filtreleri uygula
-      applyFiltersAndSort();
-    } else {
-      setHasSearched(true);
-      // Arama yapıldığında filtreleri uygula
-      applyFiltersAndSort();
-    }
+    setHasSearched(!!searchQuery.trim());
   };
 
-  // Filtre modal'dan gelen filtreleri uygula
   const handleApplyFilters = (filters) => {
     setActiveFilters(filters);
-    // applyFiltersAndSort useEffect ile otomatik çağrılacak
   };
 
-  // Haritaya scroll yap
-  const scrollToMap = () => {
-    if (scrollViewRef.current && mapContainerRef.current) {
-      // Harita container'ının pozisyonunu ölç
-      mapContainerRef.current.measureLayout(
-        scrollViewRef.current,
-        (x, y) => {
-          // Smooth scroll ile haritaya git
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, y - spacing.md), // Biraz üstten başlasın
-            animated: true,
-          });
-        },
-        () => {
-          // Fallback: measureLayout başarısız olursa scrollToEnd kullan
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }
-      );
-    }
-  };
+  /* -------------------------------------------------- */
+  /* PAGINATION                                         */
+  /* -------------------------------------------------- */
 
-  // Kafe item render
-  const renderCafeItem = ({ item }) => {
-    const isClosed = item.isOpen === false;
-    const openingHours = item.openingHours || { open: '08:00', close: '22:00' };
-    const hoursText = `${openingHours.open} - ${openingHours.close}`;
-
-    return (
-      <View style={[styles.cafeItem, isClosed && !showOnlyOpen && styles.cafeItemClosed]}>
-        <View style={styles.cafeItemContent}>
-          {/* Logo - HomeScreen ile BİREBİR aynı */}
-          {item.cafeLogo ? (
-            <Image
-              source={{ uri: item.cafeLogo }}
-              style={styles.cafeLogo}
-              // defaultSource removed for web compatibility
-              onError={() => {
-                // Logo yüklenemezse fallback göster
-              }}
-            />
-          ) : (
-            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
-              <Text style={styles.cafeLogoPlaceholderText}>
-                {(item.name || 'Kafe')[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-
-          {/* Orta kısım - Kafe bilgileri */}
-          <View style={styles.cafeInfoContainer}>
-            <Text style={[styles.cafeName, isClosed && !showOnlyOpen && styles.cafeNameClosed]}>
-              {item.name || t('browse.cafeName')}
-            </Text>
-            {item.address && (
-              <Text style={[styles.cafeAddress, isClosed && !showOnlyOpen && styles.cafeAddressClosed]}>
-                {item.address}
-              </Text>
-            )}
-      {item.distance !== undefined && (
-              <Text style={[styles.cafeDistance, isClosed && !showOnlyOpen && styles.cafeDistanceClosed]}>
-          {item.distance.toFixed(2)} {t('browse.kmAway')}
-        </Text>
-      )}
-      {item.restaurantType && (
-              <Text style={[styles.cafeType, isClosed && !showOnlyOpen && styles.cafeTypeClosed]}>
-                {item.restaurantType}
-              </Text>
-      )}
-          </View>
-
-          {/* Sağ taraf - Açılış/Kapanış saatleri */}
-          <View style={styles.cafeHoursContainer}>
-            <View style={styles.hoursRow}>
-              <View style={styles.hoursColumn}>
-                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
-                  {t('browse.opening')}
-                </Text>
-                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
-                  {openingHours.open}
-                </Text>
-              </View>
-              <View style={styles.hoursSeparator} />
-              <View style={styles.hoursColumn}>
-                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
-                  {t('browse.closing')}
-                </Text>
-                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
-                  {openingHours.close}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-    </View>
-  );
-  };
-
-  // Pagination için gösterilecek veriler
   const paginatedData = displayedCafes.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  // Total pages hesaplama - LoyaltyDetailsScreen ile aynı mantık
-  const totalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
-  
-  // itemsPerPage değişince sayfa numarasını kontrol et (LoyaltyDetailsScreen'den)
-  useEffect(() => {
-    const newTotalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
-    if (currentPage > newTotalPages && newTotalPages > 0) {
-      setCurrentPage(newTotalPages);
-    } else if (newTotalPages === 0 && currentPage > 1) {
-      setCurrentPage(1);
-    }
-  }, [itemsPerPage, displayedCafes.length]);
+  const totalPages =
+    displayedCafes.length > 0
+      ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage))
+      : 0;
 
-  // Aktif filtre sayısı
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (activeFilters.restaurantTypes?.length > 0) count++;
-    if (activeFilters.maxDistance !== 10) count++;
-    if (activeFilters.campaignTypes?.length > 0) count++;
-    return count;
+  /* -------------------------------------------------- */
+  /* UI                                                 */
+  /* -------------------------------------------------- */
+
+  const scrollToMap = () => {
+    mapContainerRef.current?.measureLayout(
+      scrollViewRef.current,
+      (_, y) => scrollViewRef.current.scrollTo({ y, animated: true }),
+      () => scrollViewRef.current.scrollToEnd({ animated: true })
+    );
+  };
+
+  const renderCafeItem = ({ item }) => {
+    const isClosed = item.isOpen === false;
+    const hours = item.openingHours || { open: '08:00', close: '22:00' };
+
+    return (
+      <View style={[styles.cafeItem, isClosed && styles.cafeItemClosed]}>
+        <View style={styles.cafeItemContent}>
+          {item.cafeLogo ? (
+            <Image source={{ uri: item.cafeLogo }} style={styles.cafeLogo} />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.name || 'K')[0]}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.cafeInfoContainer}>
+            <Text style={styles.cafeName}>{item.name}</Text>
+            <Text style={styles.cafeAddress}>{item.address}</Text>
+            <Text style={styles.cafeDistance}>
+              {item.distance?.toFixed(2)} km
+            </Text>
+          </View>
+
+          <View>
+            <Text>{hours.open}</Text>
+            <Text>{hours.close}</Text>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
-      {/* Logo */}
-      <View style={styles.logoContainer}>
-        <Logo size="small" />
-      </View>
+      <Logo size="small" />
 
-      {/* Arama ve Filtre Butonu */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Input
-            placeholder={t('browse.searchPlaceholder')}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-            editable={true}
-            onSubmitEditing={handleSearch}
-          />
-        </View>
-        <TouchableOpacity 
-          style={styles.searchButton} 
-          onPress={handleSearch}
-        >
-          <Text style={styles.searchButtonText}>{t('browse.search')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.filterToggleButton}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Text style={styles.filterToggleButtonText}>
-            {t('browse.filter')}{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
-          </Text>
+        <Input
+          placeholder={t('browse.searchPlaceholder')}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+        />
+        <TouchableOpacity onPress={handleSearch}>
+          <Text>{t('browse.search')}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Liste */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.scrollView}
-      >
-        {/* Sonuçlar */}
-        <View style={styles.resultsContainer}>
-          <View style={styles.listTitleContainer}>
-            <Text style={styles.listTitle}>
-              {hasSearched
-                ? `${t('browse.searchResults')} (${displayedCafes.length})`
-                : `${t('browse.nearbyCafes')} (${displayedCafes.length})`}
-            </Text>
-            {/* "Şu anda açık olanlar" Switch */}
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>{t('browse.showOnlyOpen')}</Text>
-              <Switch
-                value={showOnlyOpen}
-                onValueChange={setShowOnlyOpen}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
-          </View>
+      <ScrollView ref={scrollViewRef}>
+        {loading ? (
+          <ActivityIndicator />
+        ) : (
+          <FlatList
+            data={paginatedData}
+            renderItem={renderCafeItem}
+            keyExtractor={(i) => String(i.id)}
+            scrollEnabled={false}
+          />
+        )}
 
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>{t('browse.loading')}</Text>
-            </View>
-          ) : displayedCafes.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {hasSearched
-                ? t('browse.noSearchResults')
-                : t('browse.noNearbyCafes')}
-            </Text>
-          ) : (
-            <View style={styles.cafeListContainer}>
-              <FlatList
-                data={paginatedData}
-                renderItem={renderCafeItem}
-                keyExtractor={(item, index) => `cafe-${item.id || index}`}
-                scrollEnabled={false}
-              />
-              {/* Pagination - LoyaltyDetailsScreen ile aynı görünürlük kontrolü */}
-              {displayedCafes.length > 0 && totalPages > 0 && (
-                <View style={styles.paginationContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.pageButton,
-                      currentPage === 1 && styles.pageButtonDisabled,
-                    ]}
-                    onPress={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    <Text style={styles.pageButtonText}>{t('browse.previous')}</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.pageInfo}>
-                    {t('browse.page')} {currentPage} / {totalPages}
-                  </Text>
-                  <View style={styles.itemsPerPageContainer}>
-                    <Text style={styles.itemsPerPageLabel}>{t('browse.show')}:</Text>
-                    {[5, 10, 20, 50].map((num) => (
-                      <TouchableOpacity
-                        key={num}
-                        style={[
-                          styles.itemsPerPageButton,
-                          itemsPerPage === num &&
-                            styles.itemsPerPageButtonActive,
-                        ]}
-                        onPress={() => {
-                          setItemsPerPage(num);
-                          setCurrentPage(1);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.itemsPerPageText,
-                            itemsPerPage === num &&
-                              styles.itemsPerPageTextActive,
-                          ]}
-                        >
-                          {num}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.pageButton,
-                      currentPage === totalPages &&
-                        styles.pageButtonDisabled,
-                    ]}
-                    onPress={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    <Text style={styles.pageButtonText}>{t('browse.next')}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Harita - Filtrelenmiş kafeler harita üzerinde gösterilecek */}
-        <View ref={mapContainerRef} style={styles.mapContainer}>
+        <View ref={mapContainerRef} style={{ height: 400 }}>
           <BrowseMapScreen cafes={displayedCafes} userLocation={userLocation} />
         </View>
       </ScrollView>
 
-      {/* Floating Harita Iconu - Sağ Alt Köşe */}
-      <TouchableOpacity
-        style={styles.floatingMapButton}
-        onPress={scrollToMap}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.floatingMapIcon}>🗺️</Text>
+      <TouchableOpacity style={styles.floatingMapButton} onPress={scrollToMap}>
+        <Text style={{ fontSize: 24 }}>🗺️</Text>
       </TouchableOpacity>
 
-      {/* Filtre Modal */}
       <BrowseFilterModal
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
@@ -540,316 +304,44 @@ const BrowseScreen = () => {
   );
 };
 
+export default BrowseScreen;
+
+/* -------------------------------------------------- */
+/* STYLES                                             */
+/* -------------------------------------------------- */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  logoContainer: {
-    padding: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    padding: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    alignItems: 'center', // Dikey hizalama için
-  },
-  searchInputContainer: {
-    flex: 1,
-    marginRight: spacing.sm,
-    height: 44, // Sabit yükseklik - butonlarla aynı hizada olması için (padding dahil)
-    justifyContent: 'center', // İçeriği dikey olarak ortala
-  },
-  searchInput: {
-    backgroundColor: colors.background,
-    height: 44, // Input yüksekliği butonlarla aynı
-    paddingVertical: spacing.xs + 2, // Üst-alt padding eşit
-    paddingHorizontal: spacing.md,
-    margin: 0, // Margin sıfırla
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: spacing.sm,
-    fontSize: typography.fontSize.md,
-  },
-  searchButton: {
-    height: 44, // Buton yüksekliği input ile aynı
-    paddingVertical: 0, // Padding sıfırla, height ile kontrol et
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: spacing.sm,
-    minWidth: 60,
-    alignItems: 'center',
-    justifyContent: 'center', // İçeriği dikey olarak ortala
-    marginRight: spacing.sm,
-  },
-  searchButtonText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  filterToggleButton: {
-    height: 44, // Buton yüksekliği input ile aynı
-    paddingVertical: 0, // Padding sıfırla, height ile kontrol et
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.secondary || colors.primary,
-    borderRadius: spacing.sm,
-    minWidth: 80,
-    alignItems: 'center',
-    justifyContent: 'center', // İçeriği dikey olarak ortala
-  },
-  filterToggleButtonText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.white,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  resultsContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    margin: spacing.md,
-    borderRadius: spacing.sm,
-    ...shadows.small,
-  },
-  listTitleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  listTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: spacing.md,
-  },
-  switchLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    marginRight: spacing.xs,
-  },
-  loadingContainer: {
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: spacing.sm,
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-  },
-  cafeListContainer: {
-    marginTop: spacing.sm,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  searchContainer: { padding: spacing.md },
   cafeItem: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     padding: spacing.md,
-    borderRadius: spacing.sm,
     marginBottom: spacing.sm,
-    overflow: 'visible', // Logo görünürlüğü için
+    borderRadius: spacing.sm,
     ...shadows.small,
   },
-  cafeItemClosed: {
-    opacity: 0.5, // Kapalı kafeler daha sönük
-  },
-  cafeItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center', // HomeScreen cafeHeader ile aynı
-    overflow: 'visible', // Logo görünürlüğü için
-  },
-  cafeLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: spacing.xs,
-    marginRight: spacing.sm,
-  },
+  cafeItemClosed: { opacity: 0.5 },
+  cafeItemContent: { flexDirection: 'row', alignItems: 'center' },
+  cafeLogo: { width: 40, height: 40, marginRight: spacing.sm },
   cafeLogoPlaceholder: {
-    backgroundColor: colors.primary, // HomeScreen ile BİREBİR aynı
-    justifyContent: 'center', // HomeScreen ile BİREBİR aynı
-    alignItems: 'center', // HomeScreen ile BİREBİR aynı
-  },
-  cafeLogoPlaceholderText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.white,
-  },
-  cafeInfoContainer: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  cafeName: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  cafeNameClosed: {
-    color: colors.textSecondary,
-  },
-  cafeAddress: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  cafeAddressClosed: {
-    opacity: 0.7,
-  },
-  cafeDistance: {
-    fontSize: typography.fontSize.xs,
-    color: colors.primary,
-    fontWeight: typography.fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
-  cafeDistanceClosed: {
-    opacity: 0.7,
-  },
-  cafeType: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  cafeTypeClosed: {
-    opacity: 0.7,
-  },
-  cafeHoursContainer: {
-    alignItems: 'flex-end',
-    justifyContent: 'flex-start',
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  hoursColumn: {
-    alignItems: 'center',
-  },
-  hoursLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs / 2,
-  },
-  hoursLabelClosed: {
-    opacity: 0.7,
-  },
-  hoursTime: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-  },
-  hoursTimeClosed: {
-    opacity: 0.7,
-  },
-  hoursSeparator: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  cafeHours: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-  },
-  cafeHoursClosed: {
-    opacity: 0.7,
-  },
-  paginationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    flexWrap: 'wrap',
-  },
-  pageButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
     backgroundColor: colors.primary,
-    borderRadius: spacing.sm,
-  },
-  pageButtonDisabled: {
-    opacity: 0.5,
-  },
-  pageButtonText: {
-    color: colors.white,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  pageInfo: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    marginHorizontal: spacing.sm,
-  },
-  itemsPerPageContainer: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: spacing.sm,
   },
-  itemsPerPageLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-    marginRight: spacing.xs,
-  },
-  itemsPerPageButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    marginLeft: spacing.xs,
-    borderRadius: spacing.xs,
-    backgroundColor: colors.background,
-  },
-  itemsPerPageButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  itemsPerPageText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textPrimary,
-  },
-  itemsPerPageTextActive: {
-    color: colors.white,
-  },
-  emptyText: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    padding: spacing.lg,
-    fontSize: typography.fontSize.sm,
-  },
-  mapContainer: {
-    height: 400,
-    margin: spacing.md,
-    marginTop: spacing.sm,
-  },
+  cafeLogoPlaceholderText: { color: colors.white },
+  cafeInfoContainer: { flex: 1 },
+  cafeName: { fontWeight: '600' },
+  cafeAddress: { fontSize: 12 },
+  cafeDistance: { fontSize: 12, color: colors.primary },
   floatingMapButton: {
     position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
+    right: 16,
+    bottom: 16,
+    backgroundColor: colors.primary,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.medium,
-    elevation: 5, // Android için shadow
-    zIndex: 1000,
-  },
-  floatingMapIcon: {
-    fontSize: 24,
   },
 });
-
-export default BrowseScreen;

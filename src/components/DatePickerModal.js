@@ -12,318 +12,126 @@ import { colors, spacing, typography, shadows } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-/**
- * DatePickerModal - Scroll tabanlı tarih seçici
- * Gün, ay, yıl ayrı ayrı scroll edilebilir
- */
-const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate, maxDate }) => {
-  // Mock data'daki en eski tarih: 2023-01-01 (güvenli başlangıç)
-  const MIN_YEAR = 2023;
-  const MIN_MONTH = 1;
-  const MIN_DAY = 1;
-  
-  // Bugün
-  const today = new Date();
-  const MAX_YEAR = today.getFullYear();
-  const MAX_MONTH = today.getMonth() + 1;
-  const MAX_DAY = today.getDate();
+const ITEM_HEIGHT = 48;
+const PICKER_HEIGHT = 200;
+const SPACER_HEIGHT = PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2;
 
-  // Ay isimleri
+const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate }) => {
+  const today = new Date();
+  const MIN_YEAR = 2023;
+  const MAX_YEAR = today.getFullYear();
+
   const monthNames = [
-    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran',
+    'Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'
   ];
 
-  // Başlangıç değerleri
-  const getInitialValues = () => {
-    if (initialDate) {
-      const date = new Date(initialDate);
-      return {
-        day: date.getDate(),
-        month: date.getMonth() + 1,
-        year: date.getFullYear(),
-      };
-    }
+  const getInitial = () => {
+    const d = initialDate ? new Date(initialDate) : today;
     return {
-      day: today.getDate(),
-      month: today.getMonth() + 1,
-      year: today.getFullYear(),
+      day: d.getDate(),
+      month: d.getMonth() + 1,
+      year: d.getFullYear(),
     };
   };
 
-  const [selectedDay, setSelectedDay] = useState(getInitialValues().day);
-  const [selectedMonth, setSelectedMonth] = useState(getInitialValues().month);
-  const [selectedYear, setSelectedYear] = useState(getInitialValues().year);
-  
-  // ScrollView referansları
-  const dayScrollRef = useRef(null);
-  const monthScrollRef = useRef(null);
-  const yearScrollRef = useRef(null);
+  const [day, setDay] = useState(getInitial().day);
+  const [month, setMonth] = useState(getInitial().month);
+  const [year, setYear] = useState(getInitial().year);
 
-  // Modal açıldığında başlangıç değerlerini ayarla
+  const dayRef = useRef(null);
+  const monthRef = useRef(null);
+  const yearRef = useRef(null);
+
   useEffect(() => {
     if (visible) {
-      const initial = getInitialValues();
-      setSelectedDay(initial.day);
-      setSelectedMonth(initial.month);
-      setSelectedYear(initial.year);
+      const init = getInitial();
+      setDay(init.day);
+      setMonth(init.month);
+      setYear(init.year);
     }
   }, [visible, initialDate]);
 
-  // Ayın gün sayısını hesapla (artık yıl kontrolü ile)
-  const getDaysInMonth = (month, year) => {
-    // Seçilen yıl ve ay için geçerli aralığı kontrol et
-    let minDay = 1;
-    let maxDay = 31;
+  const daysInMonth = new Date(year, month, 0).getDate();
 
-    // Minimum tarih kontrolü
-    if (year === MIN_YEAR && month < MIN_MONTH) {
-      return 0; // Geçersiz ay
-    }
-    if (year === MIN_YEAR && month === MIN_MONTH) {
-      minDay = MIN_DAY;
-    }
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const years = Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, i) => MIN_YEAR + i);
 
-    // Maximum tarih kontrolü
-    if (year === MAX_YEAR && month > MAX_MONTH) {
-      return 0; // Geçersiz ay
-    }
-    if (year === MAX_YEAR && month === MAX_MONTH) {
-      maxDay = MAX_DAY;
-    }
-
-    // Ayın gerçek gün sayısı
-    const daysInMonth = new Date(year, month, 0).getDate();
-    maxDay = Math.min(maxDay, daysInMonth);
-
-    return { minDay, maxDay, totalDays: daysInMonth };
+  const scrollToIndex = (ref, index) => {
+    if (!ref.current) return;
+    ref.current.scrollTo({
+      y: index * ITEM_HEIGHT,
+      animated: false,
+    });
   };
 
-  // Yıl listesi oluştur
-  const getYearList = () => {
-    const years = [];
-    for (let year = MIN_YEAR; year <= MAX_YEAR; year++) {
-      years.push(year);
-    }
-    return years;
-  };
-
-  // Ay listesi oluştur (seçilen yıla göre)
-  const getMonthList = () => {
-    const months = [];
-    let startMonth = 1;
-    let endMonth = 12;
-
-    if (selectedYear === MIN_YEAR) {
-      startMonth = MIN_MONTH;
-    }
-    if (selectedYear === MAX_YEAR) {
-      endMonth = MAX_MONTH;
-    }
-
-    for (let month = startMonth; month <= endMonth; month++) {
-      months.push(month);
-    }
-    return months;
-  };
-
-  // Gün listesi oluştur (seçilen ay ve yıla göre)
-  const getDayList = () => {
-    const dayInfo = getDaysInMonth(selectedMonth, selectedYear);
-    if (dayInfo === 0) return [];
-
-    const days = [];
-    for (let day = dayInfo.minDay; day <= dayInfo.maxDay; day++) {
-      days.push(day);
-    }
-    return days;
-  };
-
-  // Ay değiştiğinde günü kontrol et
   useEffect(() => {
-    const dayInfo = getDaysInMonth(selectedMonth, selectedYear);
-    if (dayInfo !== 0 && selectedDay > dayInfo.maxDay) {
-      setSelectedDay(dayInfo.maxDay);
+    if (visible) {
+      scrollToIndex(dayRef, days.indexOf(day));
+      scrollToIndex(monthRef, months.indexOf(month));
+      scrollToIndex(yearRef, years.indexOf(year));
     }
-    if (dayInfo !== 0 && selectedDay < dayInfo.minDay) {
-      setSelectedDay(dayInfo.minDay);
-    }
-  }, [selectedMonth, selectedYear]);
+  }, [visible]);
 
-  // Yıl değiştiğinde ayı kontrol et
-  useEffect(() => {
-    if (selectedYear === MIN_YEAR && selectedMonth < MIN_MONTH) {
-      setSelectedMonth(MIN_MONTH);
-    }
-    if (selectedYear === MAX_YEAR && selectedMonth > MAX_MONTH) {
-      setSelectedMonth(MAX_MONTH);
-    }
-  }, [selectedYear]);
+  const renderPicker = (data, value, onChange, label, ref, formatter) => (
+    <View style={styles.picker}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.pickerWindow}>
+        <ScrollView
+          ref={ref}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          decelerationRate="fast"
+          onMomentumScrollEnd={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+            if (data[index]) onChange(data[index]);
+          }}
+        >
+          <View style={{ height: SPACER_HEIGHT }} />
+          {data.map((item) => {
+            const selected = item === value;
+            return (
+              <View key={item} style={styles.item}>
+                <Text style={[styles.itemText, selected && styles.itemTextSelected]}>
+                  {formatter ? formatter(item) : item}
+                </Text>
+              </View>
+            );
+          })}
+          <View style={{ height: SPACER_HEIGHT }} />
+        </ScrollView>
 
-  // Scroll item render
-  const renderScrollItem = (items, selectedValue, onSelect, label, scrollRef) => {
-    const itemHeight = 48;
-
-    // ScrollView referansı ile başlangıç pozisyonunu ayarla
-    // Seçili item üstten ikinci pozisyonda olacak (index * itemHeight - itemHeight)
-    useEffect(() => {
-      if (visible && scrollRef.current && items.length > 0) {
-        const index = items.indexOf(selectedValue);
-        if (index >= 0) {
-          setTimeout(() => {
-            // Üstten ikinci pozisyon için: seçili item'ın yukarısında 1 item boşluk bırak
-            // scrollWrapper height: 200, itemHeight: 50, 4 item görünür
-            // Seçili item üstten ikinci olmalı, yani y offset = (index - 1) * itemHeight
-            const targetY = Math.max(0, (index - 1) * itemHeight);
-            scrollRef.current?.scrollTo({
-              y: targetY,
-              animated: false,
-            });
-          }, 100);
-        }
-      }
-    }, [visible, selectedValue, items.length]);
-
-    return (
-      <View style={styles.pickerContainer}>
-        <Text style={styles.pickerLabel}>{label}</Text>
-        <View style={styles.scrollWrapper}>
-          <ScrollView
-            ref={scrollRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={itemHeight}
-            decelerationRate="fast"
-            onMomentumScrollEnd={(e) => {
-              const offsetY = e.nativeEvent.contentOffset.y;
-              // Üstten ikinci pozisyon için: offsetY'ye 1 itemHeight ekle
-              const index = Math.round((offsetY + itemHeight) / itemHeight);
-              if (index >= 0 && index < items.length) {
-                onSelect(items[index]);
-              }
-            }}
-          >
-            {/* Spacer üst */}
-            <View style={{ height: itemHeight }} />
-            
-            {items.map((item, index) => {
-              const isSelected = item === selectedValue;
-              const displayText = label === 'Ay' ? monthNames[item - 1] : String(item);
-              return (
-                <TouchableOpacity
-                  key={`${label}-${item}-${index}`}
-                  style={[
-                    styles.scrollItem,
-                    { height: itemHeight },
-                    isSelected && styles.scrollItemSelected,
-                  ]}
-                  onPress={() => {
-                    onSelect(item);
-                    // Üstten ikinci pozisyon için: (index - 1) * itemHeight
-                    const targetY = Math.max(0, (index - 1) * itemHeight);
-                    scrollRef.current?.scrollTo({
-                      y: targetY,
-                      animated: true,
-                    });
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.scrollItemContent, { height: itemHeight }]}>
-                    <Text
-                      style={[
-                        styles.scrollItemText,
-                        isSelected && styles.scrollItemTextSelected,
-                        { height: itemHeight, lineHeight: itemHeight },
-                      ]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit={false}
-                      textAlignVertical="center"
-                      includeFontPadding={false}
-                    >
-                      {displayText}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            
-            {/* Spacer alt */}
-            <View style={{ height: itemHeight }} />
-          </ScrollView>
-          {/* Seçili item highlight */}
-          <View style={[styles.selectedIndicator, { pointerEvents: 'none' }]} />
-        </View>
+        <View style={styles.centerHighlight} pointerEvents="none" />
       </View>
-    );
-  };
+    </View>
+  );
 
   const handleConfirm = () => {
-    const dayInfo = getDaysInMonth(selectedMonth, selectedYear);
-    if (dayInfo === 0) return;
-
-    const finalDay = Math.min(Math.max(selectedDay, dayInfo.minDay), dayInfo.maxDay);
-    const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(finalDay).padStart(2, '0')}`;
-    onDateSelect(dateStr);
+    const d = String(day).padStart(2, '0');
+    const m = String(month).padStart(2, '0');
+    onDateSelect(`${year}-${m}-${d}`);
     onClose();
   };
 
-  const dayList = getDayList();
-  const monthList = getMonthList();
-  const yearList = getYearList();
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Tarih Seç</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Tarih Seç</Text>
+
+          <View style={styles.row}>
+            {renderPicker(days, day, setDay, 'Gün', dayRef)}
+            {renderPicker(months, month, setMonth, 'Ay', monthRef, (m) => monthNames[m - 1])}
+            {renderPicker(years, year, setYear, 'Yıl', yearRef)}
           </View>
 
-          <View style={styles.pickersRow}>
-            {renderScrollItem(
-              dayList,
-              selectedDay,
-              setSelectedDay,
-              'Gün',
-              dayScrollRef
-            )}
-            {renderScrollItem(
-              monthList,
-              selectedMonth,
-              setSelectedMonth,
-              'Ay',
-              monthScrollRef
-            )}
-            {renderScrollItem(
-              yearList,
-              selectedYear,
-              setSelectedYear,
-              'Yıl',
-              yearScrollRef
-            )}
-          </View>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-            >
-              <Text style={styles.cancelButtonText}>İptal</Text>
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.cancel} onPress={onClose}>
+              <Text>İptal</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.confirmButton]}
-              onPress={handleConfirm}
-            >
-              <Text style={styles.confirmButtonText}>Seç</Text>
+            <TouchableOpacity style={styles.confirm} onPress={handleConfirm}>
+              <Text style={{ color: '#fff' }}>Seç</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -333,163 +141,83 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate, minDate,
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
+  container: {
     backgroundColor: colors.surface,
-    borderRadius: spacing.md,
     width: '90%',
-    maxWidth: 400,
-    maxHeight: SCREEN_HEIGHT * 0.7,
+    borderRadius: spacing.md,
+    padding: spacing.md,
     ...shadows.large,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 0,
-    borderBottomColor: 'transparent',
-  },
-  modalTitle: {
+  title: {
+    textAlign: 'center',
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.bold,
-    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
-  closeButton: {
-    width: 30,
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: colors.textSecondary,
-  },
-  pickersRow: {
+  row: {
     flexDirection: 'row',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
   },
-  pickerContainer: {
-    width: '33%',
-    alignItems: 'center',
-    minWidth: 80,
+  picker: {
     flex: 1,
+    alignItems: 'center',
   },
-  pickerLabel: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textSecondary,
+  label: {
     marginBottom: spacing.xs,
+    fontSize: typography.fontSize.sm,
   },
-  scrollWrapper: {
-    height: 200,
+  pickerWindow: {
+    height: PICKER_HEIGHT,
     width: '100%',
-    position: 'relative',
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: 0,
-  },
-  scrollItem: {
+  item: {
+    height: ITEM_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 48,
-    width: '100%',
-    flexDirection: 'row',
-    paddingVertical: 0,
-    paddingHorizontal: 0,
   },
-  scrollItemSelected: {
-    backgroundColor: colors.primary + '20',
-    height: 48,
-  },
-  scrollItemContent: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    flexDirection: 'row',
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-  scrollItemText: {
+  itemText: {
     fontSize: typography.fontSize.md,
     color: colors.textSecondary,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    lineHeight: 48,
-    height: 48,
-    paddingVertical: 0,
-    marginVertical: 0,
   },
-  scrollItemTextSelected: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.bold,
+  itemTextSelected: {
     color: colors.primary,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-    lineHeight: 48,
-    height: 48,
-    paddingVertical: 0,
-    marginVertical: 0,
+    fontWeight: typography.fontWeight.bold,
   },
-  selectedIndicator: {
+  centerHighlight: {
     position: 'absolute',
-    top: '50%',
+    top: PICKER_HEIGHT / 2 - ITEM_HEIGHT / 2,
+    height: ITEM_HEIGHT,
     left: 0,
     right: 0,
-    height: 48,
-    marginTop: -24,
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
-    borderColor: colors.primary,
-    backgroundColor: 'transparent',
-    pointerEvents: 'none',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    padding: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderBottomWidth: 1,
+    borderColor: colors.primary,
+  },
+  footer: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
     gap: spacing.sm,
   },
-  button: {
+  cancel: {
     flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: spacing.sm,
+    padding: spacing.md,
     alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: spacing.sm,
   },
-  cancelButtonText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-  },
-  confirmButton: {
+  confirm: {
+    flex: 1,
+    padding: spacing.md,
+    alignItems: 'center',
     backgroundColor: colors.primary,
-  },
-  confirmButtonText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.white,
+    borderRadius: spacing.sm,
   },
 });
 
 export default DatePickerModal;
-

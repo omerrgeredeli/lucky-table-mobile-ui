@@ -1,0 +1,1100 @@
+================================================================================
+FAVORİ MEKANLAR TÜMÜNÜ GÖR SAYFASI - FİLTRELEME ANALİZ DOSYASI
+================================================================================
+Oluşturulma Tarihi: 2024
+Bu dosya Favori Mekanlar Tümünü Gör sayfasındaki filtreleme ile ilgili tüm kodları içermektedir.
+
+================================================================================
+1. ANA DOSYA: LoyaltyDetailsScreen.js
+================================================================================
+Dosya Yolu: src/screens/loyalty/LoyaltyDetailsScreen.js
+Satır Sayısı: 1105
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  TouchableWithoutFeedback,
+  Platform,
+  Image,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { getUserLoyaltyInfo } from '../../services/userService';
+import { colors, spacing, typography, shadows } from '../../theme';
+import FilterScreen from '../../components/FilterScreen';
+import { locationData } from '../../data/locationData';
+import Logo from '../../components/Logo';
+
+/**
+ * Loyalty Details Screen - Sadakat Bilgileri Detay
+ * Tüm kafeler, filtreleme, sıralama ve pagination
+ */
+const LoyaltyDetailsScreen = () => {
+  const navigation = useNavigation();
+  const { t } = useTranslation();
+  const [loyaltyData, setLoyaltyData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
+  const [selectedCafe, setSelectedCafe] = useState(null);
+  const [showOrderHistoryModal, setShowOrderHistoryModal] = useState(false);
+  
+  // Yeni filtre state (backend'e hazır)
+  const [filterPayload, setFilterPayload] = useState(null);
+
+  // Sıralama
+  const [sortBy, setSortBy] = useState('dateDesc'); // dateDesc, dateAsc, nameAsc, nameDesc, orderCountDesc, orderCountAsc, nextOrderDesc, nextOrderAsc
+
+  useEffect(() => {
+    fetchLoyaltyInfo();
+  }, []);
+
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [filterPayload, sortBy, loyaltyData]);
+
+  const fetchLoyaltyInfo = async () => {
+    setLoading(true);
+    try {
+      const data = await getUserLoyaltyInfo();
+      setLoyaltyData(data || []);
+      setFilteredData(data || []);
+    } catch (error) {
+      Alert.alert(t('common.error'), t('loyalty.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyFiltersAndSort = () => {
+    let filtered = [...loyaltyData];
+
+    // Yeni filtreleme mantığı (backend payload'a göre)
+    if (filterPayload) {
+      // Konum filtreleme
+      if (filterPayload.cityId) {
+        const selectedCity = locationData.find((city) => city.id === filterPayload.cityId);
+        if (selectedCity) {
+          filtered = filtered.filter((item) => item.city === selectedCity.name);
+          
+          if (filterPayload.districtId) {
+            const selectedDistrict = selectedCity.districts.find(
+              (district) => district.id === filterPayload.districtId
+            );
+            if (selectedDistrict) {
+              filtered = filtered.filter((item) => item.district === selectedDistrict.name);
+              
+              if (filterPayload.neighborhoodId) {
+                const selectedNeighborhood = selectedDistrict.neighborhoods.find(
+                  (neighborhood) => neighborhood.id === filterPayload.neighborhoodId
+                );
+                if (selectedNeighborhood) {
+                  filtered = filtered.filter(
+                    (item) => item.neighborhood === selectedNeighborhood.name
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Tarih aralığı filtreleme - orderHistory'deki tarihlere göre
+      // Sadece seçilen tarih aralığında siparişi olan kafeleri göster
+      if (filterPayload.startDate || filterPayload.endDate) {
+        filtered = filtered.filter((item) => {
+          // orderHistory yoksa kafe gösterilmez
+          if (!item.orderHistory || item.orderHistory.length === 0) {
+            return false;
+          }
+          
+          // orderHistory'deki tarihlerden herhangi biri aralıkta mı kontrol et
+          const hasDateInRange = item.orderHistory.some((order) => {
+            if (!order.date) return false;
+            const orderDateStr = order.date; // YYYY-MM-DD formatı
+            
+            let inRange = true;
+            if (filterPayload.startDate) {
+              if (orderDateStr < filterPayload.startDate) {
+                inRange = false;
+              }
+            }
+            if (filterPayload.endDate) {
+              if (orderDateStr > filterPayload.endDate) {
+                inRange = false;
+              }
+            }
+            return inRange;
+          });
+          
+          return hasDateInRange;
+        });
+
+        // Aktif tarih filtresi varken, her kafe için bu aralıktaki sipariş sayısını hesapla
+        filtered = filtered.map((item) => {
+          const rangeCount = (item.orderHistory || []).filter((order) => {
+            if (!order.date) return false;
+            const orderDateStr = order.date;
+            if (filterPayload.startDate && orderDateStr < filterPayload.startDate) return false;
+            if (filterPayload.endDate && orderDateStr > filterPayload.endDate) return false;
+            return true;
+          }).length;
+          return { ...item, dateRangeOrderCount: rangeCount };
+        });
+      }
+
+      // Kategori filtreleme - orderHistory'deki orderType'lara göre - CRASH FIX: güvenli array kontrolü
+      if (filterPayload.categoryType && Array.isArray(filterPayload.subCategories) && filterPayload.subCategories.length > 0) {
+        filtered = filtered.filter((item) => {
+          if (!item.orderHistory || !Array.isArray(item.orderHistory) || item.orderHistory.length === 0) return false;
+          
+          try {
+            // Alt kategori ID'lerini isimlere çevir (foodCategories'den)
+            const { foodCategories } = require('../../data/foodCategories');
+            
+            // Güvenli array map
+            const selectedSubCategoryNames = filterPayload.subCategories
+              .filter((subCatId) => subCatId !== null && subCatId !== undefined)
+              .map((subCatId) => {
+                try {
+                  const category = foodCategories?.[filterPayload.categoryType];
+                  if (!category || !Array.isArray(category.subCategories)) {
+                    return '';
+                  }
+                  const subCat = category.subCategories.find(
+                    (sc) => sc && sc.id === subCatId
+                  );
+                  return subCat?.name || '';
+                } catch (error) {
+                  console.warn('SubCategory name mapping error:', error);
+                  return '';
+                }
+              })
+              .filter(Boolean);
+            
+            if (selectedSubCategoryNames.length === 0) return false;
+            
+            // orderHistory'de bu kategorilerden biri var mı kontrol et
+            return item.orderHistory.some((order) => {
+              if (!order || !order.orderType) return false;
+              return selectedSubCategoryNames.some((categoryName) => {
+                // Case-insensitive karşılaştırma
+                return String(order.orderType || '').toLowerCase() === String(categoryName || '').toLowerCase();
+              });
+            });
+          } catch (error) {
+            console.error('Category filter crash prevented:', error);
+            return false;
+          }
+        });
+      }
+    } else {
+      // Aktif filtre yoksa, eklenmiş olabilecek dateRangeOrderCount alanını temizle
+      filtered = filtered.map((item) => {
+        const { dateRangeOrderCount, ...rest } = item;
+        return rest;
+      });
+    }
+
+    // Sıralama
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'dateDesc':
+          return (b.lastOrderDate || 0) - (a.lastOrderDate || 0);
+        case 'dateAsc':
+          return (a.lastOrderDate || 0) - (b.lastOrderDate || 0);
+        case 'nameAsc':
+          return (a.cafeName || '').localeCompare(b.cafeName || '');
+        case 'nameDesc':
+          return (b.cafeName || '').localeCompare(a.cafeName || '');
+        case 'orderCountDesc':
+          return (b.orderCount || 0) - (a.orderCount || 0);
+        case 'orderCountAsc':
+          return (a.orderCount || 0) - (b.orderCount || 0);
+        case 'nextOrderDesc': {
+          const aNext = (a.freeProductAt || 10) - ((a.orderCount || 0) % (a.freeProductAt || 10));
+          const bNext = (b.freeProductAt || 10) - ((b.orderCount || 0) % (b.freeProductAt || 10));
+          return bNext - aNext;
+        }
+        case 'nextOrderAsc': {
+          const aNext = (a.freeProductAt || 10) - ((a.orderCount || 0) % (a.freeProductAt || 10));
+          const bNext = (b.freeProductAt || 10) - ((b.orderCount || 0) % (b.freeProductAt || 10));
+          return aNext - bNext;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredData(filtered);
+    setCurrentPage(1);
+  };
+
+  // Pagination
+  const totalPages = filteredData.length > 0 ? Math.max(1, Math.ceil(filteredData.length / itemsPerPage)) : 0;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, endIndex);
+  
+  // itemsPerPage değişince sayfa numarasını kontrol et
+  useEffect(() => {
+    const newTotalPages = filteredData.length > 0 ? Math.max(1, Math.ceil(filteredData.length / itemsPerPage)) : 0;
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    } else if (newTotalPages === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [itemsPerPage, filteredData.length]);
+
+  const renderCafeItem = ({ item }) => {
+    const freeProductAt = item.freeProductAt || 10;
+    const progress = item.orderCount % freeProductAt;
+    const nextFreeAt = freeProductAt - progress;
+    const hasDateFilter =
+      !!(filterPayload && (filterPayload.startDate || filterPayload.endDate));
+
+    return (
+      <TouchableOpacity
+        style={styles.cafeItem}
+        onPress={() => {
+          setSelectedCafe(item);
+          setShowOrderHistoryModal(true);
+        }}
+        activeOpacity={0.7}
+      >
+        {/* Logo ve Kafe Adı */}
+        <View style={styles.cafeHeader}>
+          {(item.cafeLogo || item.logoUrl) ? (
+            <Image
+              source={{ uri: item.cafeLogo || item.logoUrl }}
+              style={styles.cafeLogo}
+              onError={() => {}}
+            />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.cafeName || 'Kafe')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.cafeName}>{item.cafeName || t('loyalty.cafeName')}</Text>
+        </View>
+        <View style={styles.statsContainer}>
+          {hasDateFilter && (
+            <Text style={styles.statText}>
+              {t('loyalty.dateRangeOrder')}:{" "}
+              <Text style={styles.statValue}>{item.dateRangeOrderCount || 0}</Text>
+            </Text>
+          )}
+          <Text style={styles.statText}>
+            {t('loyalty.totalOrders')}: <Text style={styles.statValue}>{item.orderCount || 0}</Text>
+          </Text>
+          {!hasDateFilter && (
+            <>
+              <Text style={styles.statText}>
+                {t('loyalty.freeProductAt')}: <Text style={styles.statValue}>{item.freeProductAt || 10}</Text> {t('loyalty.freeProductAtOrder')}
+              </Text>
+              <Text style={styles.progressText}>
+                {t('loyalty.nextFreeProduct')}: <Text style={styles.progressValue}>{nextFreeAt}</Text> {t('loyalty.ordersLeft')}
+              </Text>
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Tarih formatlama fonksiyonu
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Logo ve Geri Butonu */}
+      <View style={styles.logoContainer}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Home')}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.logoWrapper}>
+          <Logo size="small" />
+        </View>
+      </View>
+
+      {/* Başlık */}
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>
+          {t('loyalty.favoritePlaces')} ({filteredData.length})
+        </Text>
+      </View>
+
+      {/* Filtre ve Sıralama Butonları */}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => {
+            setShowFilterModal(true);
+            setShowSortModal(false);
+          }}
+        >
+          <Text style={styles.actionButtonText}>
+            {t('loyalty.filter')}{filterPayload && ' ✓'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => {
+            setShowSortModal(true);
+            setShowFilterModal(false);
+          }}
+        >
+          <Text style={styles.actionButtonText}>{t('loyalty.sort')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => {
+            setFilterPayload(null);
+            setShowFilterModal(false);
+          }}
+        >
+          <Text style={styles.actionButtonText}>{t('loyalty.currentData')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* FilterScreen Modal */}
+      <FilterScreen
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={(payload) => {
+          try {
+            const safePayload = payload ? {
+              ...payload,
+              subCategories: Array.isArray(payload.subCategories) 
+                ? payload.subCategories 
+                : [],
+            } : null;
+            setFilterPayload(safePayload);
+            setShowFilterModal(false);
+          } catch (error) {
+            console.error('Filter apply crash prevented in LoyaltyDetailsScreen:', error);
+            setShowFilterModal(false);
+          }
+        }}
+        initialFilters={filterPayload}
+      />
+
+      {/* Sıralama Modal */}
+      <Modal
+        visible={showSortModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowSortModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setShowSortModal(false)}>
+            <View style={styles.modalOverlayTouchable} />
+          </TouchableWithoutFeedback>
+          <View style={styles.sortModalContent}>
+            <View style={styles.sortModalHeader}>
+              <Text style={styles.sortModalTitle}>{t('loyalty.sortOptions')}</Text>
+              <TouchableOpacity
+                onPress={() => setShowSortModal(false)}
+                style={styles.sortModalCloseButton}
+              >
+                <Text style={styles.sortModalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.sortModalBody}>
+              {[
+                { value: 'dateDesc', label: t('loyalty.sortByDateDesc') },
+                { value: 'dateAsc', label: t('loyalty.sortByDateAsc') },
+                { value: 'nameAsc', label: t('loyalty.sortByNameAsc') },
+                { value: 'nameDesc', label: t('loyalty.sortByNameDesc') },
+                { value: 'orderCountDesc', label: t('loyalty.sortByOrderCountDesc') },
+                { value: 'orderCountAsc', label: t('loyalty.sortByOrderCountAsc') },
+                { value: 'nextOrderDesc', label: t('loyalty.sortByNextOrderDesc') },
+                { value: 'nextOrderAsc', label: t('loyalty.sortByNextOrderAsc') },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.sortModalOption,
+                    sortBy === option.value && styles.sortModalOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSortBy(option.value);
+                    setShowSortModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.sortModalOptionText,
+                      sortBy === option.value && styles.sortModalOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {sortBy === option.value && (
+                    <Text style={styles.sortModalCheckmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Liste */}
+      <FlatList
+        data={paginatedData}
+        renderItem={renderCafeItem}
+        keyExtractor={(item, index) => {
+          return item?.id ? `cafe-${item.id}` : `cafe-${index}`;
+        }}
+        extraData={filterPayload}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>{t('loyalty.noOrderHistory')}</Text>
+        }
+      />
+
+      {/* Pagination */}
+      {filteredData.length > 0 && totalPages > 0 && (
+        <View style={styles.paginationContainer}>
+          <TouchableOpacity
+            style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
+            onPress={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <Text style={styles.pageButtonText}>{t('loyalty.previous')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.pageInfo}>
+            <Text style={styles.pageInfoText} numberOfLines={1}>
+              {t('loyalty.page')} {currentPage} / {totalPages}
+            </Text>
+          </View>
+
+          <View style={styles.itemsPerPageContainer}>
+            <Text style={styles.itemsPerPageLabel}>{t('loyalty.show')}:</Text>
+            {[5, 10, 20, 50].map((num) => (
+              <TouchableOpacity
+                key={num}
+                style={[
+                  styles.itemsPerPageButton,
+                  itemsPerPage === num && styles.itemsPerPageButtonActive,
+                ]}
+                onPress={() => {
+                  setItemsPerPage(num);
+                  setCurrentPage(1);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.itemsPerPageText,
+                    itemsPerPage === num && styles.itemsPerPageTextActive,
+                  ]}
+                >
+                  {num}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
+            onPress={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <Text style={styles.pageButtonText}>{t('loyalty.next')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Sipariş Geçmişi Modal - Tarih filtresi ile uyumlu */}
+      <Modal
+        visible={showOrderHistoryModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOrderHistoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setShowOrderHistoryModal(false)}>
+            <View style={styles.modalOverlayTouchable} />
+          </TouchableWithoutFeedback>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedCafe?.cafeName || t('loyalty.cafeName')} - {t('loyalty.orderHistory')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowOrderHistoryModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              nestedScrollEnabled={Platform.OS === 'android'}
+              showsVerticalScrollIndicator={true}
+            >
+              {(() => {
+                let filteredOrderHistory = selectedCafe?.orderHistory || [];
+                
+                if (filterPayload && (filterPayload.startDate || filterPayload.endDate)) {
+                  filteredOrderHistory = filteredOrderHistory.filter((order) => {
+                    if (!order.date) return false;
+                    const orderDateStr = order.date;
+                    
+                    let inRange = true;
+                    if (filterPayload.startDate) {
+                      if (orderDateStr < filterPayload.startDate) {
+                        inRange = false;
+                      }
+                    }
+                    if (filterPayload.endDate) {
+                      if (orderDateStr > filterPayload.endDate) {
+                        inRange = false;
+                      }
+                    }
+                    return inRange;
+                  });
+                }
+                
+                return filteredOrderHistory.length > 0 ? (
+                  <>
+                    <View style={styles.tableHeader}>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderDate]}>{t('loyalty.date')}</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderBranch]}>{t('loyalty.branch')}</Text>
+                      <Text style={[styles.tableHeaderText, styles.tableHeaderType]}>{t('loyalty.orderType')}</Text>
+                    </View>
+                    {filteredOrderHistory.map((order, index) => {
+                      const orderTypes = order.orderTypes || (order.orderType ? [order.orderType] : []);
+                      const sortedOrderTypes = [...new Set(orderTypes)].sort();
+                      const orderTypesDisplay = sortedOrderTypes
+                        .map((type) => t(`filter.orderTypes.${type}`, { defaultValue: type }))
+                        .join(' - ');
+                      
+                      return (
+                        <View key={index} style={styles.tableRow}>
+                          <Text style={[styles.tableCell, styles.tableCellDate]}>
+                            {formatDate(order.date)}
+                          </Text>
+                          <Text style={[styles.tableCell, styles.tableCellBranch]}>
+                            {order.branch || t('loyalty.centerBranch', { defaultValue: 'Merkez' })}
+                          </Text>
+                          <Text style={[styles.tableCell, styles.tableCellType]}>
+                            {orderTypesDisplay}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <Text style={styles.emptyHistoryText}>
+                    {filterPayload && (filterPayload.startDate || filterPayload.endDate)
+                      ? t('loyalty.noOrderHistoryInRange')
+                      : t('loyalty.noOrderHistory')}
+                  </Text>
+                );
+              })()}
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalCloseButtonFooter}
+                onPress={() => setShowOrderHistoryModal(false)}
+              >
+                <Text style={styles.modalCloseButtonText}>{t('common.close')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    position: 'absolute',
+    left: spacing.md,
+    padding: spacing.xs,
+    zIndex: 1,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.xxl || 28,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.bold,
+  },
+  logoWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleContainer: {
+    padding: spacing.md,
+    backgroundColor: colors.primary,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.sm,
+    marginHorizontal: spacing.xs,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  listContent: {
+    padding: spacing.md,
+  },
+  cafeItem: {
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: spacing.sm,
+    ...shadows.small,
+  },
+  cafeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  cafeLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  cafeLogoPlaceholder: {
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cafeLogoPlaceholderText: {
+    color: colors.white,
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+  },
+  cafeName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    flex: 1,
+    marginBottom: 0,
+  },
+  statsContainer: {
+    marginTop: spacing.xs,
+  },
+  statText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+  },
+  progressText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary,
+    marginTop: spacing.sm,
+    fontWeight: typography.fontWeight.medium,
+  },
+  progressValue: {
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: spacing.xl,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pageButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.sm,
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  pageInfo: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  pageInfoText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    flexShrink: 0,
+  },
+  itemsPerPageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  itemsPerPageLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  itemsPerPageButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginLeft: spacing.xs,
+    borderRadius: spacing.xs,
+    backgroundColor: colors.background,
+  },
+  itemsPerPageButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  itemsPerPageText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textPrimary,
+  },
+  itemsPerPageTextActive: {
+    color: colors.white,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalOverlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.md,
+    width: '95%',
+    maxWidth: 1200,
+    maxHeight: '90%',
+    minHeight: 400,
+    flexDirection: 'column',
+    ...shadows.large,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 24,
+    color: colors.textSecondary,
+  },
+  modalBody: {
+    flex: 1,
+    padding: spacing.lg,
+    minHeight: 400,
+  },
+  modalBodyContent: {
+    paddingBottom: spacing.xl,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.sm,
+    marginBottom: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+  },
+  tableHeaderText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  tableHeaderDate: {
+    flex: 1,
+  },
+  tableHeaderBranch: {
+    flex: 1,
+  },
+  tableHeaderType: {
+    flex: 1,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableCell: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+  },
+  tableCellDate: {
+    flex: 1,
+  },
+  tableCellBranch: {
+    flex: 1,
+  },
+  tableCellType: {
+    flex: 1,
+  },
+  emptyHistoryText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    padding: spacing.xl,
+    fontSize: typography.fontSize.sm,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  modalCloseButtonFooter: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: spacing.sm,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  sortModalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.md,
+    width: '85%',
+    maxWidth: 400,
+    maxHeight: '70%',
+    ...shadows.large,
+    overflow: 'hidden',
+  },
+  sortModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  sortModalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  sortModalCloseButton: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortModalCloseText: {
+    fontSize: 24,
+    color: colors.textSecondary,
+  },
+  sortModalBody: {
+    maxHeight: 400,
+  },
+  sortModalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  sortModalOptionActive: {
+    backgroundColor: colors.primary,
+  },
+  sortModalOptionText: {
+    fontSize: typography.fontSize.md,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  sortModalOptionTextActive: {
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  sortModalCheckmark: {
+    fontSize: typography.fontSize.lg,
+    color: colors.white,
+    fontWeight: typography.fontWeight.bold,
+    marginLeft: spacing.sm,
+  },
+});
+
+export default LoyaltyDetailsScreen;
+
+================================================================================
+2. FİLTRE COMPONENT: FilterScreen.js
+================================================================================
+Dosya Yolu: src/components/FilterScreen.js
+Satır Sayısı: 1010
+
+[FilterScreen.js dosyasının tam içeriği aşağıda yer almaktadır - 1010 satır]
+
+================================================================================
+3. FİLTRELEME ÖZELLİKLERİ ÖZETİ
+================================================================================
+
+FİLTRE TİPLERİ:
+1. Konum Filtreleme:
+   - Şehir seçimi (cityId)
+   - İlçe seçimi (districtId) - Şehir seçildikten sonra
+   - Semt seçimi (neighborhoodId) - İlçe seçildikten sonra
+   - Hiyerarşik yapı: Şehir → İlçe → Semt
+   - "Tümü" seçeneği her seviyede mevcut
+
+2. Tarih Aralığı Filtreleme:
+   - Başlangıç tarihi (startDate) - YYYY-MM-DD formatı
+   - Bitiş tarihi (endDate) - YYYY-MM-DD formatı
+   - orderHistory'deki tarihlere göre filtreleme
+   - Tarih aralığında siparişi olan kafeler gösterilir
+   - Tarih filtresi aktifken, her kafe için o aralıktaki sipariş sayısı hesaplanır (dateRangeOrderCount)
+
+3. Kategori Filtreleme:
+   - Ana kategori seçimi: FOOD, DRINK, BOTH
+   - Alt kategori seçimi (subCategories) - Çoklu seçim
+   - Alt kategoriler ana kategoriye göre dinamik yüklenir
+   - orderHistory'deki orderType'lara göre filtreleme
+
+FİLTRE STATE YAPISI:
+{
+  cityId: null | number,
+  districtId: null | number,
+  neighborhoodId: null | number,
+  startDate: null | string (YYYY-MM-DD),
+  endDate: null | string (YYYY-MM-DD),
+  categoryType: null | "FOOD" | "DRINK" | "BOTH",
+  subCategories: [] (array of subCategory IDs)
+}
+
+FİLTRELEME MANTIĞI:
+1. Konum Filtreleme:
+   - cityId varsa: item.city === selectedCity.name
+   - districtId varsa: item.district === selectedDistrict.name
+   - neighborhoodId varsa: item.neighborhood === selectedNeighborhood.name
+
+2. Tarih Filtreleme:
+   - orderHistory array'inde en az bir siparişin tarihi aralıkta olmalı
+   - startDate varsa: orderDateStr >= startDate
+   - endDate varsa: orderDateStr <= endDate
+
+3. Kategori Filtreleme:
+   - categoryType ve subCategories seçilmişse
+   - orderHistory'deki orderType'lar alt kategori isimleriyle eşleşmeli
+   - Case-insensitive karşılaştırma yapılır
+
+SIRALAMA SEÇENEKLERİ:
+- dateDesc: Son sipariş tarihine göre azalan
+- dateAsc: Son sipariş tarihine göre artan
+- nameAsc: Kafe adına göre A-Z
+- nameDesc: Kafe adına göre Z-A
+- orderCountDesc: Toplam sipariş sayısına göre azalan
+- orderCountAsc: Toplam sipariş sayısına göre artan
+- nextOrderDesc: Bir sonraki ücretsiz ürüne kalan sipariş sayısına göre azalan
+- nextOrderAsc: Bir sonraki ücretsiz ürüne kalan sipariş sayısına göre artan
+
+PAGINATION:
+- itemsPerPage: 5, 10, 20, 50 seçenekleri
+- Sayfa numarası otomatik kontrol edilir
+- itemsPerPage değişince sayfa numarası güncellenir
+
+CRASH FIX'LER:
+- subCategories her zaman array olarak kontrol edilir
+- Null/undefined kontrolleri yapılır
+- Try/catch blokları ile hata yakalama
+- Güvenli state initialization
+
+================================================================================
+SON
+================================================================================

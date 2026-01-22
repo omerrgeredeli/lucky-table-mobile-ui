@@ -1,0 +1,1462 @@
+================================================================================
+GÖZ AT SCREEN - HARITA ANALİZ DOSYASI
+================================================================================
+Oluşturulma Tarihi: 2024
+Bu dosya Göz At screenindeki harita ile ilgili tüm kodları içermektedir.
+
+================================================================================
+1. ANA DOSYA: BrowseScreen.js (Harita Entegrasyonu)
+================================================================================
+Dosya Yolu: src/screens/browse/BrowseScreen.js
+Satır Sayısı: 856
+
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  AppState,
+  Image,
+  Switch,
+  Animated,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useRoute } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import { getNearbyCafes } from '../../services/cafeService';
+import { colors, spacing, typography, shadows } from '../../theme';
+import Logo from '../../components/Logo';
+import BrowseMapScreen from './components/BrowseMapScreen';
+import BrowseFilterModal from './components/BrowseFilterModal';
+import Input from '../../components/Input';
+import { sortCafesByDistance } from '../../utils/distanceUtils';
+
+/**
+ * Browse Screen - Göz At
+ * Sahibinden.com benzeri filtreleme sistemi ile kafeler listelenir
+ */
+const BrowseScreen = () => {
+  const { t } = useTranslation();
+  const route = useRoute();
+  const [allCafes, setAllCafes] = useState([]); // Tüm kafeler (filtrelenmemiş)
+  const [displayedCafes, setDisplayedCafes] = useState([]); // Gösterilecek kafeler (filtrelenmiş + sıralanmış)
+  const [loading, setLoading] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery || '');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(true);
+  const scrollViewRef = useRef(null);
+  const mapContainerRef = useRef(null);
+
+  // Filtre state
+  const [activeFilters, setActiveFilters] = useState({
+    restaurantTypes: [],
+    maxDistance: 10, // km
+    campaignTypes: [],
+  });
+
+  // Varsayılan konum (Ankara)
+  const DEFAULT_LOCATION = {
+    latitude: 39.9334,
+    longitude: 32.8597,
+  };
+
+  // Component mount olduğunda konum izni kontrol et ve kafeleri yükle
+  useEffect(() => {
+    checkLocationAndLoadCafes();
+  }, []);
+
+  // Route params değiştiğinde arama yap
+  useEffect(() => {
+    if (route.params?.searchQuery) {
+      setSearchQuery(route.params.searchQuery);
+      setHasSearched(true);
+    }
+  }, [route.params?.searchQuery]);
+
+  // AppState değişikliğini dinle
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        setTimeout(() => {
+          checkLocationAndLoadCafes();
+        }, 300);
+      }
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [appState]);
+
+  // Sadece filtreler veya kafeler değiştiğinde listeyi güncelle
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [allCafes, activeFilters, userLocation, hasSearched, searchQuery, showOnlyOpen]);
+
+  // Konum izni kontrolü ve kafeleri yükle
+  const checkLocationAndLoadCafes = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setUserLocation(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        return;
+      }
+
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeout: 15000,
+        });
+        if (location && location.coords) {
+          const coords = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          setUserLocation(coords);
+          await loadCafes(coords.latitude, coords.longitude);
+        } else {
+          setUserLocation(DEFAULT_LOCATION);
+          await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        }
+      } else {
+        setUserLocation(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      }
+    } catch (error) {
+      console.error('Location check error:', error);
+      setUserLocation(DEFAULT_LOCATION);
+      await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+    }
+  };
+
+  // Kafeleri yükle
+  const loadCafes = async (latitude, longitude) => {
+    setLoading(true);
+    try {
+      const response = await getNearbyCafes(latitude, longitude);
+      if (response && response.success && response.data) {
+        setAllCafes(response.data || []);
+      } else {
+        const { mockNearbyCafes } = require('../../utils/mockData');
+        const mockCafes = mockNearbyCafes(latitude, longitude);
+        setAllCafes(mockCafes || []);
+      }
+    } catch (error) {
+      console.error('Error loading cafes:', error);
+      const { mockNearbyCafes } = require('../../utils/mockData');
+      const mockCafes = mockNearbyCafes(latitude, longitude);
+      setAllCafes(mockCafes || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtreleri uygula ve sırala
+  const applyFiltersAndSort = () => {
+    let filtered = [...allCafes];
+
+    // Arama sorgusu
+    if (hasSearched && searchQuery.trim()) {
+      filtered = filtered.filter(
+        (cafe) =>
+          (cafe.name || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (cafe.address || '')
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Restoran Türü filtresi
+    if (
+      activeFilters.restaurantTypes &&
+      activeFilters.restaurantTypes.length > 0
+    ) {
+      filtered = filtered.filter((cafe) =>
+        activeFilters.restaurantTypes.includes(cafe.restaurantType)
+      );
+    }
+
+    // Mesafe filtresi
+    if (activeFilters.maxDistance && activeFilters.maxDistance < 50) {
+      const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
+      const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
+      filtered = filtered.filter((cafe) => {
+        if (!cafe.latitude || !cafe.longitude) return false;
+        const distance = require('../../utils/distanceUtils').calculateDistance(
+          userLat,
+          userLon,
+          cafe.latitude,
+          cafe.longitude
+        );
+        return distance <= activeFilters.maxDistance;
+      });
+    }
+
+    // Kampanya Tipi filtresi
+    if (
+      activeFilters.campaignTypes &&
+      activeFilters.campaignTypes.length > 0
+    ) {
+      filtered = filtered.filter((cafe) => {
+        if (!cafe.hasCampaign) return false;
+        return true;
+      });
+    }
+
+    // "Şu anda açık olanlar" filtresi
+    if (showOnlyOpen) {
+      filtered = filtered.filter((cafe) => {
+        return cafe.isOpen !== false;
+      });
+    }
+
+    // Mesafeye göre sırala
+    const userLat = userLocation?.latitude || DEFAULT_LOCATION.latitude;
+    const userLon = userLocation?.longitude || DEFAULT_LOCATION.longitude;
+    const sorted = sortCafesByDistance(filtered, userLat, userLon);
+
+    setDisplayedCafes(sorted);
+    setCurrentPage(1);
+  };
+
+  // Arama yap
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      setHasSearched(false);
+      applyFiltersAndSort();
+    } else {
+      setHasSearched(true);
+      applyFiltersAndSort();
+    }
+  };
+
+  // Filtre modal'dan gelen filtreleri uygula
+  const handleApplyFilters = (filters) => {
+    setActiveFilters(filters);
+  };
+
+  // Haritaya scroll yap
+  const scrollToMap = () => {
+    if (scrollViewRef.current && mapContainerRef.current) {
+      mapContainerRef.current.measureLayout(
+        scrollViewRef.current,
+        (x, y) => {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, y - spacing.md),
+            animated: true,
+          });
+        },
+        () => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }
+      );
+    }
+  };
+
+  // Kafe item render
+  const renderCafeItem = ({ item }) => {
+    const isClosed = item.isOpen === false;
+    const openingHours = item.openingHours || { open: '08:00', close: '22:00' };
+    const hoursText = `${openingHours.open} - ${openingHours.close}`;
+
+    return (
+      <View style={[styles.cafeItem, isClosed && !showOnlyOpen && styles.cafeItemClosed]}>
+        <View style={styles.cafeItemContent}>
+          {/* Logo */}
+          {item.cafeLogo ? (
+            <Image
+              source={{ uri: item.cafeLogo }}
+              style={styles.cafeLogo}
+              onError={() => {}}
+            />
+          ) : (
+            <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
+              <Text style={styles.cafeLogoPlaceholderText}>
+                {(item.name || 'Kafe')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          {/* Kafe bilgileri */}
+          <View style={styles.cafeInfoContainer}>
+            <Text style={[styles.cafeName, isClosed && !showOnlyOpen && styles.cafeNameClosed]}>
+              {item.name || t('browse.cafeName')}
+            </Text>
+            {item.address && (
+              <Text style={[styles.cafeAddress, isClosed && !showOnlyOpen && styles.cafeAddressClosed]}>
+                {item.address}
+              </Text>
+            )}
+            {item.distance !== undefined && (
+              <Text style={[styles.cafeDistance, isClosed && !showOnlyOpen && styles.cafeDistanceClosed]}>
+                {item.distance.toFixed(2)} {t('browse.kmAway')}
+              </Text>
+            )}
+            {item.restaurantType && (
+              <Text style={[styles.cafeType, isClosed && !showOnlyOpen && styles.cafeTypeClosed]}>
+                {item.restaurantType}
+              </Text>
+            )}
+          </View>
+
+          {/* Açılış/Kapanış saatleri */}
+          <View style={styles.cafeHoursContainer}>
+            <View style={styles.hoursRow}>
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.opening')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.open}
+                </Text>
+              </View>
+              <View style={styles.hoursSeparator} />
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.closing')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.close}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Pagination
+  const paginatedData = displayedCafes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
+  
+  useEffect(() => {
+    const newTotalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    } else if (newTotalPages === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [itemsPerPage, displayedCafes.length]);
+
+  // Aktif filtre sayısı
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (activeFilters.restaurantTypes?.length > 0) count++;
+    if (activeFilters.maxDistance !== 10) count++;
+    if (activeFilters.campaignTypes?.length > 0) count++;
+    return count;
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Logo */}
+      <View style={styles.logoContainer}>
+        <Logo size="small" />
+      </View>
+
+      {/* Arama ve Filtre Butonu */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Input
+            placeholder={t('browse.searchPlaceholder')}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+            editable={true}
+            onSubmitEditing={handleSearch}
+          />
+        </View>
+        <TouchableOpacity 
+          style={styles.searchButton} 
+          onPress={handleSearch}
+        >
+          <Text style={styles.searchButtonText}>{t('browse.search')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Text style={styles.filterToggleButtonText}>
+            {t('browse.filter')}{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Liste */}
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView}
+      >
+        {/* Sonuçlar */}
+        <View style={styles.resultsContainer}>
+          <View style={styles.listTitleContainer}>
+            <Text style={styles.listTitle}>
+              {hasSearched
+                ? `${t('browse.searchResults')} (${displayedCafes.length})`
+                : `${t('browse.nearbyCafes')} (${displayedCafes.length})`}
+            </Text>
+            {/* "Şu anda açık olanlar" Switch */}
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>{t('browse.showOnlyOpen')}</Text>
+              <Switch
+                value={showOnlyOpen}
+                onValueChange={setShowOnlyOpen}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>{t('browse.loading')}</Text>
+            </View>
+          ) : displayedCafes.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {hasSearched
+                ? t('browse.noSearchResults')
+                : t('browse.noNearbyCafes')}
+            </Text>
+          ) : (
+            <View style={styles.cafeListContainer}>
+              <FlatList
+                data={paginatedData}
+                renderItem={renderCafeItem}
+                keyExtractor={(item, index) => `cafe-${item.id || index}`}
+                scrollEnabled={false}
+              />
+              {/* Pagination */}
+              {displayedCafes.length > 0 && totalPages > 0 && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage === 1 && styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <Text style={styles.pageButtonText}>{t('browse.previous')}</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pageInfo}>
+                    {t('browse.page')} {currentPage} / {totalPages}
+                  </Text>
+                  <View style={styles.itemsPerPageContainer}>
+                    <Text style={styles.itemsPerPageLabel}>{t('browse.show')}:</Text>
+                    {[5, 10, 20, 50].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        style={[
+                          styles.itemsPerPageButton,
+                          itemsPerPage === num &&
+                            styles.itemsPerPageButtonActive,
+                        ]}
+                        onPress={() => {
+                          setItemsPerPage(num);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.itemsPerPageText,
+                            itemsPerPage === num &&
+                              styles.itemsPerPageTextActive,
+                          ]}
+                        >
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage === totalPages &&
+                        styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <Text style={styles.pageButtonText}>{t('browse.next')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Harita - Filtrelenmiş kafeler harita üzerinde gösterilecek */}
+        <View ref={mapContainerRef} style={styles.mapContainer}>
+          <BrowseMapScreen cafes={displayedCafes} userLocation={userLocation} />
+        </View>
+      </ScrollView>
+
+      {/* Floating Harita Iconu - Sağ Alt Köşe */}
+      <TouchableOpacity
+        style={styles.floatingMapButton}
+        onPress={scrollToMap}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.floatingMapIcon}>🗺️</Text>
+      </TouchableOpacity>
+
+      {/* Filtre Modal */}
+      <BrowseFilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={handleApplyFilters}
+        initialFilters={activeFilters}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  logoContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+  },
+  searchInputContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+    height: 44,
+    justifyContent: 'center',
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    height: 44,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    margin: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.sm,
+    fontSize: typography.fontSize.md,
+  },
+  searchButton: {
+    height: 44,
+    paddingVertical: 0,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.sm,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  searchButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  filterToggleButton: {
+    height: 44,
+    paddingVertical: 0,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.secondary || colors.primary,
+    borderRadius: spacing.sm,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterToggleButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  resultsContainer: {
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    margin: spacing.md,
+    borderRadius: spacing.sm,
+    ...shadows.small,
+  },
+  listTitleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  listTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: spacing.md,
+  },
+  switchLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  cafeListContainer: {
+    marginTop: spacing.sm,
+  },
+  cafeItem: {
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: spacing.sm,
+    marginBottom: spacing.sm,
+    overflow: 'visible',
+    ...shadows.small,
+  },
+  cafeItemClosed: {
+    opacity: 0.5,
+  },
+  cafeItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'visible',
+  },
+  cafeLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  cafeLogoPlaceholder: {
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cafeLogoPlaceholderText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
+  cafeInfoContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  cafeName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  cafeNameClosed: {
+    color: colors.textSecondary,
+  },
+  cafeAddress: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  cafeAddressClosed: {
+    opacity: 0.7,
+  },
+  cafeDistance: {
+    fontSize: typography.fontSize.xs,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.medium,
+    marginBottom: spacing.xs,
+  },
+  cafeDistanceClosed: {
+    opacity: 0.7,
+  },
+  cafeType: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  cafeTypeClosed: {
+    opacity: 0.7,
+  },
+  cafeHoursContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  hoursColumn: {
+    alignItems: 'center',
+  },
+  hoursLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs / 2,
+  },
+  hoursLabelClosed: {
+    opacity: 0.7,
+  },
+  hoursTime: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  hoursTimeClosed: {
+    opacity: 0.7,
+  },
+  hoursSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexWrap: 'wrap',
+  },
+  pageButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.sm,
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  pageInfo: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    marginHorizontal: spacing.sm,
+  },
+  itemsPerPageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.sm,
+  },
+  itemsPerPageLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  itemsPerPageButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginLeft: spacing.xs,
+    borderRadius: spacing.xs,
+    backgroundColor: colors.background,
+  },
+  itemsPerPageButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  itemsPerPageText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textPrimary,
+  },
+  itemsPerPageTextActive: {
+    color: colors.white,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    padding: spacing.lg,
+    fontSize: typography.fontSize.sm,
+  },
+  mapContainer: {
+    height: 400,
+    margin: spacing.md,
+    marginTop: spacing.sm,
+  },
+  floatingMapButton: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.medium,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  floatingMapIcon: {
+    fontSize: 24,
+  },
+});
+
+export default BrowseScreen;
+
+================================================================================
+2. HARITA COMPONENT: BrowseMapScreen.js
+================================================================================
+Dosya Yolu: src/screens/browse/components/BrowseMapScreen.js
+Satır Sayısı: 536
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  Linking,
+  AppState,
+  TouchableOpacity,
+} from 'react-native';
+import * as Location from 'expo-location';
+import { getNearbyCafes } from '../../../services/cafeService';
+import { colors, spacing, typography } from '../../../theme';
+
+// Conditional import for react-native-maps
+let MapView, Marker, Callout, PROVIDER_GOOGLE;
+let mapsLoaded = false;
+
+if (Platform.OS !== 'web') {
+  try {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+    Callout = Maps.Callout;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+    mapsLoaded = true;
+  } catch (error) {
+    console.warn('react-native-maps could not be loaded:', error);
+  }
+}
+
+/**
+ * BrowseMapScreen Component
+ * Gerçek Google Maps haritası ile Lucky Table kafelerini gösterir
+ * @param {Array} cafes - Gösterilecek kafe listesi (filtrelenmiş)
+ * @param {Object} userLocation - Kullanıcı konumu {latitude, longitude}
+ */
+const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation = null }) => {
+  const [locationPermission, setLocationPermission] = useState(null);
+  const [locationServicesEnabled, setLocationServicesEnabled] = useState(null);
+  const [userLocation, setUserLocation] = useState(propUserLocation);
+  const [mapRegion, setMapRegion] = useState(null);
+  const [cafes, setCafes] = useState(propCafes);
+  const [loading, setLoading] = useState(true);
+  const [appState, setAppState] = useState(AppState.currentState);
+
+  // Varsayılan konum (Ankara)
+  const DEFAULT_LOCATION = {
+    latitude: 39.9334,
+    longitude: 32.8597,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  };
+
+  // Props değiştiğinde state'i güncelle - filtreleme sonrası kafeler güncellenmeli
+  useEffect(() => {
+    if (propCafes && Array.isArray(propCafes)) {
+      setCafes(propCafes);
+      updateMapRegionForCafes(propCafes);
+    }
+    if (propUserLocation) {
+      setUserLocation(propUserLocation);
+    }
+  }, [propCafes, propUserLocation]);
+
+  // Kafeler değiştiğinde region'ı güncelle
+  useEffect(() => {
+    if (cafes && cafes.length > 0) {
+      updateMapRegionForCafes(cafes);
+    }
+  }, [cafes]);
+
+  // Map region'ı kafeleri kapsayacak şekilde güncelle
+  const updateMapRegionForCafes = (cafeList) => {
+    if (!cafeList || cafeList.length === 0) return;
+
+    const validCafes = cafeList.filter(cafe => {
+      const lat = Number(cafe.latitude);
+      const lng = Number(cafe.longitude);
+      return lat && lng &&
+        !isNaN(lat) && !isNaN(lng) &&
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180;
+    });
+
+    if (validCafes.length === 0) return;
+
+    // Tüm kafelerin koordinatlarını al
+    const latitudes = validCafes.map(c => Number(c.latitude));
+    const longitudes = validCafes.map(c => Number(c.longitude));
+
+    // Min/max koordinatları bul
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+
+    // Merkez noktası
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    // Delta değerleri (padding ekle)
+    const latDelta = Math.max((maxLat - minLat) * 1.5, 0.05);
+    const lngDelta = Math.max((maxLng - minLng) * 1.5, 0.05);
+
+    setMapRegion({
+      latitude: centerLat,
+      longitude: centerLng,
+      latitudeDelta: latDelta,
+      longitudeDelta: lngDelta,
+    });
+  };
+
+  // Component mount olduğunda konum izni kontrol et
+  useEffect(() => {
+    if (!propUserLocation) {
+      checkLocationPermission();
+    } else {
+      const region = {
+        ...propUserLocation,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+      setMapRegion(region);
+      setLoading(false);
+    }
+  }, []);
+
+  // AppState değişikliğini dinle
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        setTimeout(() => {
+          checkLocationPermission();
+        }, 300);
+      }
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [appState]);
+
+  // Location servislerinin açık olup olmadığını kontrol et (GPS)
+  const checkLocationServices = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setLocationServicesEnabled(true);
+        return true;
+      }
+      
+      const enabled = await Location.hasServicesEnabledAsync();
+      setLocationServicesEnabled(enabled);
+      return enabled;
+    } catch (error) {
+      console.error('Location services check error:', error);
+      setLocationServicesEnabled(false);
+      return false;
+    }
+  };
+
+  // Konum izni kontrolü
+  const checkLocationPermission = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        setLocationPermission(false);
+        setLocationServicesEnabled(true);
+        setMapRegion(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        setLoading(false);
+        return;
+      }
+
+      // Önce location servislerinin açık olup olmadığını kontrol et
+      const servicesEnabled = await checkLocationServices();
+      if (!servicesEnabled) {
+        setLocationPermission(false);
+        setMapRegion(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        setLoading(false);
+        return;
+      }
+
+      // Mevcut izin durumunu kontrol et
+      const { status } = await Location.getForegroundPermissionsAsync();
+      
+      if (status === 'granted') {
+        setLocationPermission(true);
+        await getCurrentLocation();
+      } else {
+        setLocationPermission(false);
+        setMapRegion(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Location permission check error:', error);
+      setLocationPermission(false);
+      setMapRegion(DEFAULT_LOCATION);
+      await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      setLoading(false);
+    }
+  };
+
+  // Mevcut konumu al
+  const getCurrentLocation = async () => {
+    try {
+      setLoading(true);
+      
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 15000,
+      });
+
+      if (location && location.coords) {
+        const coords = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+
+        setUserLocation(coords);
+
+        // Harita bölgesini ayarla
+        const region = {
+          ...coords,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        };
+
+        setMapRegion(region);
+        await loadCafes(coords.latitude, coords.longitude);
+      } else {
+        setMapRegion(DEFAULT_LOCATION);
+        await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      }
+    } catch (error) {
+      console.error('Get location error:', error);
+      setMapRegion(DEFAULT_LOCATION);
+      await loadCafes(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Kafeleri yükle
+  const loadCafes = async (latitude, longitude) => {
+    // Prop'tan gelen kafeler varsa ve boş değilse kullan
+    if (propCafes && Array.isArray(propCafes) && propCafes.length > 0) {
+      setCafes(propCafes);
+      return;
+    }
+    // Prop'tan gelen kafeler yoksa veya boşsa, API'den veya mock'tan yükle
+    try {
+      const response = await getNearbyCafes(latitude, longitude);
+      if (response && response.success && response.data && response.data.length > 0) {
+        setCafes(response.data);
+      } else {
+        const { mockNearbyCafes } = require('../../../utils/mockData');
+        const mockCafes = mockNearbyCafes(latitude, longitude);
+        setCafes(mockCafes);
+      }
+    } catch (error) {
+      console.error('Error loading cafes:', error);
+      const { mockNearbyCafes } = require('../../../utils/mockData');
+      const mockCafes = mockNearbyCafes(latitude, longitude);
+      setCafes(mockCafes);
+    }
+  };
+
+  // Web için fallback
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.webMapContainer}>
+          <Text style={styles.webMapText}>🗺️ Google Maps</Text>
+          <Text style={styles.webMapInfo}>
+            Harita özelliği mobil cihazlarda kullanılabilir.
+          </Text>
+          {cafes.length > 0 && (
+            <Text style={styles.cafesCount}>
+              {cafes.length} kafe bulundu
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Maps yüklenmemişse
+  if (!mapsLoaded || !MapView) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Harita yükleniyor...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Region yüklenmemişse
+  if (!mapRegion) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Konum alınıyor...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Location servisleri kapalıysa MapView render etme
+  if (locationServicesEnabled === false) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            Konum servisleri kapalı. Haritayı görmek için ayarlardan konum servislerini açın.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // MapView render edilmeden önce tüm kontrolleri yap
+  const canRenderMap = MapView && 
+                       mapsLoaded && 
+                       typeof MapView !== 'undefined' && 
+                       PROVIDER_GOOGLE && 
+                       mapRegion && 
+                       mapRegion.latitude && 
+                       mapRegion.longitude &&
+                       !isNaN(mapRegion.latitude) &&
+                       !isNaN(mapRegion.longitude) &&
+                       locationServicesEnabled !== false;
+
+  // Harita render
+  return (
+    <View style={styles.container}>
+      {canRenderMap ? (
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={mapRegion}
+          region={mapRegion}
+          showsUserLocation={locationPermission === true && locationServicesEnabled === true}
+          showsMyLocationButton={locationPermission === true && locationServicesEnabled === true}
+          showsCompass={true}
+          mapType="standard"
+          onRegionChangeComplete={(newRegion) => {
+            if (newRegion && newRegion.latitude && newRegion.longitude) {
+              setMapRegion(newRegion);
+            }
+          }}
+          onError={(error) => {
+            console.error('MapView error:', error);
+          }}
+          onMapReady={() => {
+            console.log('Google Maps is ready');
+          }}
+          loadingEnabled={true}
+          loadingIndicatorColor={colors.primary}
+          // Android crash önleme
+          minZoomLevel={10}
+          maxZoomLevel={20}
+          moveOnMarkerPress={false}
+          pitchEnabled={false}
+          rotateEnabled={false}
+        >
+        {/* Kafe Marker'ları - Filtrelenmiş kafeler */}
+        {cafes && cafes.length > 0 && cafes.map((cafe, index) => {
+          const lat = Number(cafe.latitude);
+          const lng = Number(cafe.longitude);
+          
+          // Geçersizse marker render etme
+          if (!lat || !lng || 
+              isNaN(lat) || isNaN(lng) ||
+              lat < -90 || lat > 90 ||
+              lng < -180 || lng > 180) {
+            return null;
+          }
+
+          return (
+            <Marker
+              key={`cafe-${cafe.id || index}`}
+              coordinate={{
+                latitude: lat,
+                longitude: lng,
+              }}
+              title={cafe.name || 'Kafe'}
+              description={cafe.address || ''}
+              pinColor={colors.primary}
+              tracksViewChanges={false}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.markerLabelContainer}>
+                <Text style={styles.markerLabel} numberOfLines={1}>
+                  {cafe.name || 'Kafe'}
+                </Text>
+              </View>
+              <Callout>
+                <View style={styles.calloutContainer}>
+                  <Text style={styles.calloutTitle}>{cafe.name || 'Kafe'}</Text>
+                  {cafe.address && (
+                    <Text style={styles.calloutAddress}>{cafe.address}</Text>
+                  )}
+                </View>
+              </Callout>
+            </Marker>
+          );
+        })}
+        </MapView>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Harita yükleniyor...</Text>
+        </View>
+      )}
+
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Yükleniyor...</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  map: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calloutContainer: {
+    width: 200,
+    padding: spacing.sm,
+  },
+  calloutTitle: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  calloutAddress: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  webMapContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  webMapText: {
+    fontSize: typography.fontSize.xl,
+    marginBottom: spacing.sm,
+  },
+  webMapInfo: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  cafesCount: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary,
+    marginTop: spacing.md,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  markerLabelContainer: {
+    position: 'absolute',
+    bottom: 30,
+    left: -60,
+    width: 120,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    zIndex: 1000,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+    textAlign: 'center',
+  },
+});
+
+export default BrowseMapScreen;
+
+================================================================================
+3. HARITA ÖZELLİKLERİ ÖZETİ
+================================================================================
+
+HARITA KÜTÜPHANESİ:
+- react-native-maps (Platform.OS !== 'web' için)
+- PROVIDER_GOOGLE kullanılıyor
+- Conditional import: Web'de yüklenmez
+
+KONUM YÖNETİMİ:
+1. Konum İzni Kontrolü:
+   - Location.getForegroundPermissionsAsync()
+   - İzin varsa: getCurrentLocation()
+   - İzin yoksa: DEFAULT_LOCATION (Ankara)
+
+2. Location Servisleri Kontrolü:
+   - Location.hasServicesEnabledAsync()
+   - GPS açık mı kontrol edilir
+   - Kapalıysa harita render edilmez
+
+3. Varsayılan Konum:
+   - Ankara: latitude: 39.9334, longitude: 32.8597
+   - Web'de her zaman varsayılan konum kullanılır
+
+MAP REGION YÖNETİMİ:
+- updateMapRegionForCafes(): Kafeleri kapsayacak şekilde region hesaplar
+- Min/max koordinatlar bulunur
+- Merkez noktası hesaplanır
+- Delta değerleri: (max - min) * 1.5 (minimum 0.05)
+- Padding eklenir (1.5x)
+
+MARKER YÖNETİMİ:
+- Her kafe için Marker oluşturulur
+- Coordinate: Number() ile cast edilir
+- Geçerlilik kontrolü: lat: -90 to 90, lng: -180 to 180
+- Geçersiz koordinatlar render edilmez
+- pinColor: colors.primary (yeşil)
+- tracksViewChanges: false (performans için)
+- anchor: { x: 0.5, y: 1 } (marker'ın altından tutturulur)
+
+MARKER LABEL:
+- Marker üzerinde kafe adı gösterilir
+- markerLabelContainer: Beyaz arka plan, border
+- Position: absolute, bottom: 30, left: -60
+- width: 120px
+- numberOfLines: 1 (tek satır)
+
+CALLOUT:
+- Marker'a tıklanınca açılır
+- Kafe adı ve adres gösterilir
+- width: 200px
+
+MAPVIEW PROPERTIES:
+- provider: PROVIDER_GOOGLE
+- initialRegion: mapRegion
+- region: mapRegion (controlled component)
+- showsUserLocation: true (izin varsa)
+- showsMyLocationButton: true (izin varsa)
+- showsCompass: true
+- mapType: "standard"
+- minZoomLevel: 10
+- maxZoomLevel: 20
+- moveOnMarkerPress: false
+- pitchEnabled: false
+- rotateEnabled: false
+
+FİLTRELEME ENTEGRASYONU:
+- displayedCafes prop olarak BrowseMapScreen'e gönderilir
+- Filtrelenmiş kafeler harita üzerinde gösterilir
+- Kafeler değiştiğinde region otomatik güncellenir
+
+FLOATING MAP BUTTON:
+- Sağ alt köşede harita ikonu
+- scrollToMap() fonksiyonu ile haritaya scroll yapar
+- measureLayout ile pozisyon hesaplanır
+
+PLATFORM DESTEĞİ:
+- iOS, Android: react-native-maps kullanılır
+- Web: Fallback UI gösterilir (harita yok)
+
+CRASH FIX'LER:
+- Geçersiz koordinat kontrolü
+- Location servisleri kontrolü
+- MapView render öncesi tüm kontroller
+- Android için minZoomLevel ve maxZoomLevel
+- Number() cast ile koordinat güvenliği
+
+================================================================================
+SON
+================================================================================
