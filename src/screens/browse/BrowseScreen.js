@@ -211,6 +211,24 @@ const BrowseScreen = () => {
       ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage))
       : 0;
 
+  useEffect(() => {
+    const newTotalPages = displayedCafes.length > 0 ? Math.max(1, Math.ceil(displayedCafes.length / itemsPerPage)) : 0;
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    } else if (newTotalPages === 0 && currentPage > 1) {
+      setCurrentPage(1);
+    }
+  }, [itemsPerPage, displayedCafes.length]);
+
+  // Aktif filtre sayısı
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (activeFilters.restaurantTypes?.length > 0) count++;
+    if (activeFilters.maxDistance !== 10) count++;
+    if (activeFilters.campaignTypes?.length > 0) count++;
+    return count;
+  };
+
   /* -------------------------------------------------- */
   /* UI                                                 */
   /* -------------------------------------------------- */
@@ -225,32 +243,70 @@ const BrowseScreen = () => {
 
   const renderCafeItem = ({ item }) => {
     const isClosed = item.isOpen === false;
-    const hours = item.openingHours || { open: '08:00', close: '22:00' };
+    const openingHours = item.openingHours || { open: '08:00', close: '22:00' };
+    const hoursText = `${openingHours.open} - ${openingHours.close}`;
 
     return (
-      <View style={[styles.cafeItem, isClosed && styles.cafeItemClosed]}>
+      <View style={[styles.cafeItem, isClosed && !showOnlyOpen && styles.cafeItemClosed]}>
         <View style={styles.cafeItemContent}>
+          {/* Logo */}
           {item.cafeLogo ? (
-            <Image source={{ uri: item.cafeLogo }} style={styles.cafeLogo} />
+            <Image
+              source={{ uri: item.cafeLogo }}
+              style={styles.cafeLogo}
+              onError={() => {}}
+            />
           ) : (
             <View style={[styles.cafeLogo, styles.cafeLogoPlaceholder]}>
               <Text style={styles.cafeLogoPlaceholderText}>
-                {(item.name || 'K')[0]}
+                {(item.name || 'Kafe')[0].toUpperCase()}
               </Text>
             </View>
           )}
 
+          {/* Kafe bilgileri */}
           <View style={styles.cafeInfoContainer}>
-            <Text style={styles.cafeName}>{item.name}</Text>
-            <Text style={styles.cafeAddress}>{item.address}</Text>
-            <Text style={styles.cafeDistance}>
-              {item.distance?.toFixed(2)} km
+            <Text style={[styles.cafeName, isClosed && !showOnlyOpen && styles.cafeNameClosed]}>
+              {item.name || t('browse.cafeName')}
             </Text>
+            {item.address && (
+              <Text style={[styles.cafeAddress, isClosed && !showOnlyOpen && styles.cafeAddressClosed]}>
+                {item.address}
+              </Text>
+            )}
+            {item.distance !== undefined && (
+              <Text style={[styles.cafeDistance, isClosed && !showOnlyOpen && styles.cafeDistanceClosed]}>
+                {item.distance.toFixed(2)} {t('browse.kmAway')}
+              </Text>
+            )}
+            {item.restaurantType && (
+              <Text style={[styles.cafeType, isClosed && !showOnlyOpen && styles.cafeTypeClosed]}>
+                {item.restaurantType}
+              </Text>
+            )}
           </View>
 
-          <View>
-            <Text>{hours.open}</Text>
-            <Text>{hours.close}</Text>
+          {/* Açılış/Kapanış saatleri */}
+          <View style={styles.cafeHoursContainer}>
+            <View style={styles.hoursRow}>
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.opening')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.open}
+                </Text>
+              </View>
+              <View style={styles.hoursSeparator} />
+              <View style={styles.hoursColumn}>
+                <Text style={[styles.hoursLabel, isClosed && !showOnlyOpen && styles.hoursLabelClosed]}>
+                  {t('browse.closing')}
+                </Text>
+                <Text style={[styles.hoursTime, isClosed && !showOnlyOpen && styles.hoursTimeClosed]}>
+                  {openingHours.close}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -259,41 +315,159 @@ const BrowseScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Logo size="small" />
+      {/* Logo */}
+      <View style={styles.logoContainer}>
+        <Logo size="small" />
+      </View>
 
+      {/* Arama ve Filtre Butonu */}
       <View style={styles.searchContainer}>
-        <Input
-          placeholder={t('browse.searchPlaceholder')}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-        />
-        <TouchableOpacity onPress={handleSearch}>
-          <Text>{t('browse.search')}</Text>
+        <View style={styles.searchInputContainer}>
+          <Input
+            placeholder={t('browse.searchPlaceholder')}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+            editable={true}
+            onSubmitEditing={handleSearch}
+          />
+        </View>
+        <TouchableOpacity 
+          style={styles.searchButton} 
+          onPress={handleSearch}
+        >
+          <Text style={styles.searchButtonText}>{t('browse.search')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Text style={styles.filterToggleButtonText}>
+            {t('browse.filter')}{getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView ref={scrollViewRef}>
-        {loading ? (
-          <ActivityIndicator />
-        ) : (
-          <FlatList
-            data={paginatedData}
-            renderItem={renderCafeItem}
-            keyExtractor={(i) => String(i.id)}
-            scrollEnabled={false}
-          />
-        )}
+      {/* Liste */}
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView}
+      >
+        {/* Sonuçlar */}
+        <View style={styles.resultsContainer}>
+          <View style={styles.listTitleContainer}>
+            <Text style={styles.listTitle}>
+              {hasSearched
+                ? `${t('browse.searchResults')} (${displayedCafes.length})`
+                : `${t('browse.nearbyCafes')} (${displayedCafes.length})`}
+            </Text>
+            {/* "Şu anda açık olanlar" Switch */}
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>{t('browse.showOnlyOpen')}</Text>
+              <Switch
+                value={showOnlyOpen}
+                onValueChange={setShowOnlyOpen}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+          </View>
 
-        <View ref={mapContainerRef} style={{ height: 400 }}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>{t('browse.loading')}</Text>
+            </View>
+          ) : displayedCafes.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {hasSearched
+                ? t('browse.noSearchResults')
+                : t('browse.noNearbyCafes')}
+            </Text>
+          ) : (
+            <View style={styles.cafeListContainer}>
+              <FlatList
+                data={paginatedData}
+                renderItem={renderCafeItem}
+                keyExtractor={(item, index) => `cafe-${item.id || index}`}
+                scrollEnabled={false}
+              />
+              {/* Pagination */}
+              {displayedCafes.length > 0 && totalPages > 0 && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage === 1 && styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <Text style={styles.pageButtonText}>{t('browse.previous')}</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.pageInfo}>
+                    {t('browse.page')} {currentPage} / {totalPages}
+                  </Text>
+                  <View style={styles.itemsPerPageContainer}>
+                    <Text style={styles.itemsPerPageLabel}>{t('browse.show')}:</Text>
+                    {[5, 10, 20, 50].map((num) => (
+                      <TouchableOpacity
+                        key={num}
+                        style={[
+                          styles.itemsPerPageButton,
+                          itemsPerPage === num &&
+                            styles.itemsPerPageButtonActive,
+                        ]}
+                        onPress={() => {
+                          setItemsPerPage(num);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.itemsPerPageText,
+                            itemsPerPage === num &&
+                              styles.itemsPerPageTextActive,
+                          ]}
+                        >
+                          {num}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      currentPage === totalPages &&
+                        styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <Text style={styles.pageButtonText}>{t('browse.next')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Harita - Filtrelenmiş kafeler harita üzerinde gösterilecek */}
+        <View ref={mapContainerRef} style={styles.mapContainer}>
           <BrowseMapScreen cafes={displayedCafes} userLocation={userLocation} />
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.floatingMapButton} onPress={scrollToMap}>
-        <Text style={{ fontSize: 24 }}>🗺️</Text>
+      {/* Floating Harita Iconu - Sağ Alt Köşe */}
+      <TouchableOpacity
+        style={styles.floatingMapButton}
+        onPress={scrollToMap}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.floatingMapIcon}>🗺️</Text>
       </TouchableOpacity>
 
+      {/* Filtre Modal */}
       <BrowseFilterModal
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
@@ -311,28 +485,293 @@ export default BrowseScreen;
 /* -------------------------------------------------- */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  searchContainer: { padding: spacing.md },
-  cafeItem: {
-    backgroundColor: colors.surface,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  logoContainer: {
     padding: spacing.md,
-    marginBottom: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+  },
+  searchInputContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+    height: 44,
+    justifyContent: 'center',
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    height: 44,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    margin: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.sm,
+    fontSize: typography.fontSize.md,
+  },
+  searchButton: {
+    height: 44,
+    paddingVertical: 0,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.sm,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  searchButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  filterToggleButton: {
+    height: 44,
+    paddingVertical: 0,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.secondary || colors.primary,
+    borderRadius: spacing.sm,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterToggleButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  resultsContainer: {
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    margin: spacing.md,
     borderRadius: spacing.sm,
     ...shadows.small,
   },
-  cafeItemClosed: { opacity: 0.5 },
-  cafeItemContent: { flexDirection: 'row', alignItems: 'center' },
-  cafeLogo: { width: 40, height: 40, marginRight: spacing.sm },
+  listTitleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  listTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: spacing.md,
+  },
+  switchLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  emptyText: {
+    padding: spacing.xl,
+    textAlign: 'center',
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
+  },
+  cafeListContainer: {
+    marginTop: spacing.sm,
+  },
+  cafeItem: {
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    borderRadius: spacing.sm,
+    marginBottom: spacing.sm,
+    overflow: 'visible',
+    ...shadows.small,
+  },
+  cafeItemClosed: {
+    opacity: 0.5,
+  },
+  cafeItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'visible',
+  },
+  cafeLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: spacing.xs,
+    marginRight: spacing.sm,
+  },
   cafeLogoPlaceholder: {
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cafeLogoPlaceholderText: { color: colors.white },
-  cafeInfoContainer: { flex: 1 },
-  cafeName: { fontWeight: '600' },
-  cafeAddress: { fontSize: 12 },
-  cafeDistance: { fontSize: 12, color: colors.primary },
+  cafeLogoPlaceholderText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.white,
+  },
+  cafeInfoContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  cafeName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  cafeNameClosed: {
+    color: colors.textSecondary,
+  },
+  cafeAddress: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  cafeAddressClosed: {
+    color: colors.textSecondary,
+  },
+  cafeDistance: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  cafeDistanceClosed: {
+    color: colors.textSecondary,
+  },
+  cafeType: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+  },
+  cafeTypeClosed: {
+    color: colors.textSecondary,
+  },
+  cafeHoursContainer: {
+    alignItems: 'flex-end',
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  hoursColumn: {
+    alignItems: 'center',
+  },
+  hoursSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.sm,
+  },
+  hoursLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  hoursLabelClosed: {
+    color: colors.textSecondary,
+  },
+  hoursTime: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.textPrimary,
+  },
+  hoursTimeClosed: {
+    color: colors.textSecondary,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  pageButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: spacing.sm,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  pageButtonDisabled: {
+    backgroundColor: colors.border,
+    opacity: 0.5,
+  },
+  pageButtonText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  pageInfo: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  itemsPerPageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  itemsPerPageLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  itemsPerPageButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  itemsPerPageButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  itemsPerPageText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+  },
+  itemsPerPageTextActive: {
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  mapContainer: {
+    height: 400,
+    margin: spacing.md,
+    borderRadius: spacing.sm,
+    overflow: 'hidden',
+    ...shadows.small,
+  },
   floatingMapButton: {
     position: 'absolute',
     right: 16,
@@ -343,5 +782,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.medium,
+  },
+  floatingMapIcon: {
+    fontSize: 24,
   },
 });

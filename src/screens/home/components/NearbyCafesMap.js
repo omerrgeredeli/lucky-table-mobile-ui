@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -74,6 +74,14 @@ const NearbyCafesMap = () => {
     };
     initialize();
   }, []);
+
+  // Kafeler değiştiğinde region'ı güncelle
+  useEffect(() => {
+    if (nearbyCafes && nearbyCafes.length > 0 && mapRegion) {
+      console.log('NearbyCafesMap: cafes state updated, updating region', nearbyCafes.length);
+      updateMapRegionForCafes(nearbyCafes);
+    }
+  }, [nearbyCafes, updateMapRegionForCafes]);
 
   // AppState değişikliğini dinle (ayarlardan dönünce konum iznini yeniden kontrol et)
   useEffect(() => {
@@ -231,14 +239,84 @@ const NearbyCafesMap = () => {
     }
   };
 
+  // Map region'ı kafeleri kapsayacak şekilde güncelle
+  const updateMapRegionForCafes = useCallback((cafeList) => {
+    if (!cafeList || cafeList.length === 0) {
+      console.log('NearbyCafesMap: updateMapRegionForCafes - empty cafe list');
+      return;
+    }
+
+    const validCafes = cafeList.filter(cafe => {
+      const lat = Number(cafe.latitude);
+      const lng = Number(cafe.longitude);
+      return lat != null && lng != null &&
+        !isNaN(lat) && !isNaN(lng) &&
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180;
+    });
+
+    console.log('NearbyCafesMap: valid cafes for region', validCafes.length, 'out of', cafeList.length);
+
+    if (validCafes.length === 0) {
+      console.warn('NearbyCafesMap: No valid cafes found for region update');
+      return;
+    }
+
+    // Tüm kafelerin koordinatlarını al - Number() ile cast et
+    const latitudes = validCafes.map(c => Number(c.latitude));
+    const longitudes = validCafes.map(c => Number(c.longitude));
+
+    // Min/max koordinatları bul
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+
+    // Merkez noktası
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+
+    // Delta değerleri (padding ekle - 1.5x)
+    const latDelta = Math.max((maxLat - minLat) * 1.5, 0.05);
+    const lngDelta = Math.max((maxLng - minLng) * 1.5, 0.05);
+
+    const newRegion = {
+      latitude: centerLat,
+      longitude: centerLng,
+      latitudeDelta: latDelta,
+      longitudeDelta: lngDelta,
+    };
+
+    console.log('NearbyCafesMap: Updated map region to fit all markers', newRegion);
+    setMapRegion(newRegion);
+  }, []);
+
   // Yakındaki kafeleri getir - Dummy cafe verileri haritada gösterilecek
   const fetchNearbyCafes = async (latitude, longitude) => {
     setLoading(true);
     try {
       const cafes = await getNearbyCafes(latitude, longitude);
+      console.log('NearbyCafesMap: Fetched cafes', cafes?.length || 0);
+      console.log('NearbyCafesMap: Sample cafe data', cafes?.[0]);
+      
       // Dummy cafe verileri - sadece bu uygulamaya ait kafeler
       // Gerçek Google Maps üzerinde marker olarak gösterilecek
-      setNearbyCafes(cafes || []);
+      const validCafes = (cafes || []).filter(cafe => {
+        const lat = Number(cafe.latitude);
+        const lng = Number(cafe.longitude);
+        const isValid = lat != null && lng != null && !isNaN(lat) && !isNaN(lng) &&
+                        lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+        if (!isValid) {
+          console.warn('NearbyCafesMap: Filtered out invalid cafe', cafe.id, 'lat:', lat, 'lng:', lng);
+        }
+        return isValid;
+      });
+      
+      console.log('NearbyCafesMap: Valid cafes for markers', validCafes.length, 'out of', cafes?.length || 0);
+      if (validCafes.length > 0) {
+        console.log('NearbyCafesMap: First valid cafe coordinates', validCafes[0].latitude, validCafes[0].longitude);
+      }
+      setNearbyCafes(validCafes);
     } catch (error) {
       console.error('Error fetching cafes:', error);
       if (Platform.OS === 'web') {
@@ -448,6 +526,7 @@ const NearbyCafesMap = () => {
                 }}
                 onMapReady={() => {
                   console.log('Map is ready');
+                  console.log('NearbyCafesMap: Markers to render', nearbyCafes.length);
                   setLoading(false);
                 }}
                 loadingEnabled={true}
@@ -461,19 +540,31 @@ const NearbyCafesMap = () => {
                 rotateEnabled={false}
               >
               {/* Kafe Marker'ları - Gerçek Google Maps üzerinde gösterilecek */}
-              {nearbyCafes.map((cafe, index) => {
-                if (!cafe.latitude || !cafe.longitude) return null;
+              {nearbyCafes && nearbyCafes.length > 0 && nearbyCafes.map((cafe, index) => {
+                // Düzeltme: Koordinat validasyonu - lat == null veya lng == null kontrolü
+                const lat = Number(cafe.latitude);
+                const lng = Number(cafe.longitude);
+                
+                if (lat == null || lng == null || 
+                    isNaN(lat) || isNaN(lng) ||
+                    lat < -90 || lat > 90 ||
+                    lng < -180 || lng > 180) {
+                  console.warn('NearbyCafesMap: Invalid coordinates for cafe', cafe.id || index, 'lat:', lat, 'lng:', lng);
+                  return null;
+                }
                 
                 return (
                   <Marker
                     key={`cafe-${cafe.id || index}`}
                     coordinate={{
-                      latitude: cafe.latitude,
-                      longitude: cafe.longitude,
+                      latitude: lat,
+                      longitude: lng,
                     }}
                     title={cafe.name || 'Kafe'}
                     description={cafe.address || ''}
-                    pinColor={colors.primary} // Lucky Table marka rengi
+                    pinColor={colors.primary || '#007AFF'} // Lucky Table marka rengi
+                    tracksViewChanges={false}
+                    anchor={{ x: 0.5, y: 1 }}
                   >
                     <Callout>
                       <View style={styles.calloutContainer}>

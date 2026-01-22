@@ -56,36 +56,57 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
   // Props değiştiğinde state'i güncelle - filtreleme sonrası kafeler güncellenmeli
   useEffect(() => {
     if (propCafes && Array.isArray(propCafes)) {
+      console.log('BrowseMapScreen: propCafes updated', propCafes.length);
       setCafes(propCafes);
-      // Kafeler yüklendiğinde region'ı güncelle
-      updateMapRegionForCafes(propCafes);
+      // Kafeler yüklendiğinde region'ı güncelle (sadece kafeler varsa)
+      if (propCafes.length > 0) {
+        updateMapRegionForCafes(propCafes);
+      }
     }
     if (propUserLocation) {
       setUserLocation(propUserLocation);
     }
   }, [propCafes, propUserLocation]);
 
-  // Kafeler değiştiğinde region'ı güncelle
+  // Kafeler değiştiğinde region'ı güncelle ve debug log ekle
   useEffect(() => {
     if (cafes && cafes.length > 0) {
+      console.log('BrowseMapScreen: cafes state updated', cafes.length);
+      const validCafes = cafes.filter(cafe => {
+        const lat = Number(cafe.latitude);
+        const lng = Number(cafe.longitude);
+        return lat != null && lng != null && !isNaN(lat) && !isNaN(lng);
+      });
+      console.log('BrowseMapScreen: valid cafes for markers', validCafes.length);
       updateMapRegionForCafes(cafes);
+    } else {
+      console.log('BrowseMapScreen: cafes state is empty');
     }
   }, [cafes]);
 
   // Map region'ı kafeleri kapsayacak şekilde güncelle
   const updateMapRegionForCafes = (cafeList) => {
-    if (!cafeList || cafeList.length === 0) return;
+    if (!cafeList || cafeList.length === 0) {
+      console.log('BrowseMapScreen: updateMapRegionForCafes - empty cafe list');
+      return;
+    }
 
     const validCafes = cafeList.filter(cafe => {
       const lat = Number(cafe.latitude);
       const lng = Number(cafe.longitude);
-      return lat && lng &&
+      // Düzeltme: lat == null veya lng == null kontrolü (0 değerleri geçerli değil ama kontrol yanlıştı)
+      return lat != null && lng != null &&
         !isNaN(lat) && !isNaN(lng) &&
         lat >= -90 && lat <= 90 &&
         lng >= -180 && lng <= 180;
     });
 
-    if (validCafes.length === 0) return;
+    console.log('BrowseMapScreen: valid cafes for region', validCafes.length, 'out of', cafeList.length);
+
+    if (validCafes.length === 0) {
+      console.warn('BrowseMapScreen: No valid cafes found for region update');
+      return;
+    }
 
     // Tüm kafelerin koordinatlarını al - Number() ile cast et
     const latitudes = validCafes.map(c => Number(c.latitude));
@@ -254,28 +275,39 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
 
   // Kafeleri yükle (sadece prop'tan gelmemişse veya boşsa)
   const loadCafes = async (latitude, longitude) => {
-    // Prop'tan gelen kafeler varsa ve boş değilse kullan
-    if (propCafes && Array.isArray(propCafes) && propCafes.length > 0) {
+    // Prop'tan gelen kafeler varsa (boş array bile olsa) kullan
+    if (propCafes && Array.isArray(propCafes)) {
+      console.log('BrowseMapScreen: Using propCafes', propCafes.length);
       setCafes(propCafes);
+      if (propCafes.length > 0) {
+        updateMapRegionForCafes(propCafes);
+      }
       return;
     }
-    // Prop'tan gelen kafeler yoksa veya boşsa, API'den veya mock'tan yükle
+    // Prop'tan gelen kafeler yoksa, API'den veya mock'tan yükle
     try {
-      const response = await getNearbyCafes(latitude, longitude);
-      if (response && response.success && response.data && response.data.length > 0) {
-        setCafes(response.data);
+      // Düzeltme: getNearbyCafes direkt array döndürüyor, response object değil
+      const cafes = await getNearbyCafes(latitude, longitude);
+      if (cafes && Array.isArray(cafes) && cafes.length > 0) {
+        console.log('BrowseMapScreen: Loaded cafes from API', cafes.length);
+        setCafes(cafes);
+        updateMapRegionForCafes(cafes);
       } else {
         // Mock data kullan
         const { mockNearbyCafes } = require('../../../utils/mockData');
         const mockCafes = mockNearbyCafes(latitude, longitude);
+        console.log('BrowseMapScreen: Using mock cafes', mockCafes.length);
         setCafes(mockCafes);
+        updateMapRegionForCafes(mockCafes);
       }
     } catch (error) {
       console.error('Error loading cafes:', error);
       // Hata durumunda da mock data kullan
       const { mockNearbyCafes } = require('../../../utils/mockData');
       const mockCafes = mockNearbyCafes(latitude, longitude);
+      console.log('BrowseMapScreen: Using mock cafes (error fallback)', mockCafes.length);
       setCafes(mockCafes);
+      updateMapRegionForCafes(mockCafes);
     }
   };
 
@@ -341,11 +373,23 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
                        typeof MapView !== 'undefined' && 
                        PROVIDER_GOOGLE && 
                        mapRegion && 
-                       mapRegion.latitude && 
-                       mapRegion.longitude &&
+                       mapRegion.latitude != null && 
+                       mapRegion.longitude != null &&
                        !isNaN(mapRegion.latitude) &&
                        !isNaN(mapRegion.longitude) &&
                        locationServicesEnabled !== false; // Location servisleri açık olmalı
+
+  // Debug: Marker render bilgisi
+  const validCafesForMarkers = cafes && cafes.length > 0 ? cafes.filter(cafe => {
+    const lat = Number(cafe.latitude);
+    const lng = Number(cafe.longitude);
+    return lat != null && lng != null && !isNaN(lat) && !isNaN(lng) &&
+           lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }) : [];
+  
+  if (canRenderMap && cafes && cafes.length > 0) {
+    console.log('BrowseMapScreen: Ready to render map with', validCafesForMarkers.length, 'valid markers out of', cafes.length, 'cafes');
+  }
 
   // Harita render
   return (
@@ -387,11 +431,12 @@ const BrowseMapScreen = ({ cafes: propCafes = [], userLocation: propUserLocation
           const lat = Number(cafe.latitude);
           const lng = Number(cafe.longitude);
           
-          // Geçersizse marker render etme
-          if (!lat || !lng || 
+          // Geçersizse marker render etme - Düzeltme: lat == null veya lng == null kontrolü
+          if (lat == null || lng == null || 
               isNaN(lat) || isNaN(lng) ||
               lat < -90 || lat > 90 ||
               lng < -180 || lng > 180) {
+            console.warn('BrowseMapScreen: Invalid coordinates for cafe', cafe.id || index, 'lat:', lat, 'lng:', lng);
             return null;
           }
 

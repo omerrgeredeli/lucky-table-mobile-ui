@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { colors, spacing, typography, shadows } from '../theme';
 
@@ -54,8 +55,47 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate }) => {
 
   const daysInMonth = new Date(year, month, 0).getDate();
 
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  // Bugünden ileri günleri filtrele
+  const days = React.useMemo(() => {
+    const allDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth() + 1;
+    const todayDay = today.getDate();
+    
+    // Eğer seçilen yıl bugünün yılından küçükse veya ay bugünün ayından küçükse, tüm günler seçilebilir
+    if (year < todayYear || (year === todayYear && month < todayMonth)) {
+      return allDays;
+    }
+    
+    // Eğer bugünün ayı ve yılı seçilmişse, sadece bugün ve öncesi seçilebilir
+    if (year === todayYear && month === todayMonth) {
+      return allDays.filter((d) => d <= todayDay);
+    }
+    
+    return allDays;
+  }, [year, month, daysInMonth]);
+
+  // Bugünden ileri ayları filtrele
+  const months = React.useMemo(() => {
+    const allMonths = Array.from({ length: 12 }, (_, i) => i + 1);
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth() + 1;
+    
+    // Eğer bugünün yılından küçük bir yıl seçilmişse, tüm aylar seçilebilir
+    if (year < todayYear) {
+      return allMonths;
+    }
+    
+    // Eğer bugünün yılı seçilmişse, sadece bugün ve öncesi aylar seçilebilir
+    if (year === todayYear) {
+      return allMonths.filter((m) => m <= todayMonth);
+    }
+    
+    return allMonths;
+  }, [year]);
+
   const years = Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, i) => MIN_YEAR + i);
 
   const scrollToIndex = (ref, index) => {
@@ -110,6 +150,17 @@ const DatePickerModal = ({ visible, onClose, onDateSelect, initialDate }) => {
   const handleConfirm = () => {
     const d = String(day).padStart(2, '0');
     const m = String(month).padStart(2, '0');
+    const selectedDate = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    // Bugünün tarihinden ileri bir tarih seçilemez
+    if (selectedDate > today) {
+      Alert.alert('Hata', 'Bugünün tarihinden ileri bir tarih seçilemez');
+      return;
+    }
+    
     onDateSelect(`${year}-${m}-${d}`);
     onClose();
   };

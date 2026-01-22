@@ -6,10 +6,10 @@
     "scheme": "luckytable",
     "extra": {
       "eas": {
-        "projectId": "2d024a7a-ede7-4dd6-9eac-450c02cc7480"
+        "projectId": "f795c960-dd9c-4629-8af9-5ffff30e04f5"
       }
     },
-    "owner": "omermyreeder2s-organization",
+    "owner": "omermyreeder3s-organization",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

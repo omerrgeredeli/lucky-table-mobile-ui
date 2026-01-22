@@ -888,6 +888,7 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   dateInputContainer: {
     flex: 1,
@@ -904,10 +905,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.sm,
+    minHeight: 40,
+    justifyContent: 'center',
   },
   dateInputText: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
+    textAlign: 'left',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   categoryRow: {
     flexDirection: 'row',
