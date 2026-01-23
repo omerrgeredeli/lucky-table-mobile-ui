@@ -36,6 +36,7 @@
       "package": "com.luckytable.app",
       "versionCode": 1,
       "version": "1.0.0",
+      "minSdkVersion": 23,
       "supportsTablet": true,
       "jsEngine": "hermes",
       "permissions": [

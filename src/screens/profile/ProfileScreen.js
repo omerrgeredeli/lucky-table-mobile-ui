@@ -13,7 +13,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { AuthContext } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -24,7 +23,6 @@ import {
   updateNotificationSettings,
   deleteAccount,
 } from '../../services/userService';
-
 import { colors, spacing, typography, shadows } from '../../theme';
 import Logo from '../../components/Logo';
 import Button from '../../components/Button';
@@ -45,13 +43,13 @@ const ProfileScreen = () => {
     email: '',
     phone: '',
   });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [originalProfileData, setOriginalProfileData] = useState({
     email: '',
     phone: '',
   });
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -118,12 +116,14 @@ const ProfileScreen = () => {
     }
   };
 
+
   // Şifre değişikliği
   const handlePasswordEdit = () => {
     setNewPassword('');
     setConfirmPassword('');
     setShowPasswordModal(true);
   };
+
 
   // Üyelik iptali modal state
   const [showCancelMembershipModal, setShowCancelMembershipModal] = useState(false);
@@ -140,18 +140,18 @@ const ProfileScreen = () => {
       // Backend'e üyelik iptali isteği
       await deleteAccount();
       
-      // Signup screen'e yönlendirme için flag kaydet
-      await AsyncStorage.setItem('redirectToSignup', 'true');
-      await logout();
+    // Signup screen'e yönlendirme için flag kaydet
+    await AsyncStorage.setItem('redirectToSignup', 'true');
+    await logout();
       
-      Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
-        {
-          text: 'Tamam',
-          onPress: () => {
-            // AppNavigator otomatik olarak AuthStack'e geçecek
-          },
+    Alert.alert('Başarılı', 'Üyeliğiniz başarılı bir şekilde iptal edildi', [
+      {
+        text: 'Tamam',
+        onPress: () => {
+          // AppNavigator otomatik olarak AuthStack'e geçecek
         },
-      ]);
+      },
+    ]);
     } catch (error) {
       Alert.alert('Hata', error.message || 'Üyelik iptali başarısız');
     } finally {
@@ -269,7 +269,6 @@ const ProfileScreen = () => {
           <TouchableOpacity
             style={styles.dangerButton}
             onPress={handleCancelMembership}
-            activeOpacity={0.7}
           >
             <Text style={styles.dangerButtonText}>{t('profile.cancelMembership')}</Text>
           </TouchableOpacity>
@@ -283,31 +282,31 @@ const ProfileScreen = () => {
           onRequestClose={() => setShowCancelMembershipModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={styles.modalContentCancelMembership}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{t('profile.cancelMembershipTitle')}</Text>
                 <TouchableOpacity onPress={() => setShowCancelMembershipModal(false)}>
                   <Text style={styles.modalCloseText}>✕</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.modalBody}>
+              <View style={styles.modalBodyCancelMembership}>
                 <Text style={styles.modalDescription}>
                   {t('profile.cancelMembershipConfirm')}
                 </Text>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonCancel]}
-                    onPress={() => setShowCancelMembershipModal(false)}
-                  >
-                    <Text style={styles.modalButtonTextCancel}>{t('common.no')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.modalButtonConfirm]}
-                    onPress={handleConfirmCancelMembership}
-                  >
-                    <Text style={styles.modalButtonTextConfirm}>{t('common.yes')}</Text>
-                  </TouchableOpacity>
-                </View>
+              </View>
+              <View style={styles.modalButtonsCancelMembership}>
+                <TouchableOpacity
+                  style={[styles.modalButtonCancelMembership, styles.modalButtonCancel]}
+                  onPress={() => setShowCancelMembershipModal(false)}
+                >
+                  <Text style={styles.modalButtonTextCancel}>{t('common.no')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButtonCancelMembership, styles.modalButtonConfirm]}
+                  onPress={handleConfirmCancelMembership}
+                >
+                  <Text style={styles.modalButtonTextConfirm}>{t('common.yes')}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -330,7 +329,7 @@ const ProfileScreen = () => {
                 try {
                   await updateUserProfile(profileData);
                   setOriginalProfileData({ ...profileData });
-                  setHasChanges(false);
+                setHasChanges(false);
                   Alert.alert(t('common.success'), t('profile.profileUpdateSuccess'));
                   await loadProfile();
                 } catch (error) {
@@ -414,10 +413,10 @@ const ProfileScreen = () => {
                     // Eski şifre kontrolü için token'dan kullanıcı bilgisi alınmalı
                     // Mock'ta direkt güncelleme yapıyoruz
                     await updatePassword('', newPassword); // Mock'ta eski şifre kontrolü yok
-                    setShowPasswordModal(false);
-                    setNewPassword('');
-                    setConfirmPassword('');
-                    Alert.alert('Başarılı', 'Şifreniz güncellendi');
+                  setShowPasswordModal(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  Alert.alert('Başarılı', 'Şifreniz güncellendi');
                   } catch (error) {
                     Alert.alert('Hata', error.message || 'Şifre güncelleme başarısız');
                   } finally {
@@ -513,6 +512,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  headerContainer: {
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    paddingVertical: spacing.sm,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.md,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
+  },
   scrollView: {
     flex: 1,
   },
@@ -565,22 +578,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dangerButton: {
-    width: '100%',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    padding: spacing.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.error || '#FF3B30',
-    borderRadius: spacing.sm,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
   },
   dangerButtonText: {
     fontSize: typography.fontSize.md,
-    color: colors.error || '#FF3B30',
+    color: colors.error,
     fontWeight: typography.fontWeight.semibold,
-    textAlign: 'center',
   },
   logoutButton: {
     padding: spacing.md,
@@ -594,26 +598,6 @@ const styles = StyleSheet.create({
   saveContainer: {
     marginTop: spacing.md,
   },
-  languageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  languageContent: {
-    flex: 1,
-  },
-  languageValue: {
-    fontSize: typography.fontSize.md,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  arrow: {
-    fontSize: 24,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-  },
-  /* Modal Styles */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -622,88 +606,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   modalContent: {
-    width: '90%',
     backgroundColor: colors.surface,
     borderRadius: spacing.md,
+    width: '100%',
+    maxWidth: 400,
     ...shadows.large,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.textPrimary,
-  },
-  modalCloseText: {
-    fontSize: 24,
-    color: colors.textSecondary,
-  },
-  modalBody: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  modalDescription: {
-    fontSize: typography.fontSize.md,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  passwordRulesContainer: {
-    marginVertical: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: spacing.sm,
-  },
-  passwordRule: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: spacing.xs,
-  },
-  passwordRuleValid: {
-    color: colors.success || '#2ECC71',
-  },
-  passwordRuleInvalid: {
-    color: colors.error,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  modalButtonCancel: {
-    backgroundColor: colors.background || '#F5F5F5',
-    borderWidth: 1,
-    borderColor: colors.border || '#E0E0E0',
-  },
-  modalButtonConfirm: {
-    backgroundColor: colors.error || '#FF3B30',
-  },
-  modalButtonTextCancel: {
-    fontSize: typography.fontSize.md,
-    color: colors.textPrimary || '#000000',
-    fontWeight: typography.fontWeight.semibold,
-    textAlign: 'center',
-  },
-  modalButtonTextConfirm: {
-    fontSize: typography.fontSize.md,
-    color: colors.white || '#FFFFFF',
-    fontWeight: typography.fontWeight.semibold,
-    textAlign: 'center',
   },
   // Dil değiştir modal - BusinessProfileScreen ile birebir aynı
   modalOverlayLanguage: {
@@ -738,6 +645,190 @@ const styles = StyleSheet.create({
   modalBodyLanguage: {
     padding: spacing.md,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  modalCloseText: {
+    fontSize: 24,
+    color: colors.textSecondary,
+  },
+  modalBody: {
+    flex: 1,
+    padding: spacing.lg,
+  },
+  modalBodyContent: {
+    paddingBottom: spacing.md,
+  },
+  modalDescription: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  passwordRulesContainer: {
+    marginVertical: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: spacing.sm,
+  },
+  passwordRule: {
+    fontSize: typography.fontSize.sm,
+    marginBottom: spacing.xs,
+  },
+  passwordRuleValid: {
+    color: colors.success || '#2ECC71',
+  },
+  passwordRuleInvalid: {
+    color: colors.error,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: spacing.sm,
+    alignItems: 'center',
+    marginHorizontal: spacing.xs,
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalButtonConfirm: {
+    backgroundColor: colors.error,
+  },
+  modalButtonTextCancel: {
+    fontSize: typography.fontSize.md,
+    color: colors.textPrimary,
+    fontWeight: typography.fontWeight.semibold,
+    opacity: 1,
+  },
+  modalButtonTextConfirm: {
+    fontSize: typography.fontSize.md,
+    color: colors.white,
+    fontWeight: typography.fontWeight.semibold,
+    opacity: 1,
+  },
+  // Üyelik İptali Modal Özel Stilleri
+  modalContentCancelMembership: {
+    backgroundColor: colors.surface,
+    borderRadius: spacing.md,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    ...shadows.large,
+  },
+  modalBodyCancelMembership: {
+    padding: spacing.lg,
+  },
+  modalButtonsCancelMembership: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  modalButtonCancelMembership: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  languageContent: {
+    flex: 1,
+  },
+  languageValue: {
+    fontSize: typography.fontSize.md,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  arrow: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: spacing.sm,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  languageOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  languageOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  languageOptionFlag: {
+    fontSize: 28,
+    marginRight: spacing.md,
+  },
+  languageOptionName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.medium,
+    color: colors.textPrimary,
+  },
+  languageOptionNameSelected: {
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  languageSaveContainer: {
+    marginTop: spacing.md,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    position: 'relative',
+    zIndex: 10,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: colors.white,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
+  },
+  // Dil değiştir modal stilleri - BusinessProfileScreen ile birebir aynı
   languageOptionLanguage: {
     flexDirection: 'row',
     justifyContent: 'space-between',
