@@ -25,7 +25,22 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.luckytable.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Lucky Table yakındaki kafeleri bulmak için konumunuza ihtiyaç duyar.",
+        "NSCameraUsageDescription": "Lucky Table QR kod okumak için kameraya erişim gerektirir.",
+        "NSPhotoLibraryUsageDescription": "Lucky Table profil fotoğrafı yüklemek için fotoğraf kütüphanesine erişim gerektirir.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyD-WyTFtRLY4ero0tNtOMZNCUjW10FYX2g"
       }
     },
     "android": {
